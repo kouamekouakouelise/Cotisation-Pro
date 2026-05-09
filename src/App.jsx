@@ -17,6 +17,13 @@ function AuthPage({ API_BASE, onSuccess }) {
   const [showPwd2, setShowPwd2] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const otpRefs = [useRef(), useRef(), useRef(), useRef(), useRef()];
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetAssoc, setResetAssoc] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmNewPwd, setConfirmNewPwd] = useState("");
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showNewPwd2, setShowNewPwd2] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Countdown pour renvoyer le code
   useEffect(() => {
@@ -84,11 +91,34 @@ function AuthPage({ API_BASE, onSuccess }) {
     otpRefs[lastFilled].current?.focus();
   };
 
+  // Envoi du code pour réinitialisation
+  const envoyerResetCode = async () => {
+    if (!resetEmail.trim() || !resetAssoc.trim()) { setError("Email et nom de l'association requis."); return; }
+    setError("");
+    setLoading(true);
+    setStep("sending");
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim(), nom_association: resetAssoc.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Impossible d'envoyer le code."); setStep("form"); return; }
+      setOtp(["", "", "", "", ""]);
+      setStep("otp");
+      setResendTimer(60);
+      setTimeout(() => otpRefs[0].current?.focus(), 100);
+    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); setStep("form"); }
+    finally { setLoading(false); }
+  };
+
   // Étape 2 — vérifier le code OTP et finaliser
   const handleVerifyOtp = async () => {
     const code = otp.join("");
     if (code.length < 5) { setError("Veuillez entrer les 5 chiffres du code."); return; }
     setError("");
+    if (mode === "reset") { setStep("newpwd"); return; }
     setLoading(true);
     try {
       const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
@@ -107,6 +137,29 @@ function AuthPage({ API_BASE, onSuccess }) {
     finally { setLoading(false); }
   };
 
+  // Réinitialisation — définir le nouveau mot de passe
+  const handleSetNewPassword = async () => {
+    if (!newPwd || newPwd.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
+    if (newPwd !== confirmNewPwd) { setError("Les mots de passe ne correspondent pas."); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim(), code: otp.join(""), nouveau_mot_de_passe: newPwd }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Erreur lors de la réinitialisation."); return; }
+      setMode("login");
+      setStep("form");
+      setOtp(["", "", "", "", ""]);
+      setResetEmail(""); setResetAssoc(""); setNewPwd(""); setConfirmNewPwd("");
+      setSuccessMsg("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.");
+    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
+    finally { setLoading(false); }
+  };
+
   const EyeOpen = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#95a5a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -118,6 +171,84 @@ function AuthPage({ API_BASE, onSuccess }) {
       <line x1="1" y1="1" x2="23" y2="23"/>
     </svg>
   );
+
+  // ── Formulaire mot de passe oublié ──
+  if (mode === "reset" && step === "form") {
+    return (
+      <div style={authSt.page}>
+        <div style={authSt.card}>
+          <div style={authSt.cardHeader}>
+            <img src={logo} alt="" style={authSt.cardLogo} />
+            <div>
+              <h2 style={authSt.cardTitle}>Mot de passe oublié</h2>
+              <p style={authSt.cardSub}>Réinitialisez votre accès</p>
+            </div>
+          </div>
+          <p style={{ color: "#7f8c8d", fontSize: "13px", marginBottom: "20px", lineHeight: "1.5" }}>
+            Renseignez votre email et le nom de votre association. Nous vous enverrons un code de vérification.
+          </p>
+          <form onSubmit={(e) => { e.preventDefault(); envoyerResetCode(); }}>
+            <div style={authSt.field}>
+              <label style={authSt.label}>Adresse email</label>
+              <div style={authSt.inputBox}>
+                <input style={authSt.input} type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="votre@email.com" autoFocus />
+              </div>
+            </div>
+            <div style={authSt.field}>
+              <label style={authSt.label}>Nom de l'association</label>
+              <div style={authSt.inputBox}>
+                <input style={authSt.input} type="text" value={resetAssoc} onChange={(e) => setResetAssoc(e.target.value)} placeholder="Nom exact de votre association" />
+              </div>
+            </div>
+            {error && <div style={authSt.error}>⚠️ {error}</div>}
+            <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+              {loading ? "Envoi…" : "Envoyer le code de vérification"}
+            </button>
+          </form>
+          <p style={authSt.switchText}>
+            <button style={authSt.switchLink} onClick={() => { setMode("login"); setStep("form"); setError(""); }}>
+              ← Retour à la connexion
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran nouveau mot de passe ──
+  if (mode === "reset" && step === "newpwd") {
+    return (
+      <div style={authSt.page}>
+        <div style={authSt.card}>
+          <div style={authSt.cardHeader}>
+            <img src={logo} alt="" style={authSt.cardLogo} />
+            <div>
+              <h2 style={authSt.cardTitle}>Nouveau mot de passe</h2>
+              <p style={authSt.cardSub}>Choisissez un nouveau mot de passe sécurisé</p>
+            </div>
+          </div>
+          <div style={authSt.field}>
+            <label style={authSt.label}>Nouveau mot de passe</label>
+            <div style={authSt.inputBox}>
+              <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Minimum 6 caractères" autoFocus />
+              <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
+            </div>
+          </div>
+          <div style={authSt.field}>
+            <label style={authSt.label}>Confirmer le mot de passe</label>
+            <div style={authSt.inputBox}>
+              <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd2 ? "text" : "password"} value={confirmNewPwd} onChange={(e) => setConfirmNewPwd(e.target.value)} placeholder="Répétez le nouveau mot de passe" />
+              <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd2((v) => !v)}>{showNewPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+            </div>
+          </div>
+          {error && <div style={authSt.error}>⚠️ {error}</div>}
+          <button style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} onClick={handleSetNewPassword} disabled={loading}>
+            {loading ? "Réinitialisation…" : "Valider le nouveau mot de passe"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Écran d'envoi en cours ──
   if (step === "sending") {
@@ -199,7 +330,7 @@ function AuthPage({ API_BASE, onSuccess }) {
                 Renvoyer le code dans <strong>{resendTimer}s</strong>
               </p>
             ) : (
-              <button style={authSt.switchLink} onClick={envoyerCode} disabled={loading}>
+              <button style={authSt.switchLink} onClick={mode === "reset" ? envoyerResetCode : envoyerCode} disabled={loading}>
                 Renvoyer le code
               </button>
             )}
@@ -265,14 +396,24 @@ function AuthPage({ API_BASE, onSuccess }) {
             </div>
           )}
           {error && <div style={authSt.error}>⚠️ {error}</div>}
+          {successMsg && <div style={authSt.success}>✅ {successMsg}</div>}
           <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
             {loading ? "Envoi du code…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
           </button>
         </form>
 
+        {mode === "login" && (
+          <p style={{ textAlign: "center", marginTop: "12px" }}>
+            <button style={{ ...authSt.switchLink, color: "#e67e22", fontSize: "13px" }}
+              onClick={() => { setMode("reset"); setStep("form"); setError(""); setSuccessMsg(""); }}>
+              Mot de passe oublié ?
+            </button>
+          </p>
+        )}
+
         <p style={authSt.switchText}>
           {mode === "login" ? "Pas encore de compte ?" : "Déjà un compte ?"}{" "}
-          <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>
+          <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccessMsg(""); }}>
             {mode === "login" ? "Créer un compte" : "Se connecter"}
           </button>
         </p>
@@ -297,6 +438,7 @@ const authSt = {
   input:      { width: "100%", padding: "11px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", fontFamily: "Arial, sans-serif", background: "#fdfdfe" },
   eyeBtn:     { position: "absolute", right: "10px", background: "none", border: "none", cursor: "pointer", padding: "4px", zIndex: 1, display: "flex", alignItems: "center" },
   error:      { background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", marginBottom: "14px", border: "1px solid #f5c6cb" },
+  success:    { background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", marginBottom: "14px", border: "1px solid #a9dfbf" },
   submitBtn:  { width: "100%", padding: "13px", background: "linear-gradient(135deg,#2c3e50,#3498db)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: "bold", cursor: "pointer", marginTop: "4px", letterSpacing: "0.5px" },
   switchText: { textAlign: "center", marginTop: "18px", fontSize: "13px", color: "#95a5a6" },
   switchLink: { background: "none", border: "none", color: "#3498db", cursor: "pointer", fontWeight: "bold", fontSize: "13px", padding: 0 },

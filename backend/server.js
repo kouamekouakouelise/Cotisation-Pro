@@ -412,6 +412,71 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// Mot de passe oublié — envoyer OTP
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const { email, nom_association } = req.body;
+    if (!email || !nom_association) {
+      return res.status(400).json({ error: "Email et nom de l'association requis." });
+    }
+    const emailKey = email.trim().toLowerCase();
+    const [rows] = await pool.query(
+      "SELECT id FROM comptes WHERE email = ? AND nom_association = ?",
+      [emailKey, nom_association.trim()]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Aucun compte trouvé avec cet email et ce nom d'association." });
+    }
+    const code = genererOTP();
+    otpStore.set(emailKey, { code, expiresAt: Date.now() + 10 * 60 * 1000, purpose: "reset" });
+    await transporter.sendMail({
+      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+      to: emailKey,
+      subject: "Cotisation Pro — Réinitialisation de mot de passe",
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border-radius:12px;background:#f9f9f9;border:1px solid #e0e0e0">
+        <h2 style="color:#2c3e50;margin-top:0">Réinitialisation de mot de passe</h2>
+        <p style="color:#555">Votre code de vérification pour réinitialiser votre mot de passe :</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:10px;color:#2c3e50;text-align:center;padding:20px;background:#fff;border-radius:8px;border:2px solid #3498db;margin:20px 0">${code}</div>
+        <p style="color:#888;font-size:13px">Ce code est valable <strong>10 minutes</strong>. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+      </div>`,
+    });
+    res.json({ message: "Code envoyé." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mot de passe oublié — valider OTP et définir nouveau mot de passe
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { email, code, nouveau_mot_de_passe } = req.body;
+    if (!email || !code || !nouveau_mot_de_passe) {
+      return res.status(400).json({ error: "Tous les champs sont requis." });
+    }
+    if (nouveau_mot_de_passe.length < 6) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    }
+    const emailKey = email.trim().toLowerCase();
+    const stored = otpStore.get(emailKey);
+    if (!stored || stored.purpose !== "reset") {
+      return res.status(400).json({ error: "Aucun code de réinitialisation en cours. Recommencez." });
+    }
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(emailKey);
+      return res.status(400).json({ error: "Code expiré. Veuillez recommencer." });
+    }
+    if (stored.code !== code.trim()) {
+      return res.status(400).json({ error: "Code incorrect. Vérifiez et réessayez." });
+    }
+    otpStore.delete(emailKey);
+    const hash = await bcrypt.hash(nouveau_mot_de_passe, 10);
+    await pool.query("UPDATE comptes SET mot_de_passe = ? WHERE email = ?", [hash, emailKey]);
+    res.json({ message: "Mot de passe réinitialisé avec succès." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // ROUTES — ADHÉRENTS (protégées)
 // ═══════════════════════════════════════════════════════════════
