@@ -13,6 +13,7 @@ function AuthPage({ API_BASE, onSuccess }) {
   const [showPwd, setShowPwd] = useState(false);
   const [showPwd2, setShowPwd2] = useState(false);
   const [resetForm, setResetForm] = useState({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" });
+  const [resetStep, setResetStep] = useState("identity"); // "identity" | "password"
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showNewPwd2, setShowNewPwd2] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -49,11 +50,29 @@ function AuthPage({ API_BASE, onSuccess }) {
     finally { setLoading(false); }
   };
 
-  // Réinitialisation mot de passe (sans OTP)
-  const handleReset = async (e) => {
+  // Étape 1 — vérifier email + nom association
+  const handleVerifyIdentity = async (e) => {
     e.preventDefault();
     setError("");
     if (!resetForm.email.trim() || !resetForm.nom_association.trim()) { setError("Email et nom de l'association requis."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify-identity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetForm.email.trim(), nom_association: resetForm.nom_association.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Email ou nom d'association incorrect."); return; }
+      setResetStep("password");
+    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
+    finally { setLoading(false); }
+  };
+
+  // Étape 2 — saisir et enregistrer le nouveau mot de passe
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setError("");
     if (!resetForm.nouveau_mot_de_passe || resetForm.nouveau_mot_de_passe.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
     if (resetForm.nouveau_mot_de_passe !== resetForm.confirmer) { setError("Les mots de passe ne correspondent pas."); return; }
     setLoading(true);
@@ -66,6 +85,7 @@ function AuthPage({ API_BASE, onSuccess }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur lors de la réinitialisation."); return; }
       setMode("login");
+      setResetStep("identity");
       setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" });
       setSuccessMsg("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.");
     } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
@@ -84,8 +104,8 @@ function AuthPage({ API_BASE, onSuccess }) {
     </svg>
   );
 
-  // ── Formulaire mot de passe oublié ──
-  if (mode === "reset") {
+  // ── Formulaire mot de passe oublié — Étape 1 : vérification identité ──
+  if (mode === "reset" && resetStep === "identity") {
     return (
       <div style={authSt.page}>
         <div style={authSt.card}>
@@ -93,10 +113,10 @@ function AuthPage({ API_BASE, onSuccess }) {
             <img src={logo} alt="" style={authSt.cardLogo} />
             <div>
               <h2 style={authSt.cardTitle}>Mot de passe oublié</h2>
-              <p style={authSt.cardSub}>Réinitialisez votre accès</p>
+              <p style={authSt.cardSub}>Étape 1 sur 2 — Vérification de votre identité</p>
             </div>
           </div>
-          <form onSubmit={handleReset}>
+          <form onSubmit={handleVerifyIdentity}>
             <div style={authSt.field}>
               <label style={authSt.label}>Adresse email</label>
               <div style={authSt.inputBox}>
@@ -109,10 +129,38 @@ function AuthPage({ API_BASE, onSuccess }) {
                 <input style={authSt.input} type="text" name="nom_association" value={resetForm.nom_association} onChange={handleResetChange} placeholder="Nom exact de votre association" />
               </div>
             </div>
+            {error && <div style={authSt.error}>⚠️ {error}</div>}
+            <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+              {loading ? "Vérification…" : "Vérifier mon identité →"}
+            </button>
+          </form>
+          <p style={authSt.switchText}>
+            <button style={authSt.switchLink} onClick={() => { setMode("login"); setResetStep("identity"); setError(""); }}>
+              ← Retour à la connexion
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Formulaire mot de passe oublié — Étape 2 : nouveau mot de passe ──
+  if (mode === "reset" && resetStep === "password") {
+    return (
+      <div style={authSt.page}>
+        <div style={authSt.card}>
+          <div style={authSt.cardHeader}>
+            <img src={logo} alt="" style={authSt.cardLogo} />
+            <div>
+              <h2 style={authSt.cardTitle}>Nouveau mot de passe</h2>
+              <p style={authSt.cardSub}>Étape 2 sur 2 — Choisissez un nouveau mot de passe</p>
+            </div>
+          </div>
+          <form onSubmit={handleReset}>
             <div style={authSt.field}>
               <label style={authSt.label}>Nouveau mot de passe</label>
               <div style={authSt.inputBox}>
-                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} name="nouveau_mot_de_passe" value={resetForm.nouveau_mot_de_passe} onChange={handleResetChange} placeholder="Minimum 6 caractères" />
+                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} name="nouveau_mot_de_passe" value={resetForm.nouveau_mot_de_passe} onChange={handleResetChange} placeholder="Minimum 6 caractères" autoFocus />
                 <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
               </div>
             </div>
@@ -125,12 +173,12 @@ function AuthPage({ API_BASE, onSuccess }) {
             </div>
             {error && <div style={authSt.error}>⚠️ {error}</div>}
             <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-              {loading ? "Réinitialisation…" : "Réinitialiser le mot de passe"}
+              {loading ? "Enregistrement…" : "Enregistrer le nouveau mot de passe"}
             </button>
           </form>
           <p style={authSt.switchText}>
-            <button style={authSt.switchLink} onClick={() => { setMode("login"); setError(""); }}>
-              ← Retour à la connexion
+            <button style={authSt.switchLink} onClick={() => { setResetStep("identity"); setError(""); }}>
+              ← Retour à l'étape précédente
             </button>
           </p>
         </div>
@@ -196,7 +244,7 @@ function AuthPage({ API_BASE, onSuccess }) {
         {mode === "login" && (
           <p style={{ textAlign: "center", marginTop: "12px" }}>
             <button style={{ ...authSt.switchLink, color: "#e67e22", fontSize: "13px" }}
-              onClick={() => { setMode("reset"); setStep("form"); setError(""); setSuccessMsg(""); }}>
+              onClick={() => { setMode("reset"); setResetStep("identity"); setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" }); setError(""); setSuccessMsg(""); }}>
               Mot de passe oublié ?
             </button>
           </p>

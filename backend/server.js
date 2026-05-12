@@ -278,7 +278,28 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Réinitialisation de mot de passe (email + nom association + nouveau mot de passe)
+// Étape 1 — vérifier email + nom association (sans modifier le mot de passe)
+app.post("/api/auth/verify-identity", async (req, res) => {
+  try {
+    const { email, nom_association } = req.body;
+    if (!email || !nom_association) {
+      return res.status(400).json({ error: "Email et nom de l'association requis." });
+    }
+    const emailKey = email.trim().toLowerCase();
+    const [rows] = await pool.query(
+      "SELECT id FROM comptes WHERE email = ? AND nom_association = ?",
+      [emailKey, nom_association.trim()]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Email ou nom d'association incorrect." });
+    }
+    res.json({ message: "Identité vérifiée." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Étape 2 — réinitialisation de mot de passe (email + nom association + nouveau mot de passe)
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
     const { email, nom_association, nouveau_mot_de_passe } = req.body;
