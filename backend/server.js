@@ -13,12 +13,33 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const EMAIL_USER = (process.env.EMAIL_USER || "").trim();
+const EMAIL_PASS = (process.env.EMAIL_PASS || "").replace(/\s+/g, "");
+
+function verifierConfigEmail() {
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    throw new Error("EMAIL_USER et EMAIL_PASS doivent etre definis dans backend/.env");
+  }
+}
+
+function logErreurEmail(err) {
+  console.error("Erreur email:", {
+    code: err.code,
+    responseCode: err.responseCode,
+    command: err.command,
+    message: err.message,
+  });
+}
+
 // ── Transporteur email ─────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   service: "gmail",
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
   },
 });
 
@@ -31,16 +52,23 @@ function genererOTP() {
 }
 
 async function envoyerOTP(email, code, purpose) {
-  const sujet = purpose === "register"
+  verifierConfigEmail();
+
+  let sujet = purpose === "register"
     ? "Cotisation Pro — Code de vérification pour la création de compte"
     : "Cotisation Pro — Code de vérification pour la connexion";
 
-  const action = purpose === "register"
+  let action = purpose === "register"
     ? "confirmer la création de votre compte"
     : "vous connecter";
 
+  if (purpose === "reset") {
+    sujet = "Cotisation Pro - Reinitialisation de mot de passe";
+    action = "reinitialiser votre mot de passe";
+  }
+
   await transporter.sendMail({
-    from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+    from: `"Cotisation Pro" <${EMAIL_USER}>`,
     to: email,
     subject: sujet,
     html: `
@@ -249,6 +277,9 @@ app.post("/api/auth/send-otp", async (req, res) => {
     if (!email || !purpose) {
       return res.status(400).json({ error: "Email et purpose requis." });
     }
+    if (!["register", "login"].includes(purpose)) {
+      return res.status(400).json({ error: "Type de verification invalide." });
+    }
 
     // Pour la connexion : vérifier les identifiants avant d'envoyer le code
     if (purpose === "login") {
@@ -274,17 +305,18 @@ app.post("/api/auth/send-otp", async (req, res) => {
       }
     }
 
+    const emailKey = email.trim().toLowerCase();
     const code = genererOTP();
-    otpStore.set(email.trim().toLowerCase(), {
+    await envoyerOTP(emailKey, code, purpose);
+
+    otpStore.set(emailKey, {
       code,
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
       purpose,
     });
-
-    await envoyerOTP(email.trim().toLowerCase(), code, purpose);
-    res.json({ message: "Code envoyé par email." });
+    return res.status(200).json({ message: "Code envoye par email." });
   } catch (err) {
-    console.error("Erreur envoi OTP:", err);
+    logErreurEmail(err);
     res.status(500).json({ error: "Impossible d'envoyer le code. Vérifiez la configuration email." });
   }
 });
@@ -428,21 +460,12 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       return res.status(404).json({ error: "Aucun compte trouvé avec cet email et ce nom d'association." });
     }
     const code = genererOTP();
+    await envoyerOTP(emailKey, code, "reset");
     otpStore.set(emailKey, { code, expiresAt: Date.now() + 10 * 60 * 1000, purpose: "reset" });
-    await transporter.sendMail({
-      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
-      to: emailKey,
-      subject: "Cotisation Pro — Réinitialisation de mot de passe",
-      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border-radius:12px;background:#f9f9f9;border:1px solid #e0e0e0">
-        <h2 style="color:#2c3e50;margin-top:0">Réinitialisation de mot de passe</h2>
-        <p style="color:#555">Votre code de vérification pour réinitialiser votre mot de passe :</p>
-        <div style="font-size:36px;font-weight:bold;letter-spacing:10px;color:#2c3e50;text-align:center;padding:20px;background:#fff;border-radius:8px;border:2px solid #3498db;margin:20px 0">${code}</div>
-        <p style="color:#888;font-size:13px">Ce code est valable <strong>10 minutes</strong>. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
-      </div>`,
-    });
-    res.json({ message: "Code envoyé." });
+    return res.status(200).json({ message: "Code envoye." });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logErreurEmail(err);
+    res.status(500).json({ error: "Impossible d'envoyer le code. Verifiez la configuration email." });
   }
 });
 
