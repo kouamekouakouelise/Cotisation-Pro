@@ -2,6 +2,6 @@
   "workbench.externalBrowser": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "simpleBrowser.focusLockIndicator.enabled": false,
   "remote.autoForwardPorts": false,
-  "terminal.integrated.commandsToSkipShell": [],
-  "workbench.editor.openSideBySideDirection": "right"
+  "remote.autoForwardPortsSource": "output",
+  "workbench.editor.enablePreview": false
 }
