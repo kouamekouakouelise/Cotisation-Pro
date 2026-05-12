@@ -1,9 +1,3 @@
-databases:
-  - name: cotisation-pro-db
-    databaseName: cotisation_pro
-    user: cotisa
-    plan: free
-
 services:
   - type: web
     name: cotisation-pro
@@ -15,10 +9,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: cotisation-pro-db
-          property: connectionString
+      - key: MYSQL_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
