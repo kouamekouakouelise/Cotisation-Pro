@@ -3,6 +3,8 @@ const mysql = require("mysql2/promise");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -708,8 +710,15 @@ app.get("/api/historique", authMiddleware, async (req, res) => {
   }
 });
 
-async function nettoyerPaiementsIneligibles() {
-  // Plus de restriction par date — tous les adhérents actifs sont éligibles
+// ═══════════════════════════════════════════════════════════════
+// FRONTEND — servir le build React en production
+// ═══════════════════════════════════════════════════════════════
+const distPath = path.join(__dirname, "..", "dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -718,9 +727,8 @@ async function nettoyerPaiementsIneligibles() {
 const PORT = process.env.PORT || 3000;
 
 initDB()
-  .then(() => nettoyerPaiementsIneligibles())
   .then(() => {
-    app.listen(PORT, () =>
+    app.listen(PORT, "0.0.0.0", () =>
       console.log(`Serveur Cotisation Pro démarré sur http://localhost:${PORT}`)
     );
   })
