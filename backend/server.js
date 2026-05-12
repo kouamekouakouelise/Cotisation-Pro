@@ -3,7 +3,6 @@ const mysql = require("mysql2/promise");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
@@ -13,83 +12,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const EMAIL_USER = (process.env.EMAIL_USER || "").trim();
-const EMAIL_PASS = (process.env.EMAIL_PASS || "").replace(/\s+/g, "");
-
-function verifierConfigEmail() {
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    throw new Error("EMAIL_USER et EMAIL_PASS doivent etre definis dans backend/.env");
-  }
-}
-
-function logErreurEmail(err) {
-  console.error("Erreur email:", {
-    code: err.code,
-    responseCode: err.responseCode,
-    command: err.command,
-    message: err.message,
-  });
-}
-
-// ── Transporteur email ─────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
-});
-
-// ── Store OTP en mémoire ───────────────────────────────────────
-// Structure : email → { code, expiresAt, purpose }
-const otpStore = new Map();
-
-function genererOTP() {
-  return String(Math.floor(10000 + Math.random() * 90000)); // 5 chiffres
-}
-
-async function envoyerOTP(email, code, purpose) {
-  verifierConfigEmail();
-
-  let sujet = purpose === "register"
-    ? "Cotisation Pro — Code de vérification pour la création de compte"
-    : "Cotisation Pro — Code de vérification pour la connexion";
-
-  let action = purpose === "register"
-    ? "confirmer la création de votre compte"
-    : "vous connecter";
-
-  if (purpose === "reset") {
-    sujet = "Cotisation Pro - Reinitialisation de mot de passe";
-    action = "reinitialiser votre mot de passe";
-  }
-
-  await transporter.sendMail({
-    from: `"Cotisation Pro" <${EMAIL_USER}>`,
-    to: email,
-    subject: sujet,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f7f9fc;border-radius:12px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h2 style="color:#2c3e50;margin:0;">Cotisation Pro</h2>
-          <p style="color:#7f8c8d;font-size:14px;margin:4px 0 0;">Gestion des cotisations d'associations</p>
-        </div>
-        <div style="background:white;border-radius:10px;padding:28px 24px;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-          <p style="color:#2c3e50;font-size:15px;margin:0 0 20px;">Bonjour,</p>
-          <p style="color:#444;font-size:14px;margin:0 0 24px;">Voici votre code de vérification pour <strong>${action}</strong> :</p>
-          <div style="text-align:center;background:#f0f4ff;border-radius:10px;padding:20px;margin-bottom:24px;">
-            <span style="font-size:38px;font-weight:bold;letter-spacing:14px;color:#2c3e50;">${code}</span>
-          </div>
-          <p style="color:#7f8c8d;font-size:13px;margin:0;">Ce code est valable <strong>10 minutes</strong>. Ne le partagez avec personne.</p>
-        </div>
-        <p style="color:#b0b8c1;font-size:12px;text-align:center;margin-top:20px;">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-      </div>
-    `,
-  });
-}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET manquant dans les variables d'environnement");
@@ -270,92 +192,22 @@ async function genererMatricule(conn, compteId) {
 // ROUTES — AUTHENTIFICATION (publiques)
 // ═══════════════════════════════════════════════════════════════
 
-// Envoyer un code OTP par email
-app.post("/api/auth/send-otp", async (req, res) => {
-  try {
-    const { email, purpose, mot_de_passe } = req.body;
-    if (!email || !purpose) {
-      return res.status(400).json({ error: "Email et purpose requis." });
-    }
-    if (!["register", "login"].includes(purpose)) {
-      return res.status(400).json({ error: "Type de verification invalide." });
-    }
-
-    // Pour la connexion : vérifier les identifiants avant d'envoyer le code
-    if (purpose === "login") {
-      if (!mot_de_passe) {
-        return res.status(400).json({ error: "Mot de passe requis." });
-      }
-      const [accounts] = await pool.query(
-        "SELECT id, mot_de_passe FROM comptes WHERE email = ?",
-        [email.trim().toLowerCase()]
-      );
-      if (accounts.length === 0) {
-        return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-      }
-      let credentialsOk = false;
-      for (const account of accounts) {
-        if (await bcrypt.compare(mot_de_passe, account.mot_de_passe)) {
-          credentialsOk = true;
-          break;
-        }
-      }
-      if (!credentialsOk) {
-        return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-      }
-    }
-
-    const emailKey = email.trim().toLowerCase();
-    const code = genererOTP();
-    await envoyerOTP(emailKey, code, purpose);
-
-    otpStore.set(emailKey, {
-      code,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
-      purpose,
-    });
-    return res.status(200).json({ message: "Code envoye par email." });
-  } catch (err) {
-    logErreurEmail(err);
-    res.status(500).json({ error: "Impossible d'envoyer le code. Vérifiez la configuration email." });
-  }
-});
-
 // Créer un compte
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { nom_association, email, mot_de_passe, code } = req.body;
+    const { nom_association, email, mot_de_passe } = req.body;
 
     if (!nom_association || !email || !mot_de_passe) {
       return res.status(400).json({ error: "Tous les champs sont obligatoires." });
     }
-    if (!code) {
-      return res.status(400).json({ error: "Code de vérification requis." });
-    }
-
-    // Vérifier le code OTP
-    const emailKey = email.trim().toLowerCase();
-    const stored = otpStore.get(emailKey);
-    if (!stored || stored.purpose !== "register") {
-      return res.status(400).json({ error: "Aucun code envoyé pour cet email. Veuillez demander un nouveau code." });
-    }
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(emailKey);
-      return res.status(400).json({ error: "Code expiré. Veuillez demander un nouveau code." });
-    }
-    if (stored.code !== code.trim()) {
-      return res.status(400).json({ error: "Code incorrect. Vérifiez votre email et réessayez." });
-    }
-    otpStore.delete(emailKey);
-
     if (mot_de_passe.length < 6) {
       return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
     }
 
-    // Récupérer tous les comptes ayant le même email
+    const emailKey = email.trim().toLowerCase();
     const [existingAccounts] = await pool.query(
       "SELECT id, nom_association, mot_de_passe FROM comptes WHERE email = ?",
-      [email.trim().toLowerCase()]
+      [emailKey]
     );
 
     for (const account of existingAccounts) {
@@ -376,16 +228,16 @@ app.post("/api/auth/register", async (req, res) => {
     const hash = await bcrypt.hash(mot_de_passe, SALT_ROUNDS);
     const [result] = await pool.query(
       "INSERT INTO comptes (nom_association, email, mot_de_passe) VALUES (?, ?, ?)",
-      [nom_association.trim(), email.trim().toLowerCase(), hash]
+      [nom_association.trim(), emailKey, hash]
     );
 
     const token = jwt.sign(
-      { compteId: result.insertId, email: email.trim().toLowerCase(), nom_association: nom_association.trim() },
+      { compteId: result.insertId, email: emailKey, nom_association: nom_association.trim() },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.json({ token, nom_association: nom_association.trim(), email: email.trim().toLowerCase() });
+    res.json({ token, nom_association: nom_association.trim(), email: emailKey });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -394,32 +246,14 @@ app.post("/api/auth/register", async (req, res) => {
 // Connexion
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, mot_de_passe, code } = req.body;
+    const { email, mot_de_passe } = req.body;
     if (!email || !mot_de_passe) {
       return res.status(400).json({ error: "Email et mot de passe requis." });
     }
-    if (!code) {
-      return res.status(400).json({ error: "Code de vérification requis." });
-    }
-
-    // Vérifier le code OTP
-    const emailKey = email.trim().toLowerCase();
-    const stored = otpStore.get(emailKey);
-    if (!stored || stored.purpose !== "login") {
-      return res.status(400).json({ error: "Aucun code envoyé pour cet email. Veuillez demander un nouveau code." });
-    }
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(emailKey);
-      return res.status(400).json({ error: "Code expiré. Veuillez demander un nouveau code." });
-    }
-    if (stored.code !== code.trim()) {
-      return res.status(400).json({ error: "Code incorrect. Vérifiez votre email et réessayez." });
-    }
-    otpStore.delete(emailKey);
 
     const [accounts] = await pool.query(
       "SELECT id, nom_association, email, mot_de_passe FROM comptes WHERE email = ?",
-      [emailKey]
+      [email.trim().toLowerCase()]
     );
 
     if (accounts.length === 0) {
@@ -444,12 +278,15 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Mot de passe oublié — envoyer OTP
-app.post("/api/auth/forgot-password", async (req, res) => {
+// Réinitialisation de mot de passe (email + nom association + nouveau mot de passe)
+app.post("/api/auth/reset-password", async (req, res) => {
   try {
-    const { email, nom_association } = req.body;
-    if (!email || !nom_association) {
-      return res.status(400).json({ error: "Email et nom de l'association requis." });
+    const { email, nom_association, nouveau_mot_de_passe } = req.body;
+    if (!email || !nom_association || !nouveau_mot_de_passe) {
+      return res.status(400).json({ error: "Tous les champs sont requis." });
+    }
+    if (nouveau_mot_de_passe.length < 6) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
     }
     const emailKey = email.trim().toLowerCase();
     const [rows] = await pool.query(
@@ -459,41 +296,11 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Aucun compte trouvé avec cet email et ce nom d'association." });
     }
-    const code = genererOTP();
-    await envoyerOTP(emailKey, code, "reset");
-    otpStore.set(emailKey, { code, expiresAt: Date.now() + 10 * 60 * 1000, purpose: "reset" });
-    return res.status(200).json({ message: "Code envoye." });
-  } catch (err) {
-    logErreurEmail(err);
-    res.status(500).json({ error: "Impossible d'envoyer le code. Verifiez la configuration email." });
-  }
-});
-
-// Mot de passe oublié — valider OTP et définir nouveau mot de passe
-app.post("/api/auth/reset-password", async (req, res) => {
-  try {
-    const { email, code, nouveau_mot_de_passe } = req.body;
-    if (!email || !code || !nouveau_mot_de_passe) {
-      return res.status(400).json({ error: "Tous les champs sont requis." });
-    }
-    if (nouveau_mot_de_passe.length < 6) {
-      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
-    }
-    const emailKey = email.trim().toLowerCase();
-    const stored = otpStore.get(emailKey);
-    if (!stored || stored.purpose !== "reset") {
-      return res.status(400).json({ error: "Aucun code de réinitialisation en cours. Recommencez." });
-    }
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(emailKey);
-      return res.status(400).json({ error: "Code expiré. Veuillez recommencer." });
-    }
-    if (stored.code !== code.trim()) {
-      return res.status(400).json({ error: "Code incorrect. Vérifiez et réessayez." });
-    }
-    otpStore.delete(emailKey);
     const hash = await bcrypt.hash(nouveau_mot_de_passe, 10);
-    await pool.query("UPDATE comptes SET mot_de_passe = ? WHERE email = ?", [hash, emailKey]);
+    await pool.query(
+      "UPDATE comptes SET mot_de_passe = ? WHERE email = ? AND nom_association = ?",
+      [hash, emailKey, nom_association.trim()]
+    );
     res.json({ message: "Mot de passe réinitialisé avec succès." });
   } catch (err) {
     res.status(500).json({ error: err.message });

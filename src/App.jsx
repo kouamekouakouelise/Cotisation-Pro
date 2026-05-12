@@ -6,35 +6,21 @@ import logo from "./assets/cota.png";
 // PAGE D'AUTHENTIFICATION
 // ═══════════════════════════════════════════════════════
 function AuthPage({ API_BASE, onSuccess }) {
-  const [mode, setMode] = useState("login");
-  // step: "form" → saisie identifiants | "sending" → envoi OTP | "otp" → saisie code
-  const [step, setStep] = useState("form");
+  const [mode, setMode] = useState("login"); // "login" | "register" | "reset"
   const [form, setForm] = useState({ email: "", mot_de_passe: "", confirmer_mot_de_passe: "", nom_association: "" });
-  const [otp, setOtp] = useState(["", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [showPwd2, setShowPwd2] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-  const otpRefs = [useRef(), useRef(), useRef(), useRef(), useRef()];
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetAssoc, setResetAssoc] = useState("");
-  const [newPwd, setNewPwd] = useState("");
-  const [confirmNewPwd, setConfirmNewPwd] = useState("");
+  const [resetForm, setResetForm] = useState({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" });
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showNewPwd2, setShowNewPwd2] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Countdown pour renvoyer le code
-  useEffect(() => {
-    if (resendTimer <= 0) return;
-    const t = setTimeout(() => setResendTimer((v) => v - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendTimer]);
-
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleResetChange = (e) => setResetForm({ ...resetForm, [e.target.name]: e.target.value });
 
-  // Étape 1 — valider le formulaire et envoyer le code OTP
+  // Connexion / Inscription directe (sans OTP)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -45,116 +31,42 @@ function AuthPage({ API_BASE, onSuccess }) {
     } else {
       if (!form.email.trim() || !form.mot_de_passe) { setError("Email et mot de passe requis."); return; }
     }
-    await envoyerCode();
-  };
-
-  const envoyerCode = async () => {
-    setError("");
-    setLoading(true);
-    setStep("sending");
-    try {
-      const res = await fetch(`${API_BASE}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email.trim(), purpose: mode, mot_de_passe: form.mot_de_passe }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Impossible d'envoyer le code."); setStep("form"); return; }
-      setOtp(["", "", "", "", ""]);
-      setStep("otp");
-      setResendTimer(60);
-      setTimeout(() => otpRefs[0].current?.focus(), 100);
-    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); setStep("form"); }
-    finally { setLoading(false); }
-  };
-
-  // Saisie dans les cases OTP
-  const handleOtpChange = (i, val) => {
-    if (!/^\d*$/.test(val)) return;
-    const next = [...otp];
-    next[i] = val.slice(-1);
-    setOtp(next);
-    if (val && i < 4) otpRefs[i + 1].current?.focus();
-  };
-
-  const handleOtpKeyDown = (i, e) => {
-    if (e.key === "Backspace" && !otp[i] && i > 0) otpRefs[i - 1].current?.focus();
-  };
-
-  const handleOtpPaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 5);
-    const next = ["", "", "", "", ""];
-    pasted.split("").forEach((c, i) => { next[i] = c; });
-    setOtp(next);
-    const lastFilled = Math.min(pasted.length, 4);
-    otpRefs[lastFilled].current?.focus();
-  };
-
-  // Envoi du code pour réinitialisation
-  const envoyerResetCode = async () => {
-    if (!resetEmail.trim() || !resetAssoc.trim()) { setError("Email et nom de l'association requis."); return; }
-    setError("");
-    setLoading(true);
-    setStep("sending");
-    try {
-      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim(), nom_association: resetAssoc.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Impossible d'envoyer le code."); setStep("form"); return; }
-      setOtp(["", "", "", "", ""]);
-      setStep("otp");
-      setResendTimer(60);
-      setTimeout(() => otpRefs[0].current?.focus(), 100);
-    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); setStep("form"); }
-    finally { setLoading(false); }
-  };
-
-  // Étape 2 — vérifier le code OTP et finaliser
-  const handleVerifyOtp = async () => {
-    const code = otp.join("");
-    if (code.length < 5) { setError("Veuillez entrer les 5 chiffres du code."); return; }
-    setError("");
-    if (mode === "reset") { setStep("newpwd"); return; }
     setLoading(true);
     try {
       const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
       const body = mode === "register"
-        ? { nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe, code }
-        : { email: form.email.trim(), mot_de_passe: form.mot_de_passe, code };
+        ? { nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe }
+        : { email: form.email.trim(), mot_de_passe: form.mot_de_passe };
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Code incorrect."); return; }
+      if (!res.ok) { setError(data.error || "Erreur."); return; }
       onSuccess(data, mode);
     } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
     finally { setLoading(false); }
   };
 
-  // Réinitialisation — définir le nouveau mot de passe
-  const handleSetNewPassword = async () => {
-    if (!newPwd || newPwd.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
-    if (newPwd !== confirmNewPwd) { setError("Les mots de passe ne correspondent pas."); return; }
+  // Réinitialisation mot de passe (sans OTP)
+  const handleReset = async (e) => {
+    e.preventDefault();
     setError("");
+    if (!resetForm.email.trim() || !resetForm.nom_association.trim()) { setError("Email et nom de l'association requis."); return; }
+    if (!resetForm.nouveau_mot_de_passe || resetForm.nouveau_mot_de_passe.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
+    if (resetForm.nouveau_mot_de_passe !== resetForm.confirmer) { setError("Les mots de passe ne correspondent pas."); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim(), code: otp.join(""), nouveau_mot_de_passe: newPwd }),
+        body: JSON.stringify({ email: resetForm.email.trim(), nom_association: resetForm.nom_association.trim(), nouveau_mot_de_passe: resetForm.nouveau_mot_de_passe }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur lors de la réinitialisation."); return; }
       setMode("login");
-      setStep("form");
-      setOtp(["", "", "", "", ""]);
-      setResetEmail(""); setResetAssoc(""); setNewPwd(""); setConfirmNewPwd("");
+      setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" });
       setSuccessMsg("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.");
     } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
     finally { setLoading(false); }
@@ -173,7 +85,7 @@ function AuthPage({ API_BASE, onSuccess }) {
   );
 
   // ── Formulaire mot de passe oublié ──
-  if (mode === "reset" && step === "form") {
+  if (mode === "reset") {
     return (
       <div style={authSt.page}>
         <div style={authSt.card}>
@@ -184,164 +96,43 @@ function AuthPage({ API_BASE, onSuccess }) {
               <p style={authSt.cardSub}>Réinitialisez votre accès</p>
             </div>
           </div>
-          <p style={{ color: "#7f8c8d", fontSize: "13px", marginBottom: "20px", lineHeight: "1.5" }}>
-            Renseignez votre email et le nom de votre association. Nous vous enverrons un code de vérification.
-          </p>
-          <form onSubmit={(e) => { e.preventDefault(); envoyerResetCode(); }}>
+          <form onSubmit={handleReset}>
             <div style={authSt.field}>
               <label style={authSt.label}>Adresse email</label>
               <div style={authSt.inputBox}>
-                <input style={authSt.input} type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="votre@email.com" autoFocus />
+                <input style={authSt.input} type="email" name="email" value={resetForm.email} onChange={handleResetChange} placeholder="votre@email.com" autoFocus />
               </div>
             </div>
             <div style={authSt.field}>
               <label style={authSt.label}>Nom de l'association</label>
               <div style={authSt.inputBox}>
-                <input style={authSt.input} type="text" value={resetAssoc} onChange={(e) => setResetAssoc(e.target.value)} placeholder="Nom exact de votre association" />
+                <input style={authSt.input} type="text" name="nom_association" value={resetForm.nom_association} onChange={handleResetChange} placeholder="Nom exact de votre association" />
+              </div>
+            </div>
+            <div style={authSt.field}>
+              <label style={authSt.label}>Nouveau mot de passe</label>
+              <div style={authSt.inputBox}>
+                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} name="nouveau_mot_de_passe" value={resetForm.nouveau_mot_de_passe} onChange={handleResetChange} placeholder="Minimum 6 caractères" />
+                <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
+              </div>
+            </div>
+            <div style={authSt.field}>
+              <label style={authSt.label}>Confirmer le mot de passe</label>
+              <div style={authSt.inputBox}>
+                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd2 ? "text" : "password"} name="confirmer" value={resetForm.confirmer} onChange={handleResetChange} placeholder="Répétez le nouveau mot de passe" />
+                <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd2((v) => !v)}>{showNewPwd2 ? <EyeOff /> : <EyeOpen />}</button>
               </div>
             </div>
             {error && <div style={authSt.error}>⚠️ {error}</div>}
             <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-              {loading ? "Envoi…" : "Envoyer le code de vérification"}
+              {loading ? "Réinitialisation…" : "Réinitialiser le mot de passe"}
             </button>
           </form>
           <p style={authSt.switchText}>
-            <button style={authSt.switchLink} onClick={() => { setMode("login"); setStep("form"); setError(""); }}>
+            <button style={authSt.switchLink} onClick={() => { setMode("login"); setError(""); }}>
               ← Retour à la connexion
             </button>
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Écran nouveau mot de passe ──
-  if (mode === "reset" && step === "newpwd") {
-    return (
-      <div style={authSt.page}>
-        <div style={authSt.card}>
-          <div style={authSt.cardHeader}>
-            <img src={logo} alt="" style={authSt.cardLogo} />
-            <div>
-              <h2 style={authSt.cardTitle}>Nouveau mot de passe</h2>
-              <p style={authSt.cardSub}>Choisissez un nouveau mot de passe sécurisé</p>
-            </div>
-          </div>
-          <div style={authSt.field}>
-            <label style={authSt.label}>Nouveau mot de passe</label>
-            <div style={authSt.inputBox}>
-              <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Minimum 6 caractères" autoFocus />
-              <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
-            </div>
-          </div>
-          <div style={authSt.field}>
-            <label style={authSt.label}>Confirmer le mot de passe</label>
-            <div style={authSt.inputBox}>
-              <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd2 ? "text" : "password"} value={confirmNewPwd} onChange={(e) => setConfirmNewPwd(e.target.value)} placeholder="Répétez le nouveau mot de passe" />
-              <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd2((v) => !v)}>{showNewPwd2 ? <EyeOff /> : <EyeOpen />}</button>
-            </div>
-          </div>
-          {error && <div style={authSt.error}>⚠️ {error}</div>}
-          <button style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} onClick={handleSetNewPassword} disabled={loading}>
-            {loading ? "Réinitialisation…" : "Valider le nouveau mot de passe"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Écran d'envoi en cours ──
-  if (step === "sending") {
-    return (
-      <div style={authSt.page}>
-        <div style={authSt.card}>
-          <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>📧</div>
-            <h2 style={authSt.cardTitle}>Envoi en cours…</h2>
-            <p style={{ color: "#7f8c8d", fontSize: "14px", margin: "8px 0 0" }}>
-              Nous envoyons un code de vérification à<br />
-              <strong style={{ color: "#2c3e50" }}>{form.email}</strong>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Écran de saisie OTP ──
-  if (step === "otp") {
-    return (
-      <div style={authSt.page}>
-        <div style={authSt.card}>
-          <div style={authSt.cardHeader}>
-            <img src={logo} alt="" style={authSt.cardLogo} />
-            <div>
-              <h2 style={authSt.cardTitle}>Vérification email</h2>
-              <p style={authSt.cardSub}>Entrez le code reçu par email</p>
-            </div>
-          </div>
-
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
-
-            <p style={{ color: "#555", fontSize: "14px", margin: 0 }}>
-              Un code à 5 chiffres a été envoyé à
-            </p>
-            <p style={{ color: "#2c3e50", fontWeight: "bold", fontSize: "14px", margin: "4px 0 0" }}>
-              {form.email}
-            </p>
-          </div>
-
-          {/* 5 cases OTP */}
-          <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "20px" }}>
-            {otp.map((digit, i) => (
-              <input
-                key={i}
-                ref={otpRefs[i]}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleOtpChange(i, e.target.value)}
-                onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                onPaste={i === 0 ? handleOtpPaste : undefined}
-                style={{
-                  width: "52px", height: "58px", textAlign: "center", fontSize: "24px",
-                  fontWeight: "bold", border: digit ? "2px solid #2c3e50" : "2px solid #e0e6ed",
-                  borderRadius: "10px", outline: "none", background: digit ? "#f0f4ff" : "#fdfdfe",
-                  color: "#2c3e50", transition: "border 0.2s, background 0.2s",
-                }}
-              />
-            ))}
-          </div>
-
-          {error && <div style={authSt.error}>⚠️ {error}</div>}
-
-          <button
-            style={{ ...authSt.submitBtn, opacity: loading || otp.join("").length < 5 ? 0.7 : 1 }}
-            onClick={handleVerifyOtp}
-            disabled={loading || otp.join("").length < 5}
-          >
-            {loading ? "Vérification…" : "Valider le code"}
-          </button>
-
-          <div style={{ textAlign: "center", marginTop: "18px" }}>
-            {resendTimer > 0 ? (
-              <p style={{ color: "#95a5a6", fontSize: "13px", margin: 0 }}>
-                Renvoyer le code dans <strong>{resendTimer}s</strong>
-              </p>
-            ) : (
-              <button style={authSt.switchLink} onClick={mode === "reset" ? envoyerResetCode : envoyerCode} disabled={loading}>
-                Renvoyer le code
-              </button>
-            )}
-            <br />
-            <button
-              style={{ ...authSt.switchLink, marginTop: "8px", color: "#95a5a6" }}
-              onClick={() => { setStep("form"); setError(""); setOtp(["", "", "", "", ""]); }}
-            >
-              ← Modifier mes informations
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -398,7 +189,7 @@ function AuthPage({ API_BASE, onSuccess }) {
           {error && <div style={authSt.error}>⚠️ {error}</div>}
           {successMsg && <div style={authSt.success}>✅ {successMsg}</div>}
           <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-            {loading ? "Envoi du code…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
+            {loading ? (mode === "login" ? "Connexion…" : "Création…") : mode === "login" ? "Se connecter" : "Créer mon compte"}
           </button>
         </form>
 
