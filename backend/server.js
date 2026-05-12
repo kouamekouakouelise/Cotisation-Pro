@@ -1,5 +1,4 @@
 const express = require("express");
-const mysql = require("mysql2/promise");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -14,146 +13,258 @@ app.use(cors({
 }));
 app.use(express.json());
 
-
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET manquant dans les variables d'environnement");
 const SALT_ROUNDS = 10;
 
-// ── Pool MySQL ─────────────────────────────────────────────────
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "KouameKouakouElise",
-  database: process.env.DB_NAME || "cotisation_pro",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  timezone: "local",
-});
+// ── Détection automatique PostgreSQL (Render) ou MySQL (local) ─
+const IS_PG = !!process.env.DATABASE_URL;
+
+let pool;
+if (IS_PG) {
+  const { Pool: PgPool } = require("pg");
+  const pgPool = new PgPool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+  // Adaptateur mysql2-compatible pour PostgreSQL
+  pool = {
+    async query(sql, params = []) {
+      let i = 0;
+      const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+      const isInsert = pgSql.trim().toUpperCase().startsWith("INSERT");
+      const finalSql = isInsert && !pgSql.toUpperCase().includes("RETURNING")
+        ? pgSql + " RETURNING id" : pgSql;
+      const result = await pgPool.query(finalSql, params);
+      if (isInsert) return [{ insertId: result.rows[0]?.id, affectedRows: result.rowCount }, []];
+      return [result.rows, []];
+    },
+    async getConnection() {
+      const client = await pgPool.connect();
+      return {
+        async query(sql, params = []) {
+          let i = 0;
+          const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+          const isInsert = pgSql.trim().toUpperCase().startsWith("INSERT");
+          const finalSql = isInsert && !pgSql.toUpperCase().includes("RETURNING")
+            ? pgSql + " RETURNING id" : pgSql;
+          const result = await client.query(finalSql, params);
+          if (isInsert) return [{ insertId: result.rows[0]?.id, affectedRows: result.rowCount }, []];
+          return [result.rows, []];
+        },
+        async beginTransaction() { await client.query("BEGIN"); },
+        async commit() { await client.query("COMMIT"); },
+        async rollback() { await client.query("ROLLBACK"); },
+        release() { client.release(); },
+      };
+    },
+  };
+} else {
+  const mysql = require("mysql2/promise");
+  pool = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "KouameKouakouElise",
+    database: process.env.DB_NAME || "cotisation_pro",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    timezone: "local",
+  });
+}
 
 // ── Initialisation de la base de données ──────────────────────
 async function initDB() {
-  // Table comptes (authentification multi-associations)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS comptes (
-      id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      nom_association  VARCHAR(200) NOT NULL,
-      email            VARCHAR(150) NOT NULL,
-      mot_de_passe     VARCHAR(255) NOT NULL,
-      created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_email (email)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-
-  // Table adhérents
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS adherents (
-      id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      compte_id        INT UNSIGNED NOT NULL DEFAULT 0,
-      matricule        VARCHAR(50),
-      nom              VARCHAR(100) NOT NULL,
-      prenom           VARCHAR(100) NOT NULL,
-      telephone        VARCHAR(30),
-      email            VARCHAR(150),
-      date_inscription DATE,
-      est_supprime     TINYINT(1) NOT NULL DEFAULT 0,
-      created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_compte (compte_id),
-      INDEX idx_nom_prenom (nom, prenom)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-
-  // Table compteur de matricules
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS matricule_counter (
-      compte_id INT UNSIGNED NOT NULL,
-      annee     SMALLINT NOT NULL,
-      compteur  INT NOT NULL DEFAULT 0,
-      PRIMARY KEY (compte_id, annee)
-    ) ENGINE=InnoDB
-  `);
-
-  // Table cotisations (périodes)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS cotisations (
-      id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      compte_id  INT UNSIGNED NOT NULL DEFAULT 0,
-      libelle    VARCHAR(200) NOT NULL,
-      montant_du DECIMAL(15,2) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_compte (compte_id),
-      UNIQUE KEY uniq_compte_libelle (compte_id, libelle)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-
-  // Table paiements (une ligne par adhérent × cotisation)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS paiements (
-      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      adherent_id   INT UNSIGNED NOT NULL,
-      cotisation_id INT UNSIGNED NOT NULL,
-      solde_paye    DECIMAL(15,2) NOT NULL DEFAULT 0,
-      reste         DECIMAL(15,2) NOT NULL DEFAULT 0,
-      statut        ENUM('Impayé','Partiel','Payé') NOT NULL DEFAULT 'Impayé',
-      UNIQUE KEY uniq_adh_cot (adherent_id, cotisation_id),
-      FOREIGN KEY (adherent_id)   REFERENCES adherents(id)   ON DELETE CASCADE,
-      FOREIGN KEY (cotisation_id) REFERENCES cotisations(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-
-  // Table transactions (détail des versements)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      paiement_id   INT UNSIGNED NOT NULL,
-      numero_recu   VARCHAR(100),
-      montant_paye  DECIMAL(15,2) NOT NULL,
-      mode_paiement VARCHAR(50) DEFAULT 'Espèces',
-      date_paiement DATE,
-      FOREIGN KEY (paiement_id) REFERENCES paiements(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-
-  // Migrations silencieuses pour les tables existantes
-  await pool.query(`DROP TRIGGER IF EXISTS trg_before_transaction_insert`);
-  await pool.query(`DROP TRIGGER IF EXISTS trg_after_transaction_insert`);
-  try { await pool.query(`ALTER TABLE adherents ADD COLUMN est_supprime TINYINT(1) NOT NULL DEFAULT 0`); } catch (_) {}
-  try { await pool.query(`ALTER TABLE adherents ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
-  try { await pool.query(`ALTER TABLE cotisations ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
-
-  // Supprimer TOUS les index uniques portant sur matricule seul (quel que soit leur nom)
-  // On interroge information_schema pour trouver leur vrai nom dans la base actuelle
-  const [badIndexes] = await pool.query(`
-    SELECT DISTINCT s.INDEX_NAME
-    FROM information_schema.STATISTICS s
-    WHERE s.TABLE_SCHEMA = DATABASE()
-      AND s.TABLE_NAME   = 'adherents'
-      AND s.NON_UNIQUE   = 0
-      AND s.INDEX_NAME  != 'PRIMARY'
-      AND s.INDEX_NAME  != 'uniq_compte_matricule'
-      AND s.COLUMN_NAME  = 'matricule'
-      AND s.INDEX_NAME NOT IN (
-        SELECT INDEX_NAME
-        FROM information_schema.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = 'adherents'
-          AND COLUMN_NAME  = 'compte_id'
-          AND NON_UNIQUE   = 0
+  if (IS_PG) {
+    // ── Schéma PostgreSQL (Railway / Render) ────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comptes (
+        id               SERIAL PRIMARY KEY,
+        nom_association  VARCHAR(200) NOT NULL,
+        email            VARCHAR(150) NOT NULL,
+        mot_de_passe     VARCHAR(255) NOT NULL,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-  `);
-  for (const { INDEX_NAME } of badIndexes) {
-    try { await pool.query(`ALTER TABLE adherents DROP INDEX \`${INDEX_NAME}\``); } catch (_) {}
-  }
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_comptes_email ON comptes(email)`);
 
-  // Ajouter la contrainte composite (compte_id, matricule) si elle n'existe pas encore
-  try { await pool.query(`ALTER TABLE adherents ADD UNIQUE KEY uniq_compte_matricule (compte_id, matricule)`); } catch (_) {}
-  try { await pool.query(`ALTER TABLE cotisations ADD UNIQUE KEY uniq_compte_libelle (compte_id, libelle)`); } catch (_) {}
-  try {
-    await pool.query(`ALTER TABLE matricule_counter ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`);
-    await pool.query(`ALTER TABLE matricule_counter DROP PRIMARY KEY`);
-    await pool.query(`ALTER TABLE matricule_counter ADD PRIMARY KEY (compte_id, annee)`);
-  } catch (_) {}
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS adherents (
+        id               SERIAL PRIMARY KEY,
+        compte_id        INT NOT NULL DEFAULT 0,
+        matricule        VARCHAR(50),
+        nom              VARCHAR(100) NOT NULL,
+        prenom           VARCHAR(100) NOT NULL,
+        telephone        VARCHAR(30),
+        email            VARCHAR(150),
+        date_inscription DATE,
+        est_supprime     BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_adherents_compte ON adherents(compte_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_adherents_nom_prenom ON adherents(nom, prenom)`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_compte_matricule ON adherents(compte_id, matricule)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS matricule_counter (
+        compte_id INT NOT NULL,
+        annee     SMALLINT NOT NULL,
+        compteur  INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (compte_id, annee)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cotisations (
+        id         SERIAL PRIMARY KEY,
+        compte_id  INT NOT NULL DEFAULT 0,
+        libelle    VARCHAR(200) NOT NULL,
+        montant_du DECIMAL(15,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_cotisations_compte ON cotisations(compte_id)`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_compte_libelle ON cotisations(compte_id, libelle)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS paiements (
+        id            SERIAL PRIMARY KEY,
+        adherent_id   INT NOT NULL,
+        cotisation_id INT NOT NULL,
+        solde_paye    DECIMAL(15,2) NOT NULL DEFAULT 0,
+        reste         DECIMAL(15,2) NOT NULL DEFAULT 0,
+        statut        VARCHAR(10) NOT NULL DEFAULT 'Impayé'
+      )
+    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_adh_cot ON paiements(adherent_id, cotisation_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id            SERIAL PRIMARY KEY,
+        paiement_id   INT NOT NULL,
+        numero_recu   VARCHAR(100),
+        montant_paye  DECIMAL(15,2) NOT NULL,
+        mode_paiement VARCHAR(50) DEFAULT 'Espèces',
+        date_paiement DATE
+      )
+    `);
+  } else {
+    // ── Schéma MySQL (local) ────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comptes (
+        id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        nom_association  VARCHAR(200) NOT NULL,
+        email            VARCHAR(150) NOT NULL,
+        mot_de_passe     VARCHAR(255) NOT NULL,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS adherents (
+        id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        compte_id        INT UNSIGNED NOT NULL DEFAULT 0,
+        matricule        VARCHAR(50),
+        nom              VARCHAR(100) NOT NULL,
+        prenom           VARCHAR(100) NOT NULL,
+        telephone        VARCHAR(30),
+        email            VARCHAR(150),
+        date_inscription DATE,
+        est_supprime     TINYINT(1) NOT NULL DEFAULT 0,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_compte (compte_id),
+        INDEX idx_nom_prenom (nom, prenom)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS matricule_counter (
+        compte_id INT UNSIGNED NOT NULL,
+        annee     SMALLINT NOT NULL,
+        compteur  INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (compte_id, annee)
+      ) ENGINE=InnoDB
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cotisations (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        compte_id  INT UNSIGNED NOT NULL DEFAULT 0,
+        libelle    VARCHAR(200) NOT NULL,
+        montant_du DECIMAL(15,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_compte (compte_id),
+        UNIQUE KEY uniq_compte_libelle (compte_id, libelle)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS paiements (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        adherent_id   INT UNSIGNED NOT NULL,
+        cotisation_id INT UNSIGNED NOT NULL,
+        solde_paye    DECIMAL(15,2) NOT NULL DEFAULT 0,
+        reste         DECIMAL(15,2) NOT NULL DEFAULT 0,
+        statut        ENUM('Impayé','Partiel','Payé') NOT NULL DEFAULT 'Impayé',
+        UNIQUE KEY uniq_adh_cot (adherent_id, cotisation_id),
+        FOREIGN KEY (adherent_id)   REFERENCES adherents(id)   ON DELETE CASCADE,
+        FOREIGN KEY (cotisation_id) REFERENCES cotisations(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        paiement_id   INT UNSIGNED NOT NULL,
+        numero_recu   VARCHAR(100),
+        montant_paye  DECIMAL(15,2) NOT NULL,
+        mode_paiement VARCHAR(50) DEFAULT 'Espèces',
+        date_paiement DATE,
+        FOREIGN KEY (paiement_id) REFERENCES paiements(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Migrations silencieuses pour les tables existantes
+    await pool.query(`DROP TRIGGER IF EXISTS trg_before_transaction_insert`);
+    await pool.query(`DROP TRIGGER IF EXISTS trg_after_transaction_insert`);
+    try { await pool.query(`ALTER TABLE adherents ADD COLUMN est_supprime TINYINT(1) NOT NULL DEFAULT 0`); } catch (_) {}
+    try { await pool.query(`ALTER TABLE adherents ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
+    try { await pool.query(`ALTER TABLE cotisations ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
+
+    const [badIndexes] = await pool.query(`
+      SELECT DISTINCT s.INDEX_NAME
+      FROM information_schema.STATISTICS s
+      WHERE s.TABLE_SCHEMA = DATABASE()
+        AND s.TABLE_NAME   = 'adherents'
+        AND s.NON_UNIQUE   = 0
+        AND s.INDEX_NAME  != 'PRIMARY'
+        AND s.INDEX_NAME  != 'uniq_compte_matricule'
+        AND s.COLUMN_NAME  = 'matricule'
+        AND s.INDEX_NAME NOT IN (
+          SELECT INDEX_NAME
+          FROM information_schema.STATISTICS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME   = 'adherents'
+            AND COLUMN_NAME  = 'compte_id'
+            AND NON_UNIQUE   = 0
+        )
+    `);
+    for (const { INDEX_NAME } of badIndexes) {
+      try { await pool.query(`ALTER TABLE adherents DROP INDEX \`${INDEX_NAME}\``); } catch (_) {}
+    }
+
+    try { await pool.query(`ALTER TABLE adherents ADD UNIQUE KEY uniq_compte_matricule (compte_id, matricule)`); } catch (_) {}
+    try { await pool.query(`ALTER TABLE cotisations ADD UNIQUE KEY uniq_compte_libelle (compte_id, libelle)`); } catch (_) {}
+    try {
+      await pool.query(`ALTER TABLE matricule_counter ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`);
+      await pool.query(`ALTER TABLE matricule_counter DROP PRIMARY KEY`);
+      await pool.query(`ALTER TABLE matricule_counter ADD PRIMARY KEY (compte_id, annee)`);
+    } catch (_) {}
+  }
 
   console.log("Base de données initialisée ✅");
 }
@@ -178,6 +289,17 @@ function authMiddleware(req, res, next) {
 // ── Génération unique du matricule ─────────────────────────────
 async function genererMatricule(conn, compteId) {
   const annee = new Date().getFullYear();
+  if (IS_PG) {
+    await conn.query(
+      "INSERT INTO matricule_counter (compte_id, annee, compteur) VALUES (?, ?, 0) ON CONFLICT (compte_id, annee) DO NOTHING RETURNING compte_id",
+      [compteId, annee]
+    );
+    const [[row]] = await conn.query(
+      "UPDATE matricule_counter SET compteur = compteur + 1 WHERE compte_id = ? AND annee = ? RETURNING compteur AS num",
+      [compteId, annee]
+    );
+    return `ADH-${annee}-${String(row.num).padStart(3, "0")}`;
+  }
   await conn.query(
     "INSERT IGNORE INTO matricule_counter (compte_id, annee, compteur) VALUES (?, ?, 0)",
     [compteId, annee]
