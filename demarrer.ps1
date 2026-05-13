@@ -19,17 +19,34 @@ foreach ($port in @(3000, 5173)) {
         }
     }
 }
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 1
 
-# ── Démarrer le backend ────────────────────────────────────
+# ── Backend avec auto-redémarrage ──────────────────────────
 Write-Host "  [1/3] Demarrage du backend (port 3000)..." -ForegroundColor Yellow
+
+# Script de relance automatique du backend
+$backendScript = @"
+@echo off
+title Backend Cotisation Pro
+:loop
+cd /d "$backend"
+echo [Backend] Demarrage...
+node server.js
+echo.
+echo [Backend] Le serveur s'est arrete. Relancement dans 3 secondes...
+timeout /t 3 /nobreak > nul
+goto loop
+"@
+$backendBat = "$env:TEMP\start_backend.bat"
+$backendScript | Out-File -FilePath $backendBat -Encoding ASCII
+
 Start-Process -FilePath "cmd.exe" `
-    -ArgumentList "/k", "title Backend Cotisation Pro && cd /d `"$backend`" && node server.js" `
+    -ArgumentList "/k", "`"$backendBat`"" `
     -WindowStyle Normal
 
-# Attendre que le port 3000 soit actif (max 20s)
+# Attendre que le port 3000 soit actif (max 30s)
 $ok = $false
-for ($i = 0; $i -lt 10; $i++) {
+for ($i = 0; $i -lt 15; $i++) {
     Start-Sleep -Seconds 2
     $listening = netstat -ano | Select-String ":3000 " | Select-String "LISTENING"
     if ($listening) { $ok = $true; break }
@@ -45,7 +62,7 @@ if (-not $ok) {
 }
 Write-Host "  Backend pret !" -ForegroundColor Green
 
-# ── Démarrer le frontend ───────────────────────────────────
+# ── Frontend ───────────────────────────────────────────────
 Write-Host "  [2/3] Demarrage du frontend (port 5173)..." -ForegroundColor Yellow
 Start-Process -FilePath "cmd.exe" `
     -ArgumentList "/k", "title Frontend Cotisation Pro && cd /d `"$root`" && npm run dev" `
@@ -71,6 +88,7 @@ Write-Host "  Frontend pret !" -ForegroundColor Green
 
 # ── Ouvrir Chrome ──────────────────────────────────────────
 Write-Host "  [3/3] Ouverture de Chrome..." -ForegroundColor Yellow
+Start-Sleep -Seconds 2
 Start-Process -FilePath $chrome -ArgumentList "http://localhost:5173"
 
 Write-Host ""
@@ -79,4 +97,6 @@ Write-Host "    Application lancee dans Chrome !" -ForegroundColor Green
 Write-Host "    Frontend : http://localhost:5173" -ForegroundColor Green
 Write-Host "    Backend  : http://localhost:3000" -ForegroundColor Green
 Write-Host "  ==========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "  IMPORTANT : Ne fermez pas les fenetres Backend et Frontend !" -ForegroundColor Yellow
 Write-Host ""

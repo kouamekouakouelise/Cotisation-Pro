@@ -1268,7 +1268,7 @@ function App() {
               {cinqDerniersPaiements.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {cinqDerniersPaiements.map((pay, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f7f9fc", borderRadius: "6px", border: "1px solid #e0e6ed" }}>
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#dce8f2", borderRadius: "6px", border: "1px solid #b0c4d4" }}>
                       <div>
                         <span style={{ fontWeight: "bold", color: "#2c3e50" }}>{pay.nom} {pay.prenom}</span>
                         <span style={{ fontSize: "12px", color: "#7f8c8d", marginLeft: "8px" }}>[{pay.periode}]</span>
@@ -1860,34 +1860,34 @@ function App() {
                         const barColor = pct >= 100 ? "#27ae60" : pct >= 50 ? "#f39c12" : "#3498db";
                         const nbPayeComplet = liste.filter((p) => p.statut === "Payé").length;
                         return (
-                          <div style={{ background: "#f7f9fc", border: "1px solid #e0e6ed", borderRadius: "10px", padding: "16px 20px", marginBottom: "15px" }}>
+                          <div style={{ background: "#c8d8e8", border: "1px solid #a0b8cc", borderRadius: "10px", padding: "16px 20px", marginBottom: "15px" }}>
                             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "space-around", marginBottom: "14px" }}>
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Montant collecté</div>
+                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Montant collecté</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#27ae60" }}>{formatAmount(totalCollecte)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#e0e6ed" }} />
+                              <div style={{ width: "1px", background: "#a0b8cc" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Total attendu</div>
+                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Total attendu</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{formatAmount(totalDu)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#e0e6ed" }} />
+                              <div style={{ width: "1px", background: "#a0b8cc" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Reste à collecter</div>
+                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Reste à collecter</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#e74c3c" }}>{formatAmount(resteACollecter)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#e0e6ed" }} />
+                              <div style={{ width: "1px", background: "#a0b8cc" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Payeurs complets</div>
+                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Payeurs complets</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#3498db" }}>{nbPayeComplet} / {totalPeriode}</div>
                               </div>
                             </div>
                             <div>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#7f8c8d", marginBottom: "5px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#3d5a6e", marginBottom: "5px", fontWeight: "600" }}>
                                 <span>Progression de la collecte</span>
                                 <strong style={{ color: barColor }}>{pct.toFixed(1)} %</strong>
                               </div>
-                              <div style={{ background: "#e0e6ed", borderRadius: "10px", height: "12px", overflow: "hidden" }}>
+                              <div style={{ background: "#a0b8cc", borderRadius: "10px", height: "12px", overflow: "hidden" }}>
                                 <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "10px", transition: "width 0.6s ease" }} />
                               </div>
                             </div>
@@ -2197,7 +2197,7 @@ const styles = {
   btn: { padding: "10px 16px", background: "#3498db", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" },
   content: { padding: "20px" },
   cards: { display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" },
-  card: { padding: "20px", background: "#ecf0f1", textAlign: "center", minWidth: "180px", borderRadius: "8px" },
+  card: { padding: "20px", background: "#b8ccd8", textAlign: "center", minWidth: "180px", borderRadius: "8px" },
   addBtn: { padding: "10px 20px", background: "green", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
   alertButton: { marginLeft: "12px", padding: "8px 14px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" },
   cancelBtn: { padding: "10px 20px", background: "red", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
@@ -2215,13 +2215,13 @@ const styles = {
   input: { width: "100%", padding: "8px", minWidth: 0, boxSizing: "border-box" },
   modalButtons: { display: "flex", justifyContent: "center", gap: "10px", marginTop: "16px" },
   summarySection: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "15px", margin: "20px 0" },
-  summaryCard: { background: "#f7f9fc", padding: "15px", borderRadius: "10px", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" },
+  summaryCard: { background: "#c8d8e8", padding: "15px", borderRadius: "10px", textAlign: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" },
   alerts: { display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" },
   alert: { background: "#ffecec", color: "#b02a2a", padding: "12px 15px", borderRadius: "8px", fontWeight: "600" },
-  welcomeText: { margin: "30px 0 40px", color: "#2c3e50", fontSize: "clamp(20px, 2.1vw, 36px)", fontWeight: "bold", width: "100%", boxSizing: "border-box", lineHeight: "1.4", backgroundColor: "#f7f9fc", padding: "20px 28px", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" },
-  toolbarSection: { background: "#f7f9fc", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #e0e6ed" },
+  welcomeText: { margin: "30px 0 40px", color: "#1a2d40", fontSize: "clamp(20px, 2.1vw, 36px)", fontWeight: "bold", width: "100%", boxSizing: "border-box", lineHeight: "1.4", backgroundColor: "#c8d8e8", padding: "20px 28px", borderRadius: "10px", boxShadow: "0 3px 10px rgba(0,0,0,0.18)" },
+  toolbarSection: { background: "#d0dfe8", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #b0c4d4" },
   toolbarTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0", gap: "15px", flexWrap: "wrap" },
-  statsBox: { display: "flex", gap: "20px", background: "white", padding: "12px 20px", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
+  statsBox: { display: "flex", gap: "20px", background: "#dce8f2", padding: "12px 20px", borderRadius: "8px", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" },
   filtersSection: { display: "flex", flexDirection: "column", gap: "10px" },
   searchInput: { width: "100%", padding: "10px 15px", fontSize: "14px", border: "1px solid #bdc3c7", borderRadius: "5px", boxSizing: "border-box" },
   detailsBtn: { padding: "0", background: "#9b59b6", color: "white", border: "none", borderRadius: "6px", width: "42px", height: "42px", marginRight: "8px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },
