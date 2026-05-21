@@ -218,61 +218,164 @@ button:disabled {
 
 /* ── Menu authentifié ─────────────────────────────────── */
 .app-menu {
-  flex-wrap: wrap !important;
-  gap: 8px !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2c3e50;
+  padding: 10px 20px;
 }
 
-.app-menu-buttons {
-  flex-wrap: wrap !important;
+/* Bouton hamburger — caché sur desktop */
+.hamburger-btn {
+  display: none;
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  font-size: 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Menu mobile déroulant */
+.mobile-nav-dropdown {
+  background: #1a2540;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mobile-nav-account-info {
+  padding: 8px 10px 4px;
+}
+
+.mobile-nav-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 4px 0;
+}
+
+.mobile-nav-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  padding: 4px 10px 2px;
+  letter-spacing: 0.6px;
+  font-family: Arial, sans-serif;
+}
+
+.mobile-nav-lang {
+  width: 100%;
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  border-radius: 10px !important;
+  color: white !important;
+  padding: 10px 32px 10px 14px !important;
+  font-size: 14px !important;
+}
+
+.mobile-nav-btn {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.05);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+  transition: background 0.15s;
+}
+
+.mobile-nav-btn:hover,
+.mobile-nav-btn:active {
+  background: rgba(52,152,219,0.25);
+}
+
+.mobile-nav-logout {
+  color: #e74c3c !important;
+  background: rgba(231,76,60,0.08) !important;
+}
+
+.mobile-nav-logout:hover,
+.mobile-nav-logout:active {
+  background: rgba(231,76,60,0.2) !important;
 }
 
 @media (max-width: 768px) {
   .app-menu {
-    padding: 8px 12px !important;
+    padding: 10px 14px !important;
   }
   .app-menu-logo {
-    height: 50px !important;
-    width: 50px !important;
+    height: 42px !important;
+    width: 42px !important;
   }
+  /* Cacher les boutons desktop, afficher hamburger */
   .app-menu-buttons {
-    width: 100%;
-    gap: 6px !important;
+    display: none !important;
   }
-  .app-menu-btn {
-    padding: 8px 10px !important;
-    font-size: 12px !important;
-    flex: 1 1 calc(50% - 6px);
-    max-width: calc(50% - 6px);
-    text-align: center;
+  .hamburger-btn {
+    display: flex !important;
   }
-  .app-menu-account {
-    flex: 1 1 calc(50% - 6px) !important;
-    max-width: calc(50% - 6px) !important;
-    margin-left: 0 !important;
+}
+
+/* Le menu mobile ne s'affiche que sur mobile */
+.mobile-nav-dropdown {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav-dropdown {
+    display: flex;
   }
 }
 
 /* ── Contenu principal ────────────────────────────────── */
 @media (max-width: 768px) {
   .app-content {
-    padding: 12px 8px !important;
+    padding: 10px 10px !important;
   }
 
-  /* Accueil: summary cards 3 colonnes → 1 colonne */
-  .summary-section {
-    grid-template-columns: 1fr !important;
+  /* Titres h1/h2 plus petits sur mobile */
+  h1 {
+    font-size: 20px !important;
+    margin: 10px 0 14px !important;
+    letter-spacing: -0.3px !important;
+  }
+  h2 {
+    font-size: 17px !important;
   }
 
-  /* Accueil: texte animé */
+  /* Accueil: bannière de bienvenue */
   .welcome-text {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 10px !important;
+    padding: 14px 16px !important;
+    gap: 14px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  .welcome-logo {
+    height: 60px !important;
+    width: 60px !important;
   }
   .welcome-span {
     white-space: normal !important;
     overflow: visible !important;
     width: 100% !important;
+    font-size: clamp(13px, 3.5vw, 18px) !important;
+  }
+
+  /* Accueil: summary cards 3 colonnes → 1 colonne */
+  .summary-section {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 
   /* Adhérent: toolbar en colonne */
@@ -297,9 +400,8 @@ button:disabled {
     grid-template-columns: 1fr !important;
   }
   .details-header {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 12px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
   }
 
   /* Modal: pleine largeur */

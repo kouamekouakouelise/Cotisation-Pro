@@ -1042,6 +1042,7 @@ function App() {
   };
 
   // ─────────────────────────────────────────────────────
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentText, setCurrentText] = useState("");
   const [page, setPage] = useState("accueil");
   const [showForm, setShowForm] = useState(false);
@@ -2056,33 +2057,29 @@ function App() {
 
       {/* ── MENU ────────────────────────────────────────────── */}
       <div style={styles.menu} className="app-menu">
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }} className="app-menu-brand">
-          <img src={logo} alt="Logo Cotisation Pro" style={{ height: "72px", width: "72px", objectFit: "cover", borderRadius: "50%" }} className="app-menu-logo" />
+        {/* Brand */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+          <img src={logo} alt="Logo Cotisation Pro" style={{ height: "52px", width: "52px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} className="app-menu-logo" />
           <div>
-            <h2 style={{ color: "white", margin: 0, fontSize: "18px" }}>Cotisation Pro</h2>
-            <span style={{ color: "#3498db", fontSize: "13px", fontWeight: "600" }}>🏛️ {compte.nom_association}</span>
+            <div style={{ color: "white", fontWeight: "700", fontSize: "16px", whiteSpace: "nowrap" }}>Cotisation Pro</div>
+            <div style={{ color: "#3498db", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>🏛️ {compte.nom_association}</div>
           </div>
         </div>
+
+        {/* Boutons desktop */}
         <div style={styles.menuButtons} className="app-menu-buttons">
-          <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
+          <select value={lang} onChange={(e) => setLang(e.target.value)}
             style={{ padding: "6px 30px 6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
-            className="lang-select"
-          >
+            className="lang-select">
             <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
             <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
           </select>
-          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("accueil")}>{t("home")}</button>
-          <button style={styles.btn} className="app-menu-btn" onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
-          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("cotisations")}>{t("contributions")}</button>
-          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("historique")}>{t("history")}</button>
-          <div style={{ position: "relative", marginLeft: "14px" }} className="app-menu-account" ref={accountMenuRef}>
-            <button
-              style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }}
-              className="app-menu-btn"
-              onClick={() => setShowAccountMenu(v => !v)}
-            >
+          <button style={styles.btn} onClick={() => setPage("accueil")}>{t("home")}</button>
+          <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
+          <button style={styles.btn} onClick={() => setPage("cotisations")}>{t("contributions")}</button>
+          <button style={styles.btn} onClick={() => setPage("historique")}>{t("history")}</button>
+          <div style={{ position: "relative", marginLeft: "14px" }} ref={accountMenuRef}>
+            <button style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setShowAccountMenu(v => !v)}>
               {t("accountMenu")} ▾
             </button>
             {showAccountMenu && (
@@ -2102,25 +2099,58 @@ function App() {
                     style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#2c3e50", fontFamily: "inherit", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f8ff"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                    onClick={action}
-                  >
-                    {label}
-                  </button>
+                    onClick={action}>{label}</button>
                 ))}
                 <div style={{ height: "1px", background: "#ecf0f1", margin: "2px 0" }} />
                 <button
                   style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#c0392b", fontFamily: "inherit", fontWeight: "600", boxSizing: "border-box" }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = "#fff5f5"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                  onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }}
-                >
+                  onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }}>
                   🚪 {t("logout")}
                 </button>
               </div>
             )}
           </div>
         </div>
+
+        {/* Bouton hamburger — mobile uniquement */}
+        <button className="hamburger-btn" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Menu">
+          {mobileMenuOpen ? "✕" : "☰"}
+        </button>
       </div>
+
+      {/* ── MENU MOBILE DÉROULANT ───────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="mobile-nav-dropdown">
+          {/* Infos compte */}
+          <div className="mobile-nav-account-info">
+            <div style={{ fontWeight: "700", color: "#fff", fontSize: "15px" }}>{compte.nom_association}</div>
+            <div style={{ color: "#7f8c8d", fontSize: "12px" }}>{compte.email}</div>
+          </div>
+          <div className="mobile-nav-divider" />
+          {/* Langue */}
+          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select mobile-nav-lang">
+            <option value="fr" style={{ background: "#1a2540" }}>🇫🇷 Français</option>
+            <option value="en" style={{ background: "#1a2540" }}>🇬🇧 English</option>
+          </select>
+          <div className="mobile-nav-divider" />
+          {/* Navigation */}
+          <button className="mobile-nav-btn" onClick={() => { setPage("accueil"); setMobileMenuOpen(false); }}>🏠 {t("home")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); setMobileMenuOpen(false); }}>👥 {t("members")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setPage("cotisations"); setMobileMenuOpen(false); }}>💰 {t("contributions")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setPage("historique"); setMobileMenuOpen(false); }}>📋 {t("history")}</button>
+          <div className="mobile-nav-divider" />
+          {/* Compte */}
+          <div className="mobile-nav-section-label">{t("accountMenu")}</div>
+          <button className="mobile-nav-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileMenuOpen(false); }}>🔑 {t("changePassword")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileMenuOpen(false); }}>✉️ {t("changeEmail")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileMenuOpen(false); }}>❓ {t("helpMenu")}</button>
+          <button className="mobile-nav-btn" onClick={() => { setShowAbout(true); setMobileMenuOpen(false); }}>ℹ️ {t("aboutMenu")}</button>
+          <div className="mobile-nav-divider" />
+          <button className="mobile-nav-btn mobile-nav-logout" onClick={() => { setShowLogoutConfirm(true); setMobileMenuOpen(false); }}>🚪 {t("logout")}</button>
+        </div>
+      )}
 
       <div style={styles.content} className="app-content">
 
@@ -2128,7 +2158,7 @@ function App() {
         {page === "accueil" && (
           <div>
             <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px", backgroundColor: "#b8ddf0", boxShadow: "0 8px 24px rgba(52,152,219,0.30), 0 2px 6px rgba(0,0,0,0.12)", cursor: "default" }} className="welcome-text">
-              <img src={logo} alt="Logo Cotisation Pro" style={{ height: "130px", width: "130px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} />
+              <img src={logo} alt="Logo Cotisation Pro" style={{ height: "130px", width: "130px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} className="welcome-logo" />
               <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }} className="welcome-span">{currentText}</span>
             </div>
             <div style={styles.cards}>
