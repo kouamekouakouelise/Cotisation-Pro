@@ -3,7 +3,6 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const { Resend } = require("resend");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
@@ -77,27 +76,32 @@ setInterval(() => {
   for (const [key, val] of otpRateLimit.entries()) if (now - val.firstAt > OTP_WINDOW_MS) otpRateLimit.delete(key);
 }, 15 * 60 * 1000);
 
-// ── Transporteur email (Resend) ────────────────────────────────
-let resendClient = null;
+// ── Transporteur email (Gmail SMTP via nodemailer) ─────────────
+let transporter = null;
 let emailReady = false;
 
-if (!process.env.RESEND_API_KEY) {
-  console.warn("⚠️  RESEND_API_KEY manquant — l'envoi d'OTP par email sera désactivé.");
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+
+if (!EMAIL_USER || !EMAIL_PASS) {
+  console.warn("⚠️  EMAIL_USER ou EMAIL_PASS manquant — l'envoi d'OTP par email sera désactivé.");
 } else {
-  resendClient = new Resend(process.env.RESEND_API_KEY);
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+  });
   emailReady = true;
-  console.log("✉️  Email (Resend) prêt");
+  console.log(`✉️  Email (Gmail SMTP) prêt — expéditeur : ${EMAIL_USER}`);
 }
 
 async function sendEmail({ to, subject, html }) {
-  if (!resendClient) throw new Error("Service email non configuré");
-  const { error } = await resendClient.emails.send({
-    from: "Cotisation Pro <onboarding@resend.dev>",
+  if (!transporter) throw new Error("Service email non configuré (EMAIL_USER/EMAIL_PASS manquants)");
+  await transporter.sendMail({
+    from: `"Cotisation Pro" <${EMAIL_USER}>`,
     to,
     subject,
     html,
   });
-  if (error) throw new Error(error.message);
 }
 
 // ── Initialisation de la base de données ──────────────────────
