@@ -3,6 +3,38 @@ import { jsPDF } from "jspdf";
 import logo from "./assets/cota.png";
 import { translations } from "./i18n";
 
+const FlagFR = () => (
+  <svg width="22" height="15" viewBox="0 0 22 15" style={{ borderRadius: "2px", verticalAlign: "middle", display: "inline-block" }}>
+    <rect width="7" height="15" fill="#002395"/>
+    <rect x="7" width="8" height="15" fill="#fff"/>
+    <rect x="15" width="7" height="15" fill="#ED2939"/>
+  </svg>
+);
+const FlagEN = () => (
+  <svg width="22" height="15" viewBox="0 0 22 15" style={{ borderRadius: "2px", verticalAlign: "middle", display: "inline-block" }}>
+    <rect width="22" height="15" fill="#012169"/>
+    <path d="M0,0 L22,15 M22,0 L0,15" stroke="#fff" strokeWidth="3.5"/>
+    <path d="M0,0 L22,15 M22,0 L0,15" stroke="#C8102E" strokeWidth="2"/>
+    <path d="M11,0 V15 M0,7.5 H22" stroke="#fff" strokeWidth="5"/>
+    <path d="M11,0 V15 M0,7.5 H22" stroke="#C8102E" strokeWidth="3"/>
+  </svg>
+);
+function LangToggle({ lang, setLang }) {
+  const btn = (code) => ({
+    display: "flex", alignItems: "center", gap: "5px",
+    background: lang === code ? "rgba(52,152,219,0.25)" : "transparent",
+    border: lang === code ? "1px solid #3498db" : "1px solid rgba(255,255,255,0.3)",
+    color: "#fff", padding: "4px 10px", borderRadius: "14px",
+    cursor: "pointer", fontSize: "12px", fontWeight: lang === code ? "700" : "500",
+  });
+  return (
+    <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+      <button style={btn("fr")} onClick={() => setLang("fr")}><FlagFR /> FR</button>
+      <button style={btn("en")} onClick={() => setLang("en")}><FlagEN /> EN</button>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 // PAGE D'ACCUEIL PUBLIQUE (LANDING)
 // ═══════════════════════════════════════════════════════
@@ -318,8 +350,8 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
             onChange={(e) => setLang(e.target.value)}
             style={ls.langSelect}
           >
-            <option value="fr" style={{ background: "#0f1b2d" }}>🇫🇷 FR</option>
-            <option value="en" style={{ background: "#0f1b2d" }}>🇬🇧 EN</option>
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
           </select>
           <button style={ls.btnOutline} onClick={onLogin}>{t("landingNavLogin")}</button>
           <button style={ls.btnPrimary} onClick={onRegister}>{t("landingNavRegister")}</button>
@@ -661,10 +693,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
-              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
-              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
-            </select>
+            <LangToggle lang={lang} setLang={setLang} />
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -709,10 +738,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
-              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
-              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
-            </select>
+            <LangToggle lang={lang} setLang={setLang} />
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -759,10 +785,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
-              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
-              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
-            </select>
+            <LangToggle lang={lang} setLang={setLang} />
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -826,10 +849,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     <div style={{ position: "relative" }}>
       <div style={authSt.page}>
         <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
-            <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
-            <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
-          </select>
+          <LangToggle lang={lang} setLang={setLang} />
         </div>
         {onBackToLanding && (
           <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10 }}>
