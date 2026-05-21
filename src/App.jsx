@@ -524,51 +524,14 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showNewPwd2, setShowNewPwd2] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-  const [registerStep, setRegisterStep] = useState("form"); // "form" | "otp"
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
-  const otp0Ref = useRef(null);
-  const otp1Ref = useRef(null);
-  const otp2Ref = useRef(null);
-  const otp3Ref = useRef(null);
-  const otpRefs = [otp0Ref, otp1Ref, otp2Ref, otp3Ref];
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleResetChange = (e) => setResetForm({ ...resetForm, [e.target.name]: e.target.value });
 
-  // ── OTP helpers ─────────────────────────────────────────────
-  const handleOtpInput = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    const next = [...otpDigits];
-    next[index] = value.slice(-1);
-    setOtpDigits(next);
-    if (value && index < 3) otpRefs[index + 1].current?.focus();
-  };
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) otpRefs[index - 1].current?.focus();
-  };
-  const handleOtpPaste = (e) => {
-    e.preventDefault();
-    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-    if (!digits) return;
-    const next = ["", "", "", ""];
-    for (let i = 0; i < 4; i++) next[i] = digits[i] || "";
-    setOtpDigits(next);
-    otpRefs[Math.min(digits.length - 1, 3)].current?.focus();
-  };
-
-  // Étape 1 inscription — envoyer l'OTP
-  const sendOtpRequest = async (email) => {
-    const res = await fetch(`${API_BASE}/auth/send-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
-    const data = await res.json();
-    if (res.status === 429) throw new Error(t("emailRateLimit"));
-    if (res.status === 503) throw new Error(t("emailServiceUnavailable"));
-    if (!res.ok) throw new Error(data.error || t("errorSendingCode"));
-    return data;
-  };
-
-  const handleSendOtp = async (e) => {
+  // Inscription directe (sans OTP)
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     if (!form.nom_association.trim() || !form.email.trim() || !form.mot_de_passe) { setError(t("allFieldsRequired")); return; }
@@ -577,38 +540,10 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     if (!termsAccepted) { setError(t("termsNotAccepted")); return; }
     setLoading(true);
     try {
-      await sendOtpRequest(form.email);
-      setRegisterStep("otp");
-      setOtpDigits(["", "", "", ""]);
-      setTimeout(() => otp0Ref.current?.focus(), 100);
-    } catch (err) { setError(err.message || t("networkError")); }
-    finally { setLoading(false); }
-  };
-
-  // Renvoyer le code OTP
-  const handleResendOtp = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      await sendOtpRequest(form.email);
-      setOtpDigits(["", "", "", ""]);
-      setTimeout(() => otp0Ref.current?.focus(), 100);
-    } catch (err) { setError(err.message || t("networkErrorShort")); }
-    finally { setLoading(false); }
-  };
-
-  // Étape 2 inscription — vérifier l'OTP et créer le compte
-  const handleRegisterWithOtp = async (e) => {
-    e.preventDefault();
-    setError("");
-    const otp = otpDigits.join("");
-    if (otp.length !== 4) { setError(t("enterAllDigits")); return; }
-    setLoading(true);
-    try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe, otp }),
+        body: JSON.stringify({ nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || t("networkErrorShort")); return; }
@@ -786,79 +721,6 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     );
   }
 
-  // ── Étape OTP — vérification email pour inscription ──
-  if (mode === "register" && registerStep === "otp") {
-    return (
-      <div style={{ position: "relative" }}>
-        <div style={authSt.page}>
-          <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <select
-                value={lang}
-                onChange={(e) => setLang(e.target.value)}
-                style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
-                className="lang-select"
-              >
-                <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
-                <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
-              </select>
-          </div>
-          <div style={authSt.card}>
-            <div style={authSt.cardHeader}>
-              <img src={logo} alt="" style={authSt.cardLogo} />
-              <div>
-                <h2 style={authSt.cardTitle}>{t("emailVerification")}</h2>
-                <p style={authSt.cardSub}>{t("codeSentTo")} {form.email}</p>
-              </div>
-            </div>
-            <p style={{ textAlign: "center", color: "#7f8c8d", fontSize: "13px", marginBottom: "24px", lineHeight: "1.5" }}>
-              {t("otpInstruction")} <strong>{t("otpDigits")}</strong> {t("otpReceived")}<br />{t("otpExpires")}
-            </p>
-            <form onSubmit={handleRegisterWithOtp}>
-              <div style={{ display: "flex", gap: "14px", justifyContent: "center", marginBottom: "28px" }}>
-                {otpDigits.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={otpRefs[i]}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpInput(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    onPaste={handleOtpPaste}
-                    style={{
-                      width: "62px", height: "68px", textAlign: "center", fontSize: "30px", fontWeight: "bold",
-                      border: "2px solid " + (digit ? "#2c3e50" : "#e0e6ed"),
-                      borderRadius: "12px", outline: "none", color: "#2c3e50",
-                      background: digit ? "#eef2f7" : "#fdfdfe", boxSizing: "border-box",
-                      transition: "border-color 0.15s, background 0.15s",
-                      fontFamily: "Arial, sans-serif",
-                    }}
-                  />
-                ))}
-              </div>
-              {error && <div style={authSt.error}>⚠️ {error}</div>}
-              <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-                {loading ? t("verifying") : t("confirmCreateAccount")}
-              </button>
-            </form>
-            <p style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: "#95a5a6" }}>
-              {t("didntReceiveCode")}{" "}
-              <button style={{ ...authSt.switchLink, fontSize: "13px" }} onClick={handleResendOtp} disabled={loading}>
-                {t("resendCode")}
-              </button>
-            </p>
-            <p style={authSt.switchText}>
-              <button style={authSt.switchLink} onClick={() => { setRegisterStep("form"); setError(""); }}>
-                {t("backToForm")}
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ── Formulaire principal ──
   return (
     <div style={{ position: "relative" }}>
@@ -894,11 +756,11 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
           </div>
 
           <div style={authSt.tabs}>
-            <button style={{ ...authSt.tab, ...(mode === "login" ? authSt.tabOn : {}) }} onClick={() => { setMode("login"); setRegisterStep("form"); setError(""); }}>{t("login")}</button>
-            <button style={{ ...authSt.tab, ...(mode === "register" ? authSt.tabOn : {}) }} onClick={() => { setMode("register"); setRegisterStep("form"); setError(""); }}>{t("createAccount")}</button>
+            <button style={{ ...authSt.tab, ...(mode === "login" ? authSt.tabOn : {}) }} onClick={() => { setMode("login"); setError(""); }}>{t("login")}</button>
+            <button style={{ ...authSt.tab, ...(mode === "register" ? authSt.tabOn : {}) }} onClick={() => { setMode("register"); setError(""); }}>{t("createAccount")}</button>
           </div>
 
-          <form onSubmit={mode === "register" ? handleSendOtp : handleSubmit}>
+          <form onSubmit={mode === "register" ? handleRegister : handleSubmit}>
             {mode === "register" && (
               <div style={authSt.field}>
                 <label style={authSt.label}>{t("associationName")}</label>
@@ -953,7 +815,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
             {error && <div style={authSt.error}>⚠️ {error}</div>}
             {successMsg && <div style={authSt.success}>✅ {successMsg}</div>}
             <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-              {loading ? (mode === "login" ? t("loggingIn") : t("sendingCode")) : mode === "login" ? t("signIn") : t("receiveCode")}
+              {loading ? (mode === "login" ? t("loggingIn") : t("creatingAccount")) : mode === "login" ? t("signIn") : t("createAccount")}
             </button>
           </form>
 
@@ -968,7 +830,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
 
           <p style={authSt.switchText}>
             {mode === "login" ? t("noAccountYet") : t("alreadyAccount")}{" "}
-            <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setRegisterStep("form"); setError(""); setSuccessMsg(""); }}>
+            <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccessMsg(""); }}>
               {mode === "login" ? t("createAccount") : t("signIn")}
             </button>
           </p>
@@ -1979,7 +1841,7 @@ function App() {
   const selectedPeriodeObj = periodes.find((p) => p.libelle === selectedPeriode);
 
   const dragProps = (e) => {
-    if (window.innerWidth <= 1024) return; // pas de drag sur mobile/tablette
+    if (navigator.maxTouchPoints > 0) return; // pas de drag sur appareils tactiles (téléphone/tablette, mode bureau inclus)
     if (!["INPUT", "BUTTON", "SELECT"].includes(e.target.tagName)) {
       setIsDragging(true);
       const rect = modalRef.current.getBoundingClientRect();
@@ -2670,7 +2532,7 @@ function App() {
                       {/* Modal ajouter un paiement */}
                       {showAddPaiementForm && selectedPeriodeObj && (
                         <div style={styles.modalOverlay}>
-                          <div style={{ ...styles.modal, position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", cursor: "default" }}>
+                          <div className="modal-box" style={{ ...styles.modal, position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", cursor: "default" }}>
                             <h2>{t("addPaymentTitle")}</h2>
                             <p style={{ color: "#7f8c8d", fontSize: "13px", margin: "0 0 16px" }}>
                               {t("periodPreview")} <strong>{periodeLabel(selectedPeriode)}</strong> — {t("amountDue")}{" "}
@@ -3041,7 +2903,7 @@ function App() {
       {/* ── MODAL REÇU ──────────────────────────────────────── */}
       {showRecu && lastPaiement && (
         <div style={styles.modalOverlay}>
-          <div style={{ background: "white", borderRadius: "12px", width: "520px", maxWidth: "95vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+          <div className="modal-box" style={{ background: "white", borderRadius: "12px", width: "520px", maxWidth: "95vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "14px 20px 0", background: "#f7f9fc", borderRadius: "12px 12px 0 0" }}>
               <button onClick={handlePrintRecu} style={{ padding: "8px 18px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("printBtn")}</button>
               <button onClick={() => setShowRecu(false)} style={{ padding: "8px 18px", background: "#e74c3c", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("closeBtn")}</button>

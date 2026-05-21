@@ -325,7 +325,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
 // Créer un compte
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { nom_association, email, mot_de_passe, otp } = req.body;
+    const { nom_association, email, mot_de_passe } = req.body;
 
     if (!nom_association || !email || !mot_de_passe) {
       return res.status(400).json({ error: "Tous les champs sont obligatoires." });
@@ -336,19 +336,6 @@ app.post("/api/auth/register", async (req, res) => {
 
     const emailKey = email.trim().toLowerCase();
 
-    // Vérification OTP
-    const otpEntry = otpStore.get(emailKey);
-    if (!otpEntry) {
-      return res.status(400).json({ error: "Aucun code de vérification trouvé. Veuillez en demander un nouveau." });
-    }
-    if (Date.now() > otpEntry.expires) {
-      otpStore.delete(emailKey);
-      return res.status(400).json({ error: "Le code de vérification a expiré. Veuillez en demander un nouveau." });
-    }
-    if (otp !== otpEntry.code) {
-      return res.status(400).json({ error: "Code de vérification incorrect." });
-    }
-    otpStore.delete(emailKey);
     const [existingAccounts] = await pool.query(
       "SELECT id, nom_association, mot_de_passe FROM comptes WHERE email = ?",
       [emailKey]
