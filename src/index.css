@@ -123,3 +123,31 @@ body {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
+
+/* ── Effets de survol globaux sur tous les boutons ── */
+button:not(:disabled) {
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+button:not(:disabled):not([style*="background: none"]):not([style*="background:none"]):hover {
+  filter: brightness(1.13);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.22) !important;
+}
+
+button:not(:disabled):not([style*="background: none"]):not([style*="background:none"]):active {
+  filter: brightness(0.92);
+  transform: translateY(0px);
+  box-shadow: none !important;
+}
+
+/* Les boutons "icône seul" (background: none) : juste la luminosité */
+button[style*="background: none"]:not(:disabled):hover,
+button[style*="background:none"]:not(:disabled):hover {
+  filter: brightness(1.4);
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed !important;
+}

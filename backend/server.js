@@ -2,16 +2,32 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
+
+const allowedOrigins = new Set([
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+].filter(Boolean));
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    // Autorise les requêtes sans origin (ex: Postman, mobile) et toutes les origines connues
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    // En production, on accepte la même origine que le serveur
+    if (process.env.NODE_ENV === "production") return callback(null, true);
+    callback(new Error(`CORS: origine non autorisée — ${origin}`));
+  },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET manquant dans les variables d'environnement");
@@ -32,6 +48,56 @@ const pool = process.env.MYSQL_URL
       queueLimit: 0,
       timezone: "local",
     });
+
+// ── Store OTP en mémoire : email → { code, expires } ──────────
+const otpStore = new Map();
+
+// ── Rate limiting OTP : email → { count, firstAt } ────────────
+const otpRateLimit = new Map();
+const OTP_MAX_REQUESTS = 3;
+const OTP_WINDOW_MS    = 10 * 60 * 1000; // 10 minutes
+
+function checkOtpRateLimit(emailKey) {
+  const now = Date.now();
+  const entry = otpRateLimit.get(emailKey);
+  if (!entry || now - entry.firstAt > OTP_WINDOW_MS) {
+    otpRateLimit.set(emailKey, { count: 1, firstAt: now });
+    return true;
+  }
+  if (entry.count >= OTP_MAX_REQUESTS) return false;
+  entry.count++;
+  return true;
+}
+
+// Nettoyage périodique des OTPs et rate limits expirés (toutes les 15 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of otpStore.entries())     if (now > val.expires)              otpStore.delete(key);
+  for (const [key, val] of otpRateLimit.entries()) if (now - val.firstAt > OTP_WINDOW_MS) otpRateLimit.delete(key);
+}, 15 * 60 * 1000);
+
+// ── Transporteur email (Gmail) ─────────────────────────────────
+let emailTransporter = null;
+let emailReady = false;
+
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn("⚠️  EMAIL_USER ou EMAIL_PASS manquant — l'envoi d'OTP par email sera désactivé.");
+} else {
+  emailTransporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+  emailTransporter.verify((err) => {
+    if (err) {
+      console.error("❌ Email (Gmail) : identifiants invalides ou accès refusé —", err.message);
+      console.error("   → Vérifiez EMAIL_USER et EMAIL_PASS dans backend/.env");
+      console.error("   → Si Gmail, créez un mot de passe d'application : myaccount.google.com/apppasswords");
+    } else {
+      emailReady = true;
+      console.log("✉️  Email (Gmail) prêt :", process.env.EMAIL_USER);
+    }
+  });
+}
 
 // ── Initialisation de la base de données ──────────────────────
 async function initDB() {
@@ -56,6 +122,7 @@ async function initDB() {
       telephone        VARCHAR(30),
       email            VARCHAR(150),
       date_inscription DATE,
+      photo            MEDIUMTEXT DEFAULT NULL,
       est_supprime     TINYINT(1) NOT NULL DEFAULT 0,
       created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -116,6 +183,7 @@ async function initDB() {
   await pool.query(`DROP TRIGGER IF EXISTS trg_after_transaction_insert`);
   try { await pool.query(`ALTER TABLE adherents ADD COLUMN est_supprime TINYINT(1) NOT NULL DEFAULT 0`); } catch (_) {}
   try { await pool.query(`ALTER TABLE adherents ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE adherents ADD COLUMN photo MEDIUMTEXT DEFAULT NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE cotisations ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
 
   const [badIndexes] = await pool.query(`
@@ -184,13 +252,83 @@ async function genererMatricule(conn, compteId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ROUTE — SANTÉ (publique)
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/health", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", db: "connected", time: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: "error", db: "disconnected", message: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // ROUTES — AUTHENTIFICATION (publiques)
 // ═══════════════════════════════════════════════════════════════
+
+// Envoyer un code OTP par email (avant inscription)
+app.post("/api/auth/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email requis." });
+
+    // Validation format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ error: "Adresse email invalide." });
+    }
+
+    // Vérifier que l'email est disponible (pas déjà utilisé)
+    const emailKey = email.trim().toLowerCase();
+
+    // Rate limiting : max 3 envois par email par 10 min
+    if (!checkOtpRateLimit(emailKey)) {
+      return res.status(429).json({ error: "Trop de demandes. Attendez 10 minutes avant de réessayer." });
+    }
+
+    // Vérifier que le transporteur email est prêt
+    if (!emailTransporter || !emailReady) {
+      return res.status(503).json({ error: "Service email indisponible. Contactez l'administrateur." });
+    }
+
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    otpStore.set(emailKey, { code, expires: Date.now() + 10 * 60 * 1000 });
+
+    await emailTransporter.sendMail({
+      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+      to: emailKey,
+      subject: "Votre code de vérification — Cotisation Pro",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:12px;">
+          <h2 style="color:#2c3e50;margin-bottom:8px;">Cotisation Pro</h2>
+          <p style="color:#555;margin-bottom:24px;">Voici votre code de vérification pour créer votre compte :</p>
+          <div style="display:flex;gap:10px;justify-content:center;margin:24px 0;">
+            ${code.split("").map(d => `<span style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-size:32px;font-weight:bold;background:#fff;border:2px solid #2c3e50;border-radius:10px;color:#2c3e50;">${d}</span>`).join("")}
+          </div>
+          <p style="color:#888;font-size:13px;text-align:center;">Ce code expire dans <strong>10 minutes</strong>.<br>Si vous n'avez pas demandé ce code, ignorez cet email.</p>
+        </div>
+      `,
+    });
+
+    res.json({ message: "Code envoyé." });
+  } catch (err) {
+    console.error("Erreur envoi OTP:", err.message);
+    // Distinguer erreur d'authentification Gmail vs autre erreur réseau
+    if (err.code === "EAUTH" || err.responseCode === 535) {
+      res.status(503).json({ error: "Échec d'authentification Gmail. Vérifiez le mot de passe d'application dans backend/.env" });
+    } else if (err.code === "ECONNECTION" || err.code === "ESOCKET") {
+      res.status(503).json({ error: "Impossible de contacter le serveur Gmail. Vérifiez votre connexion Internet." });
+    } else {
+      res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
+    }
+  }
+});
 
 // Créer un compte
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { nom_association, email, mot_de_passe } = req.body;
+    const { nom_association, email, mot_de_passe, otp } = req.body;
 
     if (!nom_association || !email || !mot_de_passe) {
       return res.status(400).json({ error: "Tous les champs sont obligatoires." });
@@ -200,6 +338,20 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const emailKey = email.trim().toLowerCase();
+
+    // Vérification OTP
+    const otpEntry = otpStore.get(emailKey);
+    if (!otpEntry) {
+      return res.status(400).json({ error: "Aucun code de vérification trouvé. Veuillez en demander un nouveau." });
+    }
+    if (Date.now() > otpEntry.expires) {
+      otpStore.delete(emailKey);
+      return res.status(400).json({ error: "Le code de vérification a expiré. Veuillez en demander un nouveau." });
+    }
+    if (otp !== otpEntry.code) {
+      return res.status(400).json({ error: "Code de vérification incorrect." });
+    }
+    otpStore.delete(emailKey);
     const [existingAccounts] = await pool.query(
       "SELECT id, nom_association, mot_de_passe FROM comptes WHERE email = ?",
       [emailKey]
@@ -323,6 +475,120 @@ app.post("/api/auth/reset-password", async (req, res) => {
   }
 });
 
+// Vérifier le mot de passe actuel (connecté) — utilisé avant d'afficher étape 2
+app.post("/api/auth/verify-password", authMiddleware, async (req, res) => {
+  try {
+    const { mot_de_passe } = req.body;
+    if (!mot_de_passe) return res.status(400).json({ error: "Mot de passe requis." });
+    const [[compte]] = await pool.query("SELECT mot_de_passe FROM comptes WHERE id = ?", [req.compteId]);
+    if (!compte) return res.status(404).json({ error: "Compte introuvable." });
+    const match = await bcrypt.compare(mot_de_passe, compte.mot_de_passe);
+    if (!match) return res.status(400).json({ error: "Mot de passe incorrect." });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifier le mot de passe (connecté)
+app.post("/api/auth/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { ancien_mot_de_passe, nouveau_mot_de_passe } = req.body;
+    if (!ancien_mot_de_passe || !nouveau_mot_de_passe)
+      return res.status(400).json({ error: "Tous les champs sont requis." });
+    if (nouveau_mot_de_passe.length < 6)
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    const [[compte]] = await pool.query("SELECT id, mot_de_passe FROM comptes WHERE id = ?", [req.compteId]);
+    if (!compte) return res.status(404).json({ error: "Compte introuvable." });
+    const match = await bcrypt.compare(ancien_mot_de_passe, compte.mot_de_passe);
+    if (!match) return res.status(400).json({ error: "Ancien mot de passe incorrect." });
+    const hash = await bcrypt.hash(nouveau_mot_de_passe, SALT_ROUNDS);
+    await pool.query("UPDATE comptes SET mot_de_passe = ? WHERE id = ?", [hash, req.compteId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Envoyer un OTP pour changer l'email (connecté)
+app.post("/api/auth/send-change-email-otp", authMiddleware, async (req, res) => {
+  try {
+    const { nouveau_email, mot_de_passe } = req.body;
+    if (!nouveau_email || !mot_de_passe)
+      return res.status(400).json({ error: "Tous les champs sont requis." });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(nouveau_email.trim()))
+      return res.status(400).json({ error: "Adresse email invalide." });
+    const newEmailKey = nouveau_email.trim().toLowerCase();
+    const [[compte]] = await pool.query("SELECT id, mot_de_passe, email FROM comptes WHERE id = ?", [req.compteId]);
+    if (!compte) return res.status(404).json({ error: "Compte introuvable." });
+    const match = await bcrypt.compare(mot_de_passe, compte.mot_de_passe);
+    if (!match) return res.status(400).json({ error: "Mot de passe incorrect." });
+    if (newEmailKey === compte.email.toLowerCase())
+      return res.status(400).json({ error: "Cet email est déjà votre adresse actuelle." });
+    const [existing] = await pool.query("SELECT id FROM comptes WHERE email = ?", [newEmailKey]);
+    if (existing.length > 0)
+      return res.status(400).json({ error: "Cette adresse email est déjà utilisée par un autre compte." });
+    if (!checkOtpRateLimit(newEmailKey))
+      return res.status(429).json({ error: "Trop de demandes. Attendez 10 minutes avant de réessayer." });
+    if (!emailTransporter || !emailReady)
+      return res.status(503).json({ error: "Service email indisponible. Contactez l'administrateur." });
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    otpStore.set(newEmailKey, { code, expires: Date.now() + 10 * 60 * 1000 });
+    await emailTransporter.sendMail({
+      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+      to: newEmailKey,
+      subject: "Confirmation de changement d'email — Cotisation Pro",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:12px;">
+          <h2 style="color:#2c3e50;margin-bottom:8px;">Cotisation Pro</h2>
+          <p style="color:#555;margin-bottom:24px;">Voici votre code pour confirmer votre nouvelle adresse email :</p>
+          <div style="display:flex;gap:10px;justify-content:center;margin:24px 0;">
+            ${code.split("").map(d => `<span style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-size:32px;font-weight:bold;background:#fff;border:2px solid #2c3e50;border-radius:10px;color:#2c3e50;">${d}</span>`).join("")}
+          </div>
+          <p style="color:#888;font-size:13px;text-align:center;">Ce code expire dans <strong>10 minutes</strong>.<br>Si vous n'avez pas demandé ce changement, ignorez cet email.</p>
+        </div>
+      `,
+    });
+    res.json({ message: "Code envoyé." });
+  } catch (err) {
+    console.error("Erreur send-change-email-otp:", err.message);
+    if (err.code === "EAUTH" || err.responseCode === 535)
+      res.status(503).json({ error: "Échec d'authentification Gmail. Vérifiez le mot de passe d'application." });
+    else if (err.code === "ECONNECTION" || err.code === "ESOCKET")
+      res.status(503).json({ error: "Impossible de contacter le serveur Gmail. Vérifiez votre connexion." });
+    else
+      res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
+  }
+});
+
+// Confirmer le changement d'email (connecté)
+app.post("/api/auth/change-email", authMiddleware, async (req, res) => {
+  try {
+    const { nouveau_email, otp } = req.body;
+    if (!nouveau_email || !otp)
+      return res.status(400).json({ error: "Tous les champs sont requis." });
+    const newEmailKey = nouveau_email.trim().toLowerCase();
+    const stored = otpStore.get(newEmailKey);
+    if (!stored || Date.now() > stored.expires || stored.code !== String(otp).trim())
+      return res.status(400).json({ error: "Code incorrect ou expiré." });
+    const [existing] = await pool.query("SELECT id FROM comptes WHERE email = ? AND id != ?", [newEmailKey, req.compteId]);
+    if (existing.length > 0)
+      return res.status(400).json({ error: "Cette adresse email est déjà utilisée." });
+    await pool.query("UPDATE comptes SET email = ? WHERE id = ?", [newEmailKey, req.compteId]);
+    otpStore.delete(newEmailKey);
+    const [[compte]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
+    const newToken = jwt.sign(
+      { compteId: req.compteId, email: newEmailKey, nom_association: compte.nom_association },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    res.json({ success: true, token: newToken, email: newEmailKey });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // ROUTES — ADHÉRENTS (protégées)
 // ═══════════════════════════════════════════════════════════════
@@ -330,7 +596,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
 app.get("/api/adherents", authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, created_at
+      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, created_at
        FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC`,
       [req.compteId]
     );
@@ -343,7 +609,7 @@ app.get("/api/adherents", authMiddleware, async (req, res) => {
 app.post("/api/adherents", authMiddleware, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { nom, prenom, telephone, email, date_inscription } = req.body;
+    const { nom, prenom, telephone, email, date_inscription, photo } = req.body;
     if (!nom || !prenom)
       return res.status(400).json({ error: "Nom et prénom obligatoires." });
 
@@ -352,9 +618,9 @@ app.post("/api/adherents", authMiddleware, async (req, res) => {
     const matricule = await genererMatricule(conn, req.compteId);
 
     const [result] = await conn.query(
-      `INSERT INTO adherents (compte_id, matricule, nom, prenom, telephone, email, date_inscription)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [req.compteId, matricule, nom, prenom, telephone || null, email || null, date_inscription || null]
+      `INSERT INTO adherents (compte_id, matricule, nom, prenom, telephone, email, date_inscription, photo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.compteId, matricule, nom, prenom, telephone || null, email || null, date_inscription || null, photo || null]
     );
 
     const adherentId = result.insertId;
@@ -393,14 +659,21 @@ app.post("/api/adherents", authMiddleware, async (req, res) => {
 
 app.put("/api/adherents/:id", authMiddleware, async (req, res) => {
   try {
-    const { nom, prenom, telephone, email } = req.body;
+    const { nom, prenom, telephone, email, photo } = req.body;
     if (!nom || !prenom)
       return res.status(400).json({ error: "Nom et prénom obligatoires." });
 
-    await pool.query(
-      "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=? WHERE id=? AND compte_id=?",
-      [nom, prenom, telephone || null, email || null, req.params.id, req.compteId]
-    );
+    if (photo !== undefined) {
+      await pool.query(
+        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=?, photo=? WHERE id=? AND compte_id=?",
+        [nom, prenom, telephone || null, email || null, photo || null, req.params.id, req.compteId]
+      );
+    } else {
+      await pool.query(
+        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=? WHERE id=? AND compte_id=?",
+        [nom, prenom, telephone || null, email || null, req.params.id, req.compteId]
+      );
+    }
     res.json({ message: "Adhérent modifié ✅" });
   } catch (err) {
     res.status(500).json({ error: err.message });

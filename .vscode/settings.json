@@ -2,6 +2,5 @@
   "workbench.externalBrowser": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "simpleBrowser.focusLockIndicator.enabled": false,
   "remote.autoForwardPorts": false,
-  "remote.autoForwardPortsSource": "output",
   "workbench.editor.enablePreview": false
 }

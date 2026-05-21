@@ -1,12 +1,496 @@
 import { useState, useRef, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import logo from "./assets/cota.png";
+import { translations } from "./i18n";
+
+// ═══════════════════════════════════════════════════════
+// PAGE D'ACCUEIL PUBLIQUE (LANDING)
+// ═══════════════════════════════════════════════════════
+function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const ls = {
+    root: {
+      fontFamily: "Arial, sans-serif",
+      minHeight: "100vh",
+      background: "linear-gradient(160deg,#0f1b2d 0%,#1a2d46 40%,#0d2137 100%)",
+      color: "#fff",
+      overflowX: "hidden",
+    },
+    nav: {
+      position: "sticky",
+      top: 0,
+      zIndex: 100,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "0 32px",
+      height: "68px",
+      background: scrolled ? "rgba(10,20,38,0.97)" : "rgba(10,20,38,0.6)",
+      backdropFilter: "blur(12px)",
+      borderBottom: scrolled ? "1px solid rgba(52,152,219,0.2)" : "1px solid transparent",
+      transition: "all 0.3s ease",
+      boxSizing: "border-box",
+    },
+    navBrand: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+    },
+    navLogo: {
+      height: "42px",
+      width: "42px",
+      objectFit: "cover",
+      borderRadius: "50%",
+    },
+    navTitle: {
+      fontSize: "18px",
+      fontWeight: "700",
+      color: "#fff",
+      margin: 0,
+      letterSpacing: "-0.3px",
+    },
+    navActions: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+    },
+    langSelect: {
+      padding: "6px 12px",
+      background: "rgba(255,255,255,0.1)",
+      color: "#fff",
+      border: "1px solid rgba(255,255,255,0.25)",
+      borderRadius: "20px",
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "13px",
+      outline: "none",
+    },
+    btnOutline: {
+      padding: "8px 20px",
+      background: "transparent",
+      color: "#3498db",
+      border: "1.5px solid #3498db",
+      borderRadius: "22px",
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "14px",
+      transition: "all 0.2s",
+    },
+    btnPrimary: {
+      padding: "8px 20px",
+      background: "linear-gradient(135deg,#3498db,#2980b9)",
+      color: "#fff",
+      border: "none",
+      borderRadius: "22px",
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "14px",
+      boxShadow: "0 2px 12px rgba(52,152,219,0.4)",
+      transition: "all 0.2s",
+    },
+    // ── HERO ──────────────────────────────────────────────
+    hero: {
+      textAlign: "center",
+      padding: "90px 24px 80px",
+      maxWidth: "760px",
+      margin: "0 auto",
+    },
+    heroBadge: {
+      display: "inline-block",
+      background: "rgba(52,152,219,0.15)",
+      color: "#3498db",
+      border: "1px solid rgba(52,152,219,0.4)",
+      borderRadius: "20px",
+      padding: "5px 16px",
+      fontSize: "13px",
+      fontWeight: "600",
+      marginBottom: "28px",
+      letterSpacing: "0.3px",
+    },
+    heroTitle: {
+      fontSize: "clamp(28px, 5vw, 52px)",
+      fontWeight: "800",
+      lineHeight: "1.15",
+      letterSpacing: "-1px",
+      margin: "0 0 24px",
+      color: "#fff",
+    },
+    heroTitleAccent: {
+      background: "linear-gradient(90deg,#3498db,#9b59b6)",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      backgroundClip: "text",
+    },
+    heroSub: {
+      fontSize: "18px",
+      color: "rgba(255,255,255,0.72)",
+      lineHeight: "1.65",
+      margin: "0 0 40px",
+      maxWidth: "580px",
+      marginLeft: "auto",
+      marginRight: "auto",
+    },
+    heroCTAs: {
+      display: "flex",
+      gap: "16px",
+      justifyContent: "center",
+      flexWrap: "wrap",
+    },
+    ctaPrimary: {
+      padding: "14px 32px",
+      background: "linear-gradient(135deg,#3498db,#2980b9)",
+      color: "#fff",
+      border: "none",
+      borderRadius: "30px",
+      cursor: "pointer",
+      fontWeight: "700",
+      fontSize: "16px",
+      boxShadow: "0 4px 20px rgba(52,152,219,0.45)",
+      transition: "transform 0.15s, box-shadow 0.15s",
+    },
+    ctaSecondary: {
+      padding: "14px 32px",
+      background: "rgba(255,255,255,0.08)",
+      color: "#fff",
+      border: "1.5px solid rgba(255,255,255,0.25)",
+      borderRadius: "30px",
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "16px",
+      transition: "all 0.15s",
+    },
+    // ── FEATURES ──────────────────────────────────────────
+    featSection: {
+      background: "rgba(255,255,255,0.03)",
+      borderTop: "1px solid rgba(255,255,255,0.06)",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      padding: "80px 24px",
+    },
+    featInner: {
+      maxWidth: "1060px",
+      margin: "0 auto",
+    },
+    sectionLabel: {
+      textAlign: "center",
+      fontSize: "13px",
+      fontWeight: "700",
+      color: "#3498db",
+      letterSpacing: "1.2px",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    },
+    sectionTitle: {
+      textAlign: "center",
+      fontSize: "clamp(22px, 3.5vw, 36px)",
+      fontWeight: "800",
+      color: "#fff",
+      margin: "0 0 56px",
+      letterSpacing: "-0.5px",
+    },
+    featGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+      gap: "24px",
+    },
+    featCard: {
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(255,255,255,0.1)",
+      borderRadius: "18px",
+      padding: "36px 28px",
+      transition: "transform 0.2s, box-shadow 0.2s",
+      cursor: "default",
+    },
+    featIcon: {
+      fontSize: "40px",
+      marginBottom: "18px",
+      display: "block",
+    },
+    featTitle: {
+      fontSize: "18px",
+      fontWeight: "700",
+      color: "#fff",
+      marginBottom: "10px",
+    },
+    featDesc: {
+      fontSize: "15px",
+      color: "rgba(255,255,255,0.62)",
+      lineHeight: "1.65",
+    },
+    // ── HOW IT WORKS ──────────────────────────────────────
+    howSection: {
+      padding: "80px 24px",
+      maxWidth: "860px",
+      margin: "0 auto",
+    },
+    stepsGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+      gap: "32px",
+      marginTop: "8px",
+    },
+    stepCard: {
+      textAlign: "center",
+      padding: "32px 20px",
+    },
+    stepNum: {
+      width: "56px",
+      height: "56px",
+      borderRadius: "50%",
+      background: "linear-gradient(135deg,#3498db,#2980b9)",
+      color: "#fff",
+      fontSize: "22px",
+      fontWeight: "800",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      margin: "0 auto 20px",
+      boxShadow: "0 4px 16px rgba(52,152,219,0.4)",
+    },
+    stepTitle: {
+      fontSize: "17px",
+      fontWeight: "700",
+      color: "#fff",
+      marginBottom: "10px",
+    },
+    stepDesc: {
+      fontSize: "14px",
+      color: "rgba(255,255,255,0.6)",
+      lineHeight: "1.6",
+    },
+    // ── CTA BOTTOM ────────────────────────────────────────
+    ctaSection: {
+      textAlign: "center",
+      padding: "70px 24px",
+      background: "linear-gradient(135deg,rgba(52,152,219,0.12),rgba(155,89,182,0.1))",
+      borderTop: "1px solid rgba(52,152,219,0.15)",
+    },
+    ctaTitle: {
+      fontSize: "clamp(22px, 3vw, 34px)",
+      fontWeight: "800",
+      color: "#fff",
+      margin: "0 0 14px",
+    },
+    ctaSub: {
+      fontSize: "16px",
+      color: "rgba(255,255,255,0.65)",
+      margin: "0 0 36px",
+    },
+    // ── FOOTER ────────────────────────────────────────────
+    footer: {
+      textAlign: "center",
+      padding: "24px",
+      borderTop: "1px solid rgba(255,255,255,0.06)",
+      color: "rgba(255,255,255,0.35)",
+      fontSize: "13px",
+    },
+  };
+
+  const features = [
+    { icon: t("landingFeat1Icon"), title: t("landingFeat1Title"), desc: t("landingFeat1Desc") },
+    { icon: t("landingFeat2Icon"), title: t("landingFeat2Title"), desc: t("landingFeat2Desc") },
+    { icon: t("landingFeat3Icon"), title: t("landingFeat3Title"), desc: t("landingFeat3Desc") },
+  ];
+
+  const steps = [
+    { num: t("landingStep1Num"), title: t("landingStep1Title"), desc: t("landingStep1Desc") },
+    { num: t("landingStep2Num"), title: t("landingStep2Title"), desc: t("landingStep2Desc") },
+    { num: t("landingStep3Num"), title: t("landingStep3Title"), desc: t("landingStep3Desc") },
+  ];
+
+  return (
+    <div style={ls.root}>
+      {/* ── NAVBAR ── */}
+      <nav style={ls.nav}>
+        <div style={ls.navBrand}>
+          <img src={logo} alt="Logo" style={ls.navLogo} />
+          <span style={ls.navTitle}>Cotisation Pro</span>
+        </div>
+        <div style={ls.navActions}>
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            style={ls.langSelect}
+          >
+            <option value="fr" style={{ background: "#0f1b2d" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#0f1b2d" }}>🇬🇧 EN</option>
+          </select>
+          <button style={ls.btnOutline} onClick={onLogin}>{t("landingNavLogin")}</button>
+          <button style={ls.btnPrimary} onClick={onRegister}>{t("landingNavRegister")}</button>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <section style={ls.hero}>
+        <div style={ls.heroBadge}>🏛️ Cotisation Pro</div>
+        <h1 style={ls.heroTitle}>
+          {lang === "fr" ? (
+            <>Gérez les cotisations de votre association{" "}<span style={ls.heroTitleAccent}>en toute simplicité</span></>
+          ) : (
+            <>Manage your association's contributions{" "}<span style={ls.heroTitleAccent}>with ease</span></>
+          )}
+        </h1>
+        <p style={ls.heroSub}>{t("landingHeroSubtitle")}</p>
+        <div style={ls.heroCTAs}>
+          <button
+            style={ls.ctaPrimary}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(52,152,219,0.55)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(52,152,219,0.45)"; }}
+            onClick={onRegister}
+          >
+            {t("landingCTAStart")} →
+          </button>
+          <button
+            style={ls.ctaSecondary}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+            onClick={onLogin}
+          >
+            {t("landingCTALogin")}
+          </button>
+        </div>
+      </section>
+
+      {/* ── FONCTIONNALITÉS ── */}
+      <section style={ls.featSection}>
+        <div style={ls.featInner}>
+          <p style={ls.sectionLabel}>Fonctionnalités</p>
+          <h2 style={ls.sectionTitle}>{t("landingFeaturesTitle")}</h2>
+          <div style={ls.featGrid}>
+            {features.map((f, i) => (
+              <div
+                key={i}
+                style={ls.featCard}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.25)"; e.currentTarget.style.borderColor = "rgba(52,152,219,0.35)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
+              >
+                <span style={ls.featIcon}>{f.icon}</span>
+                <div style={ls.featTitle}>{f.title}</div>
+                <div style={ls.featDesc}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMMENT ÇA MARCHE ── */}
+      <section style={ls.howSection}>
+        <p style={ls.sectionLabel}>{lang === "fr" ? "En 3 étapes" : "3 simple steps"}</p>
+        <h2 style={{ ...ls.sectionTitle, marginBottom: "40px" }}>{t("landingHowTitle")}</h2>
+        <div style={ls.stepsGrid}>
+          {steps.map((s, i) => (
+            <div key={i} style={ls.stepCard}>
+              <div style={ls.stepNum}>{s.num}</div>
+              <div style={ls.stepTitle}>{s.title}</div>
+              <div style={ls.stepDesc}>{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA BAS DE PAGE ── */}
+      <section style={ls.ctaSection}>
+        <h2 style={ls.ctaTitle}>
+          {lang === "fr" ? "Prêt à démarrer ?" : "Ready to get started?"}
+        </h2>
+        <p style={ls.ctaSub}>
+          {lang === "fr"
+            ? "Créez votre compte gratuit et gérez votre association dès aujourd'hui."
+            : "Create your free account and manage your association today."}
+        </p>
+        <button
+          style={{ ...ls.ctaPrimary, fontSize: "17px", padding: "16px 40px" }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(52,152,219,0.55)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(52,152,219,0.45)"; }}
+          onClick={onRegister}
+        >
+          {t("landingCTAStart")} →
+        </button>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={ls.footer}>
+        {t("landingFooter")}
+      </footer>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// ICÔNES ŒIL — réutilisables dans toute l'app
+// ═══════════════════════════════════════════════════════
+const EyeOpen = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+const EyeOff = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
+);
 
 // ═══════════════════════════════════════════════════════
 // PAGE D'AUTHENTIFICATION
 // ═══════════════════════════════════════════════════════
-function AuthPage({ API_BASE, onSuccess }) {
-  const [mode, setMode] = useState("login"); // "login" | "register" | "reset"
+const frTerms = [
+  { title: "1. Objet du service", text: "Cotisation Pro est une application locale de gestion des cotisations pour les associations. Elle permet de gérer les adhérents, d'enregistrer les paiements et de générer des reçus officiels." },
+  { title: "2. Création et gestion du compte", text: "Pour utiliser le service, vous devez créer un compte avec une adresse email valide et un nom d'association. Vous êtes responsable de la confidentialité de vos identifiants et de toutes les activités effectuées depuis votre compte. Vous vous engagez à fournir des informations exactes lors de l'inscription." },
+  { title: "3. Données personnelles", text: "Les données saisies (informations des adhérents, montants des cotisations) sont stockées localement sur votre propre serveur. Vous êtes seul responsable de leur sécurité et de leur conformité avec la réglementation applicable (RGPD et toute loi locale sur la protection des données)." },
+  { title: "4. Utilisation acceptable", text: "Vous vous engagez à utiliser l'application uniquement dans le cadre légal et pour la gestion de votre association. Il est strictement interdit d'utiliser l'application à des fins frauduleuses, de tenter de contourner les mesures de sécurité, ou de nuire au bon fonctionnement du service." },
+  { title: "5. Limitation de responsabilité", text: "L'application est fournie « en l'état », sans garantie d'aucune sorte. Le développeur ne saurait être tenu responsable des pertes de données, des interruptions de service ou de tout dommage direct ou indirect lié à l'utilisation de l'application." },
+  { title: "6. Contact", text: "Pour toute question relative à ces conditions d'utilisation, vous pouvez contacter le développeur à l'adresse : kouamekouakouelise97@gmail.com" },
+];
+
+const enTerms = [
+  { title: "1. Service Purpose", text: "Cotisation Pro is a local contribution management application for associations. It allows you to manage members, record payments and generate official receipts." },
+  { title: "2. Account Creation and Management", text: "To use the service, you must create an account with a valid email address and an association name. You are responsible for the confidentiality of your credentials and all activities performed from your account. You agree to provide accurate information during registration." },
+  { title: "3. Personal Data", text: "The data you enter (member information, contribution amounts) is stored locally on your own server. You are solely responsible for its security and compliance with applicable regulations (GDPR and any local data protection laws)." },
+  { title: "4. Acceptable Use", text: "You agree to use the application only within a legal framework and for the management of your association. It is strictly prohibited to use the application for fraudulent purposes, to attempt to bypass security measures, or to disrupt the proper functioning of the service." },
+  { title: "5. Limitation of Liability", text: "The application is provided 'as is', without warranty of any kind. The developer shall not be liable for data loss, service interruptions or any direct or indirect damage related to the use of the application." },
+  { title: "6. Contact", text: "For any questions regarding these terms of use, you can contact the developer at: kouamekouakouelise97@gmail.com" },
+];
+
+function TermsModal({ lang, t, onClose, onAccept }) {
+  const sections = lang === "fr" ? frTerms : enTerms;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
+      <div style={{ background: "white", borderRadius: "18px", width: "100%", maxWidth: "520px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 48px rgba(0,0,0,0.3)" }}>
+        <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid #f0f3f7", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0, fontSize: "18px", color: "#2c3e50", fontWeight: "bold" }}>{t("termsModalTitle")}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#95a5a6", padding: "4px 8px", lineHeight: 1 }}>✕</button>
+        </div>
+        <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1, lineHeight: "1.65", fontSize: "14px", color: "#444" }}>
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "14px", fontWeight: "bold", color: "#2c3e50", marginBottom: "8px", marginTop: 0 }}>{s.title}</h3>
+              <p style={{ margin: 0 }}>{s.text}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #f0f3f7", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: "8px", border: "1.5px solid #e0e6ed", background: "white", color: "#7f8c8d", cursor: "pointer", fontWeight: "600", fontSize: "14px" }}>
+            {t("termsCloseBtn")}
+          </button>
+          <button onClick={onAccept} style={{ padding: "10px 24px", borderRadius: "8px", border: "none", background: "linear-gradient(135deg,#2c3e50,#3498db)", color: "white", cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}>
+            {t("termsAcceptBtn")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login", onBackToLanding }) {
+  const [mode, setMode] = useState(initialMode); // "login" | "register" | "reset"
   const [form, setForm] = useState({ email: "", mot_de_passe: "", confirmer_mot_de_passe: "", nom_association: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,36 +501,115 @@ function AuthPage({ API_BASE, onSuccess }) {
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showNewPwd2, setShowNewPwd2] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [registerStep, setRegisterStep] = useState("form"); // "form" | "otp"
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
+  const otp0Ref = useRef(null);
+  const otp1Ref = useRef(null);
+  const otp2Ref = useRef(null);
+  const otp3Ref = useRef(null);
+  const otpRefs = [otp0Ref, otp1Ref, otp2Ref, otp3Ref];
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleResetChange = (e) => setResetForm({ ...resetForm, [e.target.name]: e.target.value });
 
-  // Connexion / Inscription directe (sans OTP)
+  // ── OTP helpers ─────────────────────────────────────────────
+  const handleOtpInput = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otpDigits];
+    next[index] = value.slice(-1);
+    setOtpDigits(next);
+    if (value && index < 3) otpRefs[index + 1].current?.focus();
+  };
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) otpRefs[index - 1].current?.focus();
+  };
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    if (!digits) return;
+    const next = ["", "", "", ""];
+    for (let i = 0; i < 4; i++) next[i] = digits[i] || "";
+    setOtpDigits(next);
+    otpRefs[Math.min(digits.length - 1, 3)].current?.focus();
+  };
+
+  // Étape 1 inscription — envoyer l'OTP
+  const sendOtpRequest = async (email) => {
+    const res = await fetch(`${API_BASE}/auth/send-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+    const data = await res.json();
+    if (res.status === 429) throw new Error(t("emailRateLimit"));
+    if (res.status === 503) throw new Error(t("emailServiceUnavailable"));
+    if (!res.ok) throw new Error(data.error || t("errorSendingCode"));
+    return data;
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!form.nom_association.trim() || !form.email.trim() || !form.mot_de_passe) { setError(t("allFieldsRequired")); return; }
+    if (form.mot_de_passe !== form.confirmer_mot_de_passe) { setError(t("passwordsNoMatch")); return; }
+    if (form.mot_de_passe.length < 6) { setError(t("passwordMinLength")); return; }
+    if (!termsAccepted) { setError(t("termsNotAccepted")); return; }
+    setLoading(true);
+    try {
+      await sendOtpRequest(form.email);
+      setRegisterStep("otp");
+      setOtpDigits(["", "", "", ""]);
+      setTimeout(() => otp0Ref.current?.focus(), 100);
+    } catch (err) { setError(err.message || t("networkError")); }
+    finally { setLoading(false); }
+  };
+
+  // Renvoyer le code OTP
+  const handleResendOtp = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await sendOtpRequest(form.email);
+      setOtpDigits(["", "", "", ""]);
+      setTimeout(() => otp0Ref.current?.focus(), 100);
+    } catch (err) { setError(err.message || t("networkErrorShort")); }
+    finally { setLoading(false); }
+  };
+
+  // Étape 2 inscription — vérifier l'OTP et créer le compte
+  const handleRegisterWithOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    const otp = otpDigits.join("");
+    if (otp.length !== 4) { setError(t("enterAllDigits")); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || t("networkErrorShort")); return; }
+      onSuccess(data, "register");
+    } catch { setError(t("networkError")); }
+    finally { setLoading(false); }
+  };
+
+  // Connexion uniquement
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (mode === "register") {
-      if (!form.nom_association.trim() || !form.email.trim() || !form.mot_de_passe) { setError("Tous les champs sont obligatoires."); return; }
-      if (form.mot_de_passe !== form.confirmer_mot_de_passe) { setError("Les mots de passe ne correspondent pas."); return; }
-      if (form.mot_de_passe.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
-    } else {
-      if (!form.email.trim() || !form.mot_de_passe) { setError("Email et mot de passe requis."); return; }
-    }
+    if (!form.email.trim() || !form.mot_de_passe) { setError(t("emailPasswordRequired")); return; }
     setLoading(true);
     try {
-      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
-      const body = mode === "register"
-        ? { nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe }
-        : { email: form.email.trim(), mot_de_passe: form.mot_de_passe };
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ email: form.email.trim(), mot_de_passe: form.mot_de_passe }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Erreur."); return; }
-      onSuccess(data, mode);
-    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
+      if (!res.ok) { setError(data.error || t("networkErrorShort")); return; }
+      onSuccess(data, "login");
+    } catch { setError(t("networkError")); }
     finally { setLoading(false); }
   };
 
@@ -54,7 +617,7 @@ function AuthPage({ API_BASE, onSuccess }) {
   const handleVerifyIdentity = async (e) => {
     e.preventDefault();
     setError("");
-    if (!resetForm.email.trim() || !resetForm.nom_association.trim()) { setError("Email et nom de l'association requis."); return; }
+    if (!resetForm.email.trim() || !resetForm.nom_association.trim()) { setError(t("emailAssocRequired")); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/auth/verify-identity`, {
@@ -63,9 +626,9 @@ function AuthPage({ API_BASE, onSuccess }) {
         body: JSON.stringify({ email: resetForm.email.trim(), nom_association: resetForm.nom_association.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Email ou nom d'association incorrect."); return; }
+      if (!res.ok) { setError(data.error || t("incorrectEmailAssoc")); return; }
       setResetStep("password");
-    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
+    } catch { setError(t("networkError")); }
     finally { setLoading(false); }
   };
 
@@ -73,8 +636,8 @@ function AuthPage({ API_BASE, onSuccess }) {
   const handleReset = async (e) => {
     e.preventDefault();
     setError("");
-    if (!resetForm.nouveau_mot_de_passe || resetForm.nouveau_mot_de_passe.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
-    if (resetForm.nouveau_mot_de_passe !== resetForm.confirmer) { setError("Les mots de passe ne correspondent pas."); return; }
+    if (!resetForm.nouveau_mot_de_passe || resetForm.nouveau_mot_de_passe.length < 6) { setError(t("passwordMinLength")); return; }
+    if (resetForm.nouveau_mot_de_passe !== resetForm.confirmer) { setError(t("passwordsNoMatch")); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
@@ -83,62 +646,58 @@ function AuthPage({ API_BASE, onSuccess }) {
         body: JSON.stringify({ email: resetForm.email.trim(), nom_association: resetForm.nom_association.trim(), nouveau_mot_de_passe: resetForm.nouveau_mot_de_passe }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Erreur lors de la réinitialisation."); return; }
+      if (!res.ok) { setError(data.error || t("errorReset")); return; }
       setMode("login");
       setResetStep("identity");
       setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" });
-      setSuccessMsg("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.");
-    } catch { setError("Erreur réseau. Vérifiez que le serveur est démarré."); }
+      setSuccessMsg(t("passwordResetSuccess"));
+    } catch { setError(t("networkError")); }
     finally { setLoading(false); }
   };
-
-  const EyeOpen = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#95a5a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-    </svg>
-  );
-  const EyeOff = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#95a5a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  );
 
   // ── Formulaire mot de passe oublié — Étape 1 : vérification identité ──
   if (mode === "reset" && resetStep === "identity") {
     return (
-      <div style={authSt.page}>
-        <div style={authSt.card}>
-          <div style={authSt.cardHeader}>
-            <img src={logo} alt="" style={authSt.cardLogo} />
-            <div>
-              <h2 style={authSt.cardTitle}>Mot de passe oublié</h2>
-              <p style={authSt.cardSub}>Étape 1 sur 2 — Vérification de votre identité</p>
-            </div>
+      <div style={{ position: "relative" }}>
+        <div style={authSt.page}>
+          <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
+              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+            </select>
           </div>
-          <form onSubmit={handleVerifyIdentity}>
-            <div style={authSt.field}>
-              <label style={authSt.label}>Adresse email</label>
-              <div style={authSt.inputBox}>
-                <input style={authSt.input} type="email" name="email" value={resetForm.email} onChange={handleResetChange} placeholder="votre@email.com" autoFocus />
+          <div style={authSt.card}>
+            <div style={authSt.cardHeader}>
+              <img src={logo} alt="" style={authSt.cardLogo} />
+              <div>
+                <h2 style={authSt.cardTitle}>{t("forgotPassword")}</h2>
+                <p style={authSt.cardSub}>{t("step1of2")}</p>
               </div>
             </div>
-            <div style={authSt.field}>
-              <label style={authSt.label}>Nom de l'association</label>
-              <div style={authSt.inputBox}>
-                <input style={authSt.input} type="text" name="nom_association" value={resetForm.nom_association} onChange={handleResetChange} placeholder="Nom exact de votre association" />
+            <form onSubmit={handleVerifyIdentity}>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("emailAddress")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="email" name="email" value={resetForm.email} onChange={handleResetChange} placeholder="votre@email.com" autoFocus />
+                </div>
               </div>
-            </div>
-            {error && <div style={authSt.error}>⚠️ {error}</div>}
-            <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-              {loading ? "Vérification…" : "Vérifier mon identité →"}
-            </button>
-          </form>
-          <p style={authSt.switchText}>
-            <button style={authSt.switchLink} onClick={() => { setMode("login"); setResetStep("identity"); setError(""); }}>
-              ← Retour à la connexion
-            </button>
-          </p>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("associationName")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="text" name="nom_association" value={resetForm.nom_association} onChange={handleResetChange} placeholder={t("exactAssocName")} />
+                </div>
+              </div>
+              {error && <div style={authSt.error}>⚠️ {error}</div>}
+              <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+                {loading ? t("verifying") : t("verifyIdentity")}
+              </button>
+            </form>
+            <p style={authSt.switchText}>
+              <button style={authSt.switchLink} onClick={() => { setMode("login"); setResetStep("identity"); setError(""); }}>
+                {t("backToLogin")}
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -147,40 +706,116 @@ function AuthPage({ API_BASE, onSuccess }) {
   // ── Formulaire mot de passe oublié — Étape 2 : nouveau mot de passe ──
   if (mode === "reset" && resetStep === "password") {
     return (
-      <div style={authSt.page}>
-        <div style={authSt.card}>
-          <div style={authSt.cardHeader}>
-            <img src={logo} alt="" style={authSt.cardLogo} />
-            <div>
-              <h2 style={authSt.cardTitle}>Nouveau mot de passe</h2>
-              <p style={authSt.cardSub}>Étape 2 sur 2 — Choisissez un nouveau mot de passe</p>
-            </div>
+      <div style={{ position: "relative" }}>
+        <div style={authSt.page}>
+          <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
+              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+            </select>
           </div>
-          <form onSubmit={handleReset}>
-            <div style={authSt.field}>
-              <label style={authSt.label}>Nouveau mot de passe</label>
-              <div style={authSt.inputBox}>
-                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} name="nouveau_mot_de_passe" value={resetForm.nouveau_mot_de_passe} onChange={handleResetChange} placeholder="Minimum 6 caractères" autoFocus />
-                <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
+          <div style={authSt.card}>
+            <div style={authSt.cardHeader}>
+              <img src={logo} alt="" style={authSt.cardLogo} />
+              <div>
+                <h2 style={authSt.cardTitle}>{t("newPassword")}</h2>
+                <p style={authSt.cardSub}>{t("step2of2")}</p>
               </div>
             </div>
-            <div style={authSt.field}>
-              <label style={authSt.label}>Confirmer le mot de passe</label>
-              <div style={authSt.inputBox}>
-                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd2 ? "text" : "password"} name="confirmer" value={resetForm.confirmer} onChange={handleResetChange} placeholder="Répétez le nouveau mot de passe" />
-                <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd2((v) => !v)}>{showNewPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+            <form onSubmit={handleReset}>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("newPassword")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd ? "text" : "password"} name="nouveau_mot_de_passe" value={resetForm.nouveau_mot_de_passe} onChange={handleResetChange} placeholder={t("minChars")} autoFocus />
+                  <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd((v) => !v)}>{showNewPwd ? <EyeOff /> : <EyeOpen />}</button>
+                </div>
+              </div>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("confirmPassword")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={{ ...authSt.input, paddingRight: "44px" }} type={showNewPwd2 ? "text" : "password"} name="confirmer" value={resetForm.confirmer} onChange={handleResetChange} placeholder={t("repeatNewPassword")} />
+                  <button type="button" style={authSt.eyeBtn} onClick={() => setShowNewPwd2((v) => !v)}>{showNewPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+                </div>
+              </div>
+              {error && <div style={authSt.error}>⚠️ {error}</div>}
+              <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+                {loading ? t("saving") : t("saveNewPassword")}
+              </button>
+            </form>
+            <p style={authSt.switchText}>
+              <button style={authSt.switchLink} onClick={() => { setResetStep("identity"); setError(""); }}>
+                {t("backToPrevStep")}
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Étape OTP — vérification email pour inscription ──
+  if (mode === "register" && registerStep === "otp") {
+    return (
+      <div style={{ position: "relative" }}>
+        <div style={authSt.page}>
+          <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
+              <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+              <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+            </select>
+          </div>
+          <div style={authSt.card}>
+            <div style={authSt.cardHeader}>
+              <img src={logo} alt="" style={authSt.cardLogo} />
+              <div>
+                <h2 style={authSt.cardTitle}>{t("emailVerification")}</h2>
+                <p style={authSt.cardSub}>{t("codeSentTo")} {form.email}</p>
               </div>
             </div>
-            {error && <div style={authSt.error}>⚠️ {error}</div>}
-            <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-              {loading ? "Enregistrement…" : "Enregistrer le nouveau mot de passe"}
-            </button>
-          </form>
-          <p style={authSt.switchText}>
-            <button style={authSt.switchLink} onClick={() => { setResetStep("identity"); setError(""); }}>
-              ← Retour à l'étape précédente
-            </button>
-          </p>
+            <p style={{ textAlign: "center", color: "#7f8c8d", fontSize: "13px", marginBottom: "24px", lineHeight: "1.5" }}>
+              {t("otpInstruction")} <strong>{t("otpDigits")}</strong> {t("otpReceived")}<br />{t("otpExpires")}
+            </p>
+            <form onSubmit={handleRegisterWithOtp}>
+              <div style={{ display: "flex", gap: "14px", justifyContent: "center", marginBottom: "28px" }}>
+                {otpDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={otpRefs[i]}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpInput(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    onPaste={handleOtpPaste}
+                    style={{
+                      width: "62px", height: "68px", textAlign: "center", fontSize: "30px", fontWeight: "bold",
+                      border: "2px solid " + (digit ? "#2c3e50" : "#e0e6ed"),
+                      borderRadius: "12px", outline: "none", color: "#2c3e50",
+                      background: digit ? "#eef2f7" : "#fdfdfe", boxSizing: "border-box",
+                      transition: "border-color 0.15s, background 0.15s",
+                      fontFamily: "Arial, sans-serif",
+                    }}
+                  />
+                ))}
+              </div>
+              {error && <div style={authSt.error}>⚠️ {error}</div>}
+              <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+                {loading ? t("verifying") : t("confirmCreateAccount")}
+              </button>
+            </form>
+            <p style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: "#95a5a6" }}>
+              {t("didntReceiveCode")}{" "}
+              <button style={{ ...authSt.switchLink, fontSize: "13px" }} onClick={handleResendOtp} disabled={loading}>
+                {t("resendCode")}
+              </button>
+            </p>
+            <p style={authSt.switchText}>
+              <button style={authSt.switchLink} onClick={() => { setRegisterStep("form"); setError(""); }}>
+                {t("backToForm")}
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -188,75 +823,122 @@ function AuthPage({ API_BASE, onSuccess }) {
 
   // ── Formulaire principal ──
   return (
-    <div style={authSt.page}>
-      <div style={authSt.card}>
-        <div style={authSt.cardHeader}>
-          <img src={logo} alt="" style={authSt.cardLogo} />
-          <div>
-            <h2 style={authSt.cardTitle}>{mode === "login" ? "Connexion" : "Créer un compte"}</h2>
-            <p style={authSt.cardSub}>{mode === "login" ? "Accédez à votre espace association" : "Rejoignez Cotisation Pro"}</p>
+    <div style={{ position: "relative" }}>
+      <div style={authSt.page}>
+        <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}>
+            <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+          </select>
+        </div>
+        {onBackToLanding && (
+          <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10 }}>
+            <button
+              onClick={onBackToLanding}
+              style={{ padding: "7px 16px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              ← {lang === "fr" ? "Accueil" : "Home"}
+            </button>
           </div>
-        </div>
+        )}
+        <div style={authSt.card}>
+          <div style={authSt.cardHeader}>
+            <img src={logo} alt="" style={authSt.cardLogo} />
+            <div>
+              <h2 style={authSt.cardTitle}>{mode === "login" ? t("login") : t("createAccount")}</h2>
+              <p style={authSt.cardSub}>{mode === "login" ? t("accessYourSpace") : t("joinCotisationPro")}</p>
+            </div>
+          </div>
 
-        <div style={authSt.tabs}>
-          <button style={{ ...authSt.tab, ...(mode === "login" ? authSt.tabOn : {}) }} onClick={() => { setMode("login"); setError(""); }}>Connexion</button>
-          <button style={{ ...authSt.tab, ...(mode === "register" ? authSt.tabOn : {}) }} onClick={() => { setMode("register"); setError(""); }}>Créer un compte</button>
-        </div>
+          <div style={authSt.tabs}>
+            <button style={{ ...authSt.tab, ...(mode === "login" ? authSt.tabOn : {}) }} onClick={() => { setMode("login"); setRegisterStep("form"); setError(""); }}>{t("login")}</button>
+            <button style={{ ...authSt.tab, ...(mode === "register" ? authSt.tabOn : {}) }} onClick={() => { setMode("register"); setRegisterStep("form"); setError(""); }}>{t("createAccount")}</button>
+          </div>
 
-        <form onSubmit={handleSubmit}>
-          {mode === "register" && (
+          <form onSubmit={mode === "register" ? handleSendOtp : handleSubmit}>
+            {mode === "register" && (
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("associationName")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="text" name="nom_association" value={form.nom_association} onChange={handleChange} placeholder={t("assocNamePlaceholder")} autoFocus />
+                </div>
+              </div>
+            )}
             <div style={authSt.field}>
-              <label style={authSt.label}>Nom de l'association</label>
+              <label style={authSt.label}>{t("emailAddress")}</label>
               <div style={authSt.inputBox}>
-                <input style={authSt.input} type="text" name="nom_association" value={form.nom_association} onChange={handleChange} placeholder="Ex : Association des anciens élèves" autoFocus />
+                <input style={authSt.input} type="email" name="email" value={form.email} onChange={handleChange} placeholder="votre@email.com" autoFocus={mode === "login"} />
               </div>
             </div>
-          )}
-          <div style={authSt.field}>
-            <label style={authSt.label}>Adresse email</label>
-            <div style={authSt.inputBox}>
-              <input style={authSt.input} type="email" name="email" value={form.email} onChange={handleChange} placeholder="votre@email.com" autoFocus={mode === "login"} />
-            </div>
-          </div>
-          <div style={authSt.field}>
-            <label style={authSt.label}>Mot de passe</label>
-            <div style={authSt.inputBox}>
-              <input style={{ ...authSt.input, paddingRight: "44px" }} type={showPwd ? "text" : "password"} name="mot_de_passe" value={form.mot_de_passe} onChange={handleChange} placeholder={mode === "register" ? "Minimum 6 caractères" : "Votre mot de passe"} />
-              <button type="button" style={authSt.eyeBtn} onClick={() => setShowPwd((v) => !v)}>{showPwd ? <EyeOff /> : <EyeOpen />}</button>
-            </div>
-          </div>
-          {mode === "register" && (
             <div style={authSt.field}>
-              <label style={authSt.label}>Confirmer le mot de passe</label>
+              <label style={authSt.label}>{t("password")}</label>
               <div style={authSt.inputBox}>
-                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showPwd2 ? "text" : "password"} name="confirmer_mot_de_passe" value={form.confirmer_mot_de_passe} onChange={handleChange} placeholder="Répétez le mot de passe" />
-                <button type="button" style={authSt.eyeBtn} onClick={() => setShowPwd2((v) => !v)}>{showPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+                <input style={{ ...authSt.input, paddingRight: "44px" }} type={showPwd ? "text" : "password"} name="mot_de_passe" value={form.mot_de_passe} onChange={handleChange} placeholder={mode === "register" ? t("minChars") : t("yourPassword")} />
+                <button type="button" style={authSt.eyeBtn} onClick={() => setShowPwd((v) => !v)}>{showPwd ? <EyeOff /> : <EyeOpen />}</button>
               </div>
             </div>
-          )}
-          {error && <div style={authSt.error}>⚠️ {error}</div>}
-          {successMsg && <div style={authSt.success}>✅ {successMsg}</div>}
-          <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-            {loading ? (mode === "login" ? "Connexion…" : "Création…") : mode === "login" ? "Se connecter" : "Créer mon compte"}
-          </button>
-        </form>
+            {mode === "register" && (
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("confirmPassword")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={{ ...authSt.input, paddingRight: "44px" }} type={showPwd2 ? "text" : "password"} name="confirmer_mot_de_passe" value={form.confirmer_mot_de_passe} onChange={handleChange} placeholder={t("repeatPassword")} />
+                  <button type="button" style={authSt.eyeBtn} onClick={() => setShowPwd2((v) => !v)}>{showPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+                </div>
+              </div>
+            )}
+            {mode === "register" && (
+              <div style={{ marginBottom: "16px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                <input
+                  type="checkbox"
+                  id="terms-checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  style={{ marginTop: "3px", cursor: "pointer", width: "16px", height: "16px", flexShrink: 0 }}
+                />
+                <label htmlFor="terms-checkbox" style={{ fontSize: "13px", color: "#2c3e50", cursor: "pointer", lineHeight: "1.5" }}>
+                  {t("termsCheckboxLabel")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    style={{ background: "none", border: "none", color: "#3498db", cursor: "pointer", fontWeight: "bold", fontSize: "13px", padding: 0, textDecoration: "underline" }}
+                  >
+                    {t("termsLinkText")}
+                  </button>
+                </label>
+              </div>
+            )}
+            {error && <div style={authSt.error}>⚠️ {error}</div>}
+            {successMsg && <div style={authSt.success}>✅ {successMsg}</div>}
+            <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+              {loading ? (mode === "login" ? t("loggingIn") : t("sendingCode")) : mode === "login" ? t("signIn") : t("receiveCode")}
+            </button>
+          </form>
 
-        {mode === "login" && (
-          <p style={{ textAlign: "center", marginTop: "12px" }}>
-            <button style={{ ...authSt.switchLink, color: "#e67e22", fontSize: "13px" }}
-              onClick={() => { setMode("reset"); setResetStep("identity"); setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" }); setError(""); setSuccessMsg(""); }}>
-              Mot de passe oublié ?
+          {mode === "login" && (
+            <p style={{ textAlign: "center", marginTop: "12px" }}>
+              <button style={{ ...authSt.switchLink, color: "#e67e22", fontSize: "13px" }}
+                onClick={() => { setMode("reset"); setResetStep("identity"); setResetForm({ email: "", nom_association: "", nouveau_mot_de_passe: "", confirmer: "" }); setError(""); setSuccessMsg(""); }}>
+                {t("forgotPasswordQ")}
+              </button>
+            </p>
+          )}
+
+          <p style={authSt.switchText}>
+            {mode === "login" ? t("noAccountYet") : t("alreadyAccount")}{" "}
+            <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setRegisterStep("form"); setError(""); setSuccessMsg(""); }}>
+              {mode === "login" ? t("createAccount") : t("signIn")}
             </button>
           </p>
-        )}
-
-        <p style={authSt.switchText}>
-          {mode === "login" ? "Pas encore de compte ?" : "Déjà un compte ?"}{" "}
-          <button style={authSt.switchLink} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccessMsg(""); }}>
-            {mode === "login" ? "Créer un compte" : "Se connecter"}
-          </button>
-        </p>
+        </div>
       </div>
+      {showTermsModal && (
+        <TermsModal
+          lang={lang}
+          t={t}
+          onClose={() => setShowTermsModal(false)}
+          onAccept={() => { setTermsAccepted(true); setShowTermsModal(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -287,10 +969,17 @@ const authSt = {
 // APPLICATION PRINCIPALE
 // ═══════════════════════════════════════════════════════
 function App() {
+  // ── Langue ────────────────────────────────────────────
+  const [lang, setLang] = useState(() => localStorage.getItem("cotisation_lang") || "fr");
+  const t = (key) => (translations[lang] || translations.fr)[key] ?? key;
+  useEffect(() => { localStorage.setItem("cotisation_lang", lang); }, [lang]);
+
   // ── Authentification ──────────────────────────────────
   const [compte, setCompte] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem("cotisation_pro_compte")); } catch { return null; }
   });
+  const [showLanding, setShowLanding] = useState(true);
+  const [initialAuthMode, setInitialAuthMode] = useState("login");
 
   // Nettoyer l'ancien localStorage au démarrage (migration vers sessionStorage)
   useEffect(() => { localStorage.removeItem("cotisation_pro_compte"); }, []);
@@ -306,11 +995,11 @@ function App() {
     setAdherents([]);
     setPeriodes([]);
     setHistoriqueTransactions([]);
+    setShowLanding(true);
   };
 
   // ─────────────────────────────────────────────────────
   const [currentText, setCurrentText] = useState("");
-  const fullText = "Bienvenue sur Cotisation Pro, votre outil efficace de gestion des cotisations.";
   const [page, setPage] = useState("accueil");
   const [showForm, setShowForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
@@ -318,6 +1007,28 @@ function App() {
   const [showUnpaidOrPartial, setShowUnpaidOrPartial] = useState(false);
   const [showCotisationForm, setShowCotisationForm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountMenuRef = useRef(null);
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [helpSection, setHelpSection] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
+  const [changePwdStep, setChangePwdStep] = useState(1);
+  const [changePwdForm, setChangePwdForm] = useState({ ancien: "", nouveau: "", confirmer: "" });
+  const [changePwdError, setChangePwdError] = useState("");
+  const [changePwdSuccessMsg, setChangePwdSuccessMsg] = useState(false);
+  const [changePwdLoading, setChangePwdLoading] = useState(false);
+  const [showOldPwd, setShowOldPwd] = useState(false);
+  const [showNewPwd2, setShowNewPwd2] = useState(false);
+  const [showConfirmPwd2, setShowConfirmPwd2] = useState(false);
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [changeEmailStep, setChangeEmailStep] = useState(1);
+  const [changeEmailForm, setChangeEmailForm] = useState({ email: "", mot_de_passe: "" });
+  const [changeEmailOtp, setChangeEmailOtp] = useState("");
+  const [changeEmailError, setChangeEmailError] = useState("");
+  const [changeEmailSuccess, setChangeEmailSuccess] = useState(false);
+  const [changeEmailLoading, setChangeEmailLoading] = useState(false);
+  const [showChangeEmailPwd, setShowChangeEmailPwd] = useState(false);
   const modalRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -330,7 +1041,7 @@ function App() {
     modePaiement: "Espèces",
   });
   const [selectedAdherentForPayment, setSelectedAdherentForPayment] = useState(null);
-  const MOIS_LISTE = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const MOIS_LISTE = translations[lang].months;
   const ANNEE_COURANTE = new Date().getFullYear();
   const ANNEES_LISTE = Array.from({ length: 10 }, (_, i) => ANNEE_COURANTE + i);
   const [cotisationFormData, setCotisationFormData] = useState({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" });
@@ -350,12 +1061,13 @@ function App() {
     toastTimerRef.current = setTimeout(() => setToast({ message: "", visible: false }), 2000);
   };
 
-  // Animation texte accueil — démarre uniquement après connexion
+  // Animation texte accueil — redémarre après connexion ou changement de langue
   useEffect(() => {
     if (!compte) {
       setCurrentText("");
       return;
     }
+    const fullText = t("welcomeText");
     let index = 0;
     setCurrentText("");
     const interval = setInterval(() => {
@@ -367,7 +1079,7 @@ function App() {
       }
     }, 50);
     return () => clearInterval(interval);
-  }, [compte]);
+  }, [compte, lang]);
 
   // Drag modal
   useEffect(() => {
@@ -450,6 +1162,92 @@ function App() {
 
   useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); } }, [compte]);
 
+  // Fermer le menu compte au clic en dehors
+  useEffect(() => {
+    if (!showAccountMenu) return;
+    const handler = (e) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target))
+        setShowAccountMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAccountMenu]);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePwdError("");
+    if (changePwdStep === 1) {
+      if (!changePwdForm.ancien) { setChangePwdError(t("allFieldsRequired")); return; }
+      setChangePwdLoading(true);
+      try {
+        const res = await apiFetch(`${API_BASE}/auth/verify-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mot_de_passe: changePwdForm.ancien }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setChangePwdError(data.error || t("changePwdOldWrong")); return; }
+        setChangePwdStep(2);
+      } catch { setChangePwdError(t("networkError")); }
+      finally { setChangePwdLoading(false); }
+      return;
+    }
+    if (!changePwdForm.nouveau || !changePwdForm.confirmer) { setChangePwdError(t("allFieldsRequired")); return; }
+    if (changePwdForm.nouveau.length < 6) { setChangePwdError(t("passwordMinLength")); return; }
+    if (changePwdForm.nouveau !== changePwdForm.confirmer) { setChangePwdError(t("passwordsNoMatch")); return; }
+    setChangePwdLoading(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/auth/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ancien_mot_de_passe: changePwdForm.ancien, nouveau_mot_de_passe: changePwdForm.nouveau }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setChangePwdError(data.error || t("networkError")); return; }
+      setChangePwdSuccessMsg(true);
+      setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" });
+      setChangePwdStep(1);
+    } catch { setChangePwdError(t("networkError")); }
+    finally { setChangePwdLoading(false); }
+  };
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    setChangeEmailError("");
+    if (changeEmailStep === 1) {
+      if (!changeEmailForm.email.trim() || !changeEmailForm.mot_de_passe) { setChangeEmailError(t("allFieldsRequired")); return; }
+      setChangeEmailLoading(true);
+      try {
+        const res = await apiFetch(`${API_BASE}/auth/send-change-email-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nouveau_email: changeEmailForm.email.trim(), mot_de_passe: changeEmailForm.mot_de_passe }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setChangeEmailError(data.error || t("networkError")); return; }
+        setChangeEmailStep(2);
+      } catch { setChangeEmailError(t("networkError")); }
+      finally { setChangeEmailLoading(false); }
+    } else {
+      if (!changeEmailOtp.trim()) { setChangeEmailError(t("enterAllDigits")); return; }
+      setChangeEmailLoading(true);
+      try {
+        const res = await apiFetch(`${API_BASE}/auth/change-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nouveau_email: changeEmailForm.email.trim(), otp: changeEmailOtp.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setChangeEmailError(data.error || t("networkError")); return; }
+        const updated = { ...compte, email: data.email, token: data.token };
+        sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updated));
+        setCompte(updated);
+        setChangeEmailSuccess(true);
+      } catch { setChangeEmailError(t("networkError")); }
+      finally { setChangeEmailLoading(false); }
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [searchHistorique, setSearchHistorique] = useState("");
   const [selectedAdherentId, setSelectedAdherentId] = useState(null);
@@ -516,7 +1314,7 @@ function App() {
   // ── Enregistrer une cotisation ──────────────────────────────
   const handleSaveCotisation = async () => {
     if (!cotisationFormData.montantDu || !cotisationFormData.periode) {
-      alert("Veuillez remplir le montant dû et la période.");
+      alert(t("alertFillAmountPeriod"));
       return;
     }
     try {
@@ -542,7 +1340,7 @@ function App() {
   // ── Enregistrer un paiement ─────────────────────────────────
   const handleSaveAddPaiement = async () => {
     if (!selectedAdherentForPayment || !addPaiementFormData.montantPaye) {
-      alert("Veuillez sélectionner un adhérent et saisir un montant.");
+      alert(t("alertSelectMemberAmount"));
       return;
     }
     const periodeObj = periodes.find((p) => p.libelle === selectedPeriode);
@@ -552,7 +1350,7 @@ function App() {
     const montantPaye = Number(addPaiementFormData.montantPaye);
 
     if (isNaN(montantPaye) || montantPaye <= 0) {
-      alert("Le montant doit être un nombre supérieur à zéro.");
+      alert(t("alertAmountPositive"));
       return;
     }
 
@@ -623,12 +1421,15 @@ function App() {
     if (!lastPaiement) return;
     const win = window.open("", "_blank", "width=720,height=960");
     if (!win) {
-      alert("Veuillez autoriser les popups dans votre navigateur pour imprimer.");
+      alert(t("alertAllowPopups"));
       return;
     }
     const logoUrl = new URL(logo, window.location.href).href;
     const sColor = statutColor(lastPaiement.statut);
     const sBg    = statutBg(lastPaiement.statut);
+    const pPeriode = periodeLabel(lastPaiement.periode);
+    const pMode    = modeLabel(lastPaiement.modePaiement);
+    const pStatut  = statutLabel(lastPaiement.statut).toUpperCase();
     win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Reçu ${lastPaiement.numeroRecu}</title>
 <style>
@@ -669,35 +1470,35 @@ function App() {
 <body><div class="page">
   <div class="header">
     <img src="${logoUrl}" alt="Logo">
-    <div><h1>Cotisation Pro</h1><p>Reçu officiel de paiement</p></div>
+    <div><h1>Cotisation Pro</h1><p>${t("officialReceipt")}</p></div>
   </div>
   <div class="body">
     <div class="meta">
-      <span>N° Reçu : <strong>${lastPaiement.numeroRecu}</strong></span>
-      <span>Date : <strong>${lastPaiement.datePaiement}</strong></span>
+      <span>${t("receiptNLabel")} <strong>${lastPaiement.numeroRecu}</strong></span>
+      <span>${t("dateLabel")} <strong>${lastPaiement.datePaiement}</strong></span>
     </div>
     <div class="section">
-      <div class="section-title">Informations de l'adhérent</div>
-      <div class="row"><span>Matricule</span><strong>${lastPaiement.matricule}</strong></div>
-      <div class="row"><span>Nom</span><strong>${lastPaiement.nom}</strong></div>
-      <div class="row"><span>Prénom</span><strong>${lastPaiement.prenom}</strong></div>
-      <div class="row"><span>Téléphone</span><strong>${lastPaiement.telephone}</strong></div>
-      <div class="row"><span>Email</span><strong>${lastPaiement.email}</strong></div>
+      <div class="section-title">${t("memberInfoTitle")}</div>
+      <div class="row"><span>${t("matricule")}</span><strong>${lastPaiement.matricule}</strong></div>
+      <div class="row"><span>${t("nameTh")}</span><strong>${lastPaiement.nom}</strong></div>
+      <div class="row"><span>${t("surnameTh")}</span><strong>${lastPaiement.prenom}</strong></div>
+      <div class="row"><span>${t("telephoneTh")}</span><strong>${lastPaiement.telephone}</strong></div>
+      <div class="row"><span>${t("emailTh")}</span><strong>${lastPaiement.email}</strong></div>
     </div>
     <div class="section">
-      <div class="section-title">Détails du paiement</div>
-      <div class="row"><span>Période concernée</span><strong>${lastPaiement.periode}</strong></div>
-      <div class="row"><span>Mode de paiement</span><strong>${lastPaiement.modePaiement}</strong></div>
-      <div class="row"><span>Montant dû</span><strong>${lastPaiement.montantDu}</strong></div>
-      <div class="row"><span>Montant déjà payé</span><strong>${lastPaiement.dejaPaye}</strong></div>
-      <div class="row row-hl"><span>Ce paiement</span><strong>${lastPaiement.montantPaye}</strong></div>
-      <div class="row"><span>Total payé</span><strong style="color:#2980b9">${lastPaiement.totalPaye}</strong></div>
-      <div class="row"><span>Reste à payer</span><strong style="color:#e74c3c">${lastPaiement.reste}</strong></div>
+      <div class="section-title">${t("paymentDetailsTitle")}</div>
+      <div class="row"><span>${t("concernedPeriod")}</span><strong>${pPeriode}</strong></div>
+      <div class="row"><span>${t("paymentMethodTitle")}</span><strong>${pMode}</strong></div>
+      <div class="row"><span>${t("montantDuTitle")}</span><strong>${lastPaiement.montantDu}</strong></div>
+      <div class="row"><span>${t("alreadyPaidTitle")}</span><strong>${lastPaiement.dejaPaye}</strong></div>
+      <div class="row row-hl"><span>${t("thisPaymentTitle")}</span><strong>${lastPaiement.montantPaye}</strong></div>
+      <div class="row"><span>${t("totalPaidTitle")}</span><strong style="color:#2980b9">${lastPaiement.totalPaye}</strong></div>
+      <div class="row"><span>${t("remainingTitle")}</span><strong style="color:#e74c3c">${lastPaiement.reste}</strong></div>
     </div>
-    <div class="statut">STATUT : ${lastPaiement.statut.toUpperCase()}</div>
+    <div class="statut">${t("statusTitle")} ${pStatut}</div>
     <div class="footer">
-      <p>Cotisation Pro — Document généré automatiquement</p>
-      <p>Ce reçu fait foi de paiement pour la période indiquée.</p>
+      <p>${t("autoGenerated")}</p>
+      <p>${t("receiptProof")}</p>
     </div>
   </div>
 </div></body></html>`);
@@ -838,7 +1639,7 @@ function App() {
   // ── Enregistrer un adhérent ─────────────────────────────────
   const handleSave = async () => {
     if (!formData.nom || !formData.prenom) {
-      alert("Le nom et le prénom sont obligatoires.");
+      alert(t("alertNameRequired"));
       return;
     }
     if (editingIndex !== null) {
@@ -852,6 +1653,7 @@ function App() {
             prenom: formData.prenom,
             telephone: formData.telephone,
             email: formData.email,
+            photo: formData.photo || undefined,
           }),
         });
         if (!response.ok) {
@@ -859,9 +1661,8 @@ function App() {
           throw new Error(err?.error || err?.message || "Impossible de modifier");
         }
         await loadAdherents();
-        if (formData.photo) localStorage.setItem(`adherent_photo_${existing.id}`, formData.photo);
         setEditingIndex(null);
-        showToast("Adhérent modifié avec succès !");
+        showToast(t("memberEdited"));
       } catch (error) {
         setApiError(error.message);
         return;
@@ -873,7 +1674,7 @@ function App() {
           a.prenom.toLowerCase() === formData.prenom.toLowerCase()
       );
       if (doublon) {
-        alert(`⚠️ Cet adhérent existe déjà !\nMatricule : ${doublon.matricule} — ${doublon.nom} ${doublon.prenom}`);
+        alert(`⚠️ ${t("alertMemberExists")}\n${t("alertMatricule")} ${doublon.matricule} — ${doublon.nom} ${doublon.prenom}`);
         return;
       }
       try {
@@ -886,13 +1687,13 @@ function App() {
             telephone: formData.telephone,
             email: formData.email,
             date_inscription: formData.date,
+            photo: formData.photo || null,
           }),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result?.error || result?.message || "Erreur ajout");
         await loadAdherents();
-        if (formData.photo && result.id) localStorage.setItem(`adherent_photo_${result.id}`, formData.photo);
-        showToast("Adhérent ajouté avec succès !");
+        showToast(t("memberAdded"));
       } catch (error) {
         setApiError(error.message);
         return;
@@ -1125,7 +1926,7 @@ function App() {
         throw new Error(err?.error || err?.message || "Impossible de supprimer");
       }
       await loadAdherents();
-      showToast("Adhérent supprimé avec succès !");
+      showToast(t("memberDeleted"));
     } catch (error) {
       setApiError(error.message);
     }
@@ -1147,15 +1948,46 @@ function App() {
   const statutBg = (s) =>
     s === "Payé" ? "#d5f5e3" : s === "Partiel" ? "#fef9e7" : "#fdecea";
 
-  // ── Guard : si non connecté → page d'authentification ──
+  const FR_MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const periodeLabel = (libelle) => {
+    if (!libelle || lang === "fr") return libelle;
+    const months = translations[lang]?.months || FR_MOIS;
+    return FR_MOIS.reduce((acc, fr, i) => acc.replace(fr, months[i]), libelle);
+  };
+  const statutLabel = (s) =>
+    s === "Payé" ? t("statusPaid") : s === "Partiel" ? t("statusPartial") : t("statusUnpaid");
+  const modeLabel = (m) => {
+    const map = { "Espèces": t("cash"), "Mobile Money": t("mobileMoney"), "Virement": t("transfer"), "Chèque": t("check"), "Autre": t("other") };
+    return map[m] || m;
+  };
+
+  // ── Guard : si non connecté → landing ou authentification ──
   if (!compte) {
+    if (showLanding) {
+      return (
+        <LandingPage
+          lang={lang}
+          setLang={setLang}
+          t={t}
+          onLogin={() => { setInitialAuthMode("login"); setShowLanding(false); }}
+          onRegister={() => { setInitialAuthMode("register"); setShowLanding(false); }}
+        />
+      );
+    }
     return (
       <AuthPage
+        key={initialAuthMode}
         API_BASE={API_BASE}
+        lang={lang}
+        t={t}
+        setLang={setLang}
+        initialMode={initialAuthMode}
+        onBackToLanding={() => setShowLanding(true)}
         onSuccess={(c, type) => {
           sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(c));
           setCompte(c);
-          if (type === "register") showToast("Compte créé avec succès !");
+          setShowLanding(true);
+          if (type === "register") showToast(t("accountCreated"));
         }}
       />
     );
@@ -1189,16 +2021,59 @@ function App() {
           </div>
         </div>
         <div style={styles.menuButtons}>
-          <button style={styles.btn} onClick={() => setPage("accueil")}>Accueil</button>
-          <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>Adhérents</button>
-          <button style={styles.btn} onClick={() => setPage("cotisations")}>Cotisations</button>
-          <button style={styles.btn} onClick={() => setPage("historique")}>Historique</button>
-          <button
-            style={{ ...styles.btn, background: "#c0392b", marginLeft: "14px" }}
-            onClick={() => setShowLogoutConfirm(true)}
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
           >
-            Déconnexion
-          </button>
+            <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+          </select>
+          <button style={styles.btn} onClick={() => setPage("accueil")}>{t("home")}</button>
+          <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
+          <button style={styles.btn} onClick={() => setPage("cotisations")}>{t("contributions")}</button>
+          <button style={styles.btn} onClick={() => setPage("historique")}>{t("history")}</button>
+          <div style={{ position: "relative", marginLeft: "14px" }} ref={accountMenuRef}>
+            <button
+              style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }}
+              onClick={() => setShowAccountMenu(v => !v)}
+            >
+              {t("accountMenu")} ▾
+            </button>
+            {showAccountMenu && (
+              <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "white", borderRadius: "10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", minWidth: "230px", zIndex: 999, overflow: "hidden", border: "1px solid #ecf0f1" }}>
+                <div style={{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #ecf0f1" }}>
+                  <div style={{ fontSize: "11px", color: "#3498db", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{t("accountMenu")}</div>
+                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
+                  <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{compte.email}</div>
+                </div>
+                {[
+                  { label: t("changePassword"), action: () => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); } },
+                  { label: t("changeEmail"), action: () => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); } },
+                  { label: t("helpMenu"), action: () => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); } },
+                  { label: t("aboutMenu"), action: () => { setShowAccountMenu(false); setShowAbout(true); } },
+                ].map(({ label, action }) => (
+                  <button key={label}
+                    style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#2c3e50", fontFamily: "inherit", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f8ff"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                    onClick={action}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <div style={{ height: "1px", background: "#ecf0f1", margin: "2px 0" }} />
+                <button
+                  style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#c0392b", fontFamily: "inherit", fontWeight: "600", boxSizing: "border-box" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#fff5f5"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                  onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }}
+                >
+                  🚪 {t("logout")}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1207,36 +2082,52 @@ function App() {
         {/* ── ACCUEIL ─────────────────────────────────────────── */}
         {page === "accueil" && (
           <div>
-            <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px", backgroundColor: "#b8ddf0", boxShadow: "0 8px 24px rgba(52,152,219,0.30), 0 2px 6px rgba(0,0,0,0.12)", cursor: "default" }}>
               <img src={logo} alt="Logo Cotisation Pro" style={{ height: "130px", width: "130px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} />
               <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{currentText}</span>
             </div>
             <div style={styles.cards}>
-              <div style={styles.card}>
-                <span style={{ fontSize: "36px", fontWeight: "bold", color: "#2c3e50" }}>Total adhérents : {adherents.length}</span>
+              <div
+                style={{ ...styles.card, transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.background = "#e0f3fc"; }}
+              >
+                <span style={{ fontSize: "36px", fontWeight: "bold", color: "#2c3e50" }}>{t("totalMembers")} {adherents.length}</span>
               </div>
             </div>
             <div style={styles.summarySection}>
-              <div style={{ ...styles.summaryCard, textAlign: "center" }}>
-                <h3>Dernier adhérent ajouté</h3>
+              <div
+                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
+              >
+                <h3>{t("lastMemberAdded")}</h3>
                 <p>
                   {adherents[adherents.length - 1]
                     ? `${adherents[adherents.length - 1].nom} ${adherents[adherents.length - 1].prenom}`
                     : "—"}
                 </p>
               </div>
-              <div style={{ ...styles.summaryCard, textAlign: "center" }}>
-                <h3>Total encaissé — période en cours</h3>
+              <div
+                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
+              >
+                <h3>{t("totalCollectedCurrentPeriod")}</h3>
                 <p style={{ fontSize: "12px", color: "#95a5a6", margin: "0 0 6px" }}>
-                  {currentPeriode ? currentPeriode.libelle : "Aucune période"}
+                  {currentPeriode ? periodeLabel(currentPeriode.libelle) : t("noPeriod")}
                 </p>
                 <strong style={{ fontSize: "20px", color: "#27ae60" }}>
                   {formatAmount(totalEncaissePeriodeCourante)}
                 </strong>
               </div>
-              <div style={{ ...styles.summaryCard, textAlign: "center" }}>
-                <h3>Dernière cotisation enregistrée</h3>
-                <p>{periodes.length > 0 ? periodes[periodes.length - 1].libelle : "—"}</p>
+              <div
+                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
+              >
+                <h3>{t("lastContributionRegistered")}</h3>
+                <p>{periodes.length > 0 ? periodeLabel(periodes[periodes.length - 1].libelle) : "—"}</p>
               </div>
             </div>
             <div style={styles.alerts}>
@@ -1244,34 +2135,34 @@ function App() {
                 {currentPeriode ? (
                   <>
                     <strong>{currentPeriodeNotPaidCount}</strong>{" "}
-                    adhérent{currentPeriodeNotPaidCount !== 1 ? "s" : ""} n'ont pas encore payé
-                    pour <strong>{currentPeriode.libelle}</strong>
+                    {currentPeriodeNotPaidCount !== 1 ? t("memberPlural") : t("memberSingular")} {t("notPaidFor")}
+                    <strong> {periodeLabel(currentPeriode.libelle)}</strong>
                   </>
                 ) : (
-                  "Aucune période en cours"
+                  t("noCurrentPeriod")
                 )}
                 {currentPeriode && (
                   <button
                     style={styles.alertButton}
                     onClick={() => { setPage("nonRegle"); setShowUnpaidOrPartial(false); setShowUnpaidOnly(false); }}
                   >
-                    Voir
+                    {t("view")}
                   </button>
                 )}
               </div>
             </div>
             <div style={{ ...styles.summaryCard, marginBottom: "20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, color: "#2c3e50" }}>Derniers paiements effectués</h3>
-                <button style={styles.alertButton} onClick={() => setPage("historique")}>Voir plus</button>
+                <h3 style={{ margin: 0, color: "#2c3e50" }}>{t("lastPayments")}</h3>
+                <button style={styles.alertButton} onClick={() => setPage("historique")}>{t("viewMore")}</button>
               </div>
               {cinqDerniersPaiements.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {cinqDerniersPaiements.map((pay, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#dce8f2", borderRadius: "6px", border: "1px solid #b0c4d4" }}>
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#eaf6fd", borderRadius: "6px", border: "1px solid #c5e8f7" }}>
                       <div>
                         <span style={{ fontWeight: "bold", color: "#2c3e50" }}>{pay.nom} {pay.prenom}</span>
-                        <span style={{ fontSize: "12px", color: "#7f8c8d", marginLeft: "8px" }}>[{pay.periode}]</span>
+                        <span style={{ fontSize: "12px", color: "#7f8c8d", marginLeft: "8px" }}>[{periodeLabel(pay.periode)}]</span>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <span style={{ fontWeight: "bold", color: "#27ae60" }}>{pay.montantPaye}</span>
@@ -1282,7 +2173,7 @@ function App() {
                 </div>
               ) : (
                 <p style={{ color: "#95a5a6", fontStyle: "italic", fontSize: "13px", margin: 0 }}>
-                  Aucun paiement enregistré
+                  {t("noPaymentRegistered")}
                 </p>
               )}
             </div>
@@ -1294,36 +2185,36 @@ function App() {
           <div>
             {selectedAdherentId === null ? (
               <div>
-                <h1>Gestion des Adhérents</h1>
+                <h1>{t("memberManagement")}</h1>
                 {showUnpaidOrPartial && (
                   <div style={{ background: "#fef9e7", border: "1px solid #f39c12", borderRadius: "8px", padding: "12px 18px", marginBottom: "14px", color: "#7d6608", fontWeight: "600", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>
-                      Filtré : adhérents n'ayant pas encore payé ou ayant payé partiellement
-                      {currentPeriode ? ` pour ${currentPeriode.libelle}` : ""}
+                      {t("filteredUnpaid")}
+                      {currentPeriode ? ` ${t("forPeriod")} ${periodeLabel(currentPeriode.libelle)}` : ""}
                     </span>
                     <button style={{ background: "none", border: "1px solid #f39c12", borderRadius: "5px", padding: "4px 10px", cursor: "pointer", color: "#7d6608", fontWeight: "bold" }} onClick={() => setShowUnpaidOrPartial(false)}>
-                      ✕ Effacer
+                      {t("clearFilter")}
                     </button>
                   </div>
                 )}
                 {apiError && <div style={styles.errorMessage}>{apiError}</div>}
-                {loadingAdherents && <div style={styles.infoMessage}>Chargement des adhérents…</div>}
+                {loadingAdherents && <div style={styles.infoMessage}>{t("loadingMembers")}</div>}
                 <div style={styles.toolbarSection}>
                   <div style={styles.toolbarTop}>
                     <button style={styles.addBtn} onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setShowForm(true); }}>
-                      ➕ Ajouter un adhérent
+                      {t("addMemberBtn")}
                     </button>
                     <div style={styles.statsBox}>
-                      <span>👥 Total: <strong>{adherents.length}</strong></span>
+                      <span>{t("totalLabel")} <strong>{adherents.length}</strong></span>
                     </div>
                     <button style={{ ...styles.addBtn, background: "#27ae60", marginLeft: "10px" }} onClick={exportExcel}>
-                      ⬇️ Exporter Excel
+                      {t("exportExcel")}
                     </button>
                   </div>
                   <div style={styles.filtersSection}>
                     <input
                       type="text"
-                      placeholder="🔍 Rechercher par nom, prénom ou matricule..."
+                      placeholder={t("searchMember")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       style={styles.searchInput}
@@ -1335,43 +2226,51 @@ function App() {
                 {showForm && (
                   <div style={styles.modalOverlay}>
                     <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} onMouseDown={dragProps}>
-                      <h2>{editingIndex !== null ? "✏️ Modifier un adhérent" : "➕ Ajouter un adhérent"}</h2>
-                      <div style={styles.formRow}><label style={styles.label}>Nom *:</label><input name="nom" value={formData.nom} onChange={handleChange} placeholder="Ex. Kouakou" style={styles.input} autoFocus /></div>
-                      <div style={styles.formRow}><label style={styles.label}>Prénom *:</label><input name="prenom" value={formData.prenom} onChange={handleChange} placeholder="Ex. Jean" style={styles.input} /></div>
-                      <div style={styles.formRow}><label style={styles.label}>Téléphone :</label><input name="telephone" value={formData.telephone} onChange={handleChange} placeholder="Ex. +225 07 00 00 00 00" style={styles.input} /></div>
-                      <div style={styles.formRow}><label style={styles.label}>Email :</label><input name="email" value={formData.email} onChange={handleChange} placeholder="Ex. jean@example.com" type="email" style={styles.input} /></div>
-                      <div style={styles.formRow}><label style={styles.label}>Date inscription :</label><input type="date" name="date" value={formData.date} onChange={handleChange} style={styles.input} /></div>
-                      <div style={styles.formRow}>
-                        <label style={styles.label}>Photo :</label>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id="adherentPhotoInput"
-                            style={{ display: "none" }}
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = (ev) => setFormData((prev) => ({ ...prev, photo: ev.target.result, photoName: file.name }));
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            style={{ padding: "8px 14px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" }}
-                            onClick={() => document.getElementById("adherentPhotoInput").click()}
-                          >
-                            📷 Choisir
-                          </button>
-                          <span style={{ fontSize: "13px", color: formData.photoName ? "#2c3e50" : "#7f8c8d", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>
-                            {formData.photoName || "Aucune photo sélectionnée"}
-                          </span>
+                      <h2>{editingIndex !== null ? t("editMemberTitle") : t("addMemberTitle")}</h2>
+                      <div style={styles.formRow}><label style={styles.label}>{t("lastName")}</label><input name="nom" value={formData.nom} onChange={handleChange} placeholder="Ex. Kouakou" style={styles.input} autoFocus /></div>
+                      <div style={styles.formRow}><label style={styles.label}>{t("firstName")}</label><input name="prenom" value={formData.prenom} onChange={handleChange} placeholder="Ex. Jean" style={styles.input} /></div>
+                      <div style={styles.formRow}><label style={styles.label}>{t("phone")}</label><input name="telephone" value={formData.telephone} onChange={handleChange} placeholder="Ex. +225 07 00 00 00 00" style={styles.input} /></div>
+                      <div style={styles.formRow}><label style={styles.label}>{t("emailField")}</label><input name="email" value={formData.email} onChange={handleChange} placeholder="Ex. jean@example.com" type="email" style={styles.input} /></div>
+                      <div style={styles.formRow}><label style={styles.label}>{t("registrationDate")}</label><input type="date" name="date" value={formData.date} onChange={handleChange} style={styles.input} /></div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "14px" }}>
+                        <div
+                          style={{ width: "100px", height: "100px", borderRadius: "50%", overflow: "hidden", border: "3px solid #3498db", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+                          onClick={() => document.getElementById("adherentPhotoInput").click()}
+                          title="Cliquer pour changer la photo"
+                        >
+                          {formData.photo ? (
+                            <img src={formData.photo} alt="Aperçu" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <span style={{ fontSize: "48px" }}>👤</span>
+                          )}
                         </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="adherentPhotoInput"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setFormData((prev) => ({ ...prev, photo: ev.target.result, photoName: file.name }));
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          style={{ marginTop: "8px", padding: "6px 14px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
+                          onClick={() => document.getElementById("adherentPhotoInput").click()}
+                        >
+                          {formData.photo ? t("changePhoto") : t("addPhoto")}
+                        </button>
+                        {formData.photoName && (
+                          <span style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "4px" }}>{formData.photoName}</span>
+                        )}
                       </div>
                       <div style={styles.modalButtons}>
-                        <button style={styles.addBtn} onClick={handleSave}>{editingIndex !== null ? "Modifier" : "Ajouter"}</button>
-                        <button style={styles.cancelBtn} onClick={() => { setShowForm(false); setEditingIndex(null); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); }}>Annuler</button>
+                        <button style={styles.addBtn} onClick={handleSave}>{editingIndex !== null ? t("edit") : t("add")}</button>
+                        <button style={styles.cancelBtn} onClick={() => { setShowForm(false); setEditingIndex(null); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); }}>{t("cancel")}</button>
                       </div>
                     </div>
                   </div>
@@ -1381,11 +2280,11 @@ function App() {
                 {showDeleteConfirm && (
                   <div style={styles.modalOverlay}>
                     <div style={{ background: "white", padding: "30px", borderRadius: "10px", width: "360px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
-                      <h3 style={{ color: "#e74c3c", marginTop: 0 }}>⚠️ Confirmer la suppression</h3>
-                      <p style={{ color: "#555", lineHeight: "1.6" }}>Êtes-vous sûr de vouloir supprimer cet adhérent ?<br /><strong>Cette action est irréversible.</strong></p>
+                      <h3 style={{ color: "#e74c3c", marginTop: 0 }}>{t("confirmDeletion")}</h3>
+                      <p style={{ color: "#555", lineHeight: "1.6" }}>{t("deleteMemberConfirm")}<br /><strong>{t("irreversibleAction")}</strong></p>
                       <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "20px" }}>
-                        <button style={styles.cancelBtn} onClick={() => { handleDelete(deleteIndex); setShowDeleteConfirm(false); setDeleteIndex(null); }}>🗑️ Supprimer</button>
-                        <button style={styles.addBtn} onClick={() => { setDeleteIndex(null); setShowDeleteConfirm(false); }}>Annuler</button>
+                        <button style={styles.cancelBtn} onClick={() => { handleDelete(deleteIndex); setShowDeleteConfirm(false); setDeleteIndex(null); }}>{t("deleteBtn")}</button>
+                        <button style={styles.addBtn} onClick={() => { setDeleteIndex(null); setShowDeleteConfirm(false); }}>{t("cancel")}</button>
                       </div>
                     </div>
                   </div>
@@ -1393,14 +2292,14 @@ function App() {
 
                 <div style={styles.tableContainer}>
                   {filteredAdherents.length === 0 ? (
-                    <div style={styles.emptyState}><p>Aucun adhérent trouvé</p></div>
+                    <div style={styles.emptyState}><p>{t("noMemberFound")}</p></div>
                   ) : (
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Matricule</th><th style={styles.th}>Nom</th><th style={styles.th}>Prénom</th>
-                          <th style={styles.th}>Téléphone</th><th style={styles.th}>Email</th>
-                          <th style={styles.th}>Date inscription</th><th style={styles.th}>Actions</th>
+                          <th style={styles.th}>{t("matricule")}</th><th style={styles.th}>{t("nameTh")}</th><th style={styles.th}>{t("surnameTh")}</th>
+                          <th style={styles.th}>{t("telephoneTh")}</th><th style={styles.th}>{t("emailTh")}</th>
+                          <th style={styles.th}>{t("dateRegisteredTh")}</th><th style={styles.th}>{t("actionsTh")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1413,8 +2312,8 @@ function App() {
                             <td style={styles.td}>{a.email || "-"}</td>
                             <td style={styles.td}>{a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-"}</td>
                             <td style={styles.td}>
-                              <button style={styles.detailsBtn} onClick={() => setSelectedAdherentId(a.id)}>👁️</button>
-                              <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: "", photoName: localStorage.getItem(`adherent_photo_${ad.id}`) ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); }}>✏️</button>
+                              <button style={styles.detailsBtn} onClick={() => setSelectedAdherentId(a.id)}><EyeOpen /></button>
+                              <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); }}>✏️</button>
                               <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>
                             </td>
                           </tr>
@@ -1426,16 +2325,16 @@ function App() {
               </div>
             ) : (
               <div>
-                <button style={styles.backBtn} onClick={() => setSelectedAdherentId(null)}>← Retour à la liste</button>
+                <button style={styles.backBtn} onClick={() => setSelectedAdherentId(null)}>{t("backToList")}</button>
                 {(() => {
                   const adherent = adherents.find((a) => a.id === selectedAdherentId);
                   return adherent ? (
                     <div style={styles.detailsContainer}>
                       <div style={styles.detailsHeader}>
                         <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-                          {localStorage.getItem(`adherent_photo_${adherent.id}`) ? (
+                          {adherent.photo ? (
                             <img
-                              src={localStorage.getItem(`adherent_photo_${adherent.id}`)}
+                              src={adherent.photo}
                               alt="Photo"
                               style={{ width: "90px", height: "90px", borderRadius: "50%", objectFit: "cover", border: "3px solid #3498db", flexShrink: 0 }}
                             />
@@ -1447,12 +2346,12 @@ function App() {
                       </div>
                       <div style={styles.detailsGrid}>
                         {[
-                          ["Matricule", adherent.matricule],
-                          ["Nom", adherent.nom],
-                          ["Prénom", adherent.prenom],
-                          ["Téléphone", adherent.telephone || "Non renseigné"],
-                          ["Email", adherent.email || "Non renseigné"],
-                          ["Date d'inscription", adherent.date ? new Date(adherent.date).toLocaleDateString("fr-FR") : "-"],
+                          [t("matricule"), adherent.matricule],
+                          [t("nameTh"), adherent.nom],
+                          [t("surnameTh"), adherent.prenom],
+                          [t("telephoneTh"), adherent.telephone || t("notProvided")],
+                          [t("emailTh"), adherent.email || t("notProvided")],
+                          [t("dateOfRegistration"), adherent.date ? new Date(adherent.date).toLocaleDateString(t("locale")) : "-"],
                         ].map(([label, val]) => (
                           <div key={label} style={styles.detailCard}>
                             <h3 style={{ color: "#2c3e50", marginTop: 0, marginBottom: "10px", fontSize: "14px", fontWeight: "600", textTransform: "uppercase" }}>{label}</h3>
@@ -1461,12 +2360,12 @@ function App() {
                         ))}
                       </div>
                       <div style={styles.detailsActions}>
-                        <button style={styles.addBtn} onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: "", photoName: localStorage.getItem(`adherent_photo_${adherent.id}`) ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); setSelectedAdherentId(null); }}>✏️ Modifier</button>
-                        <button style={styles.cancelBtn} onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>🗑️ Supprimer</button>
+                        <button style={styles.addBtn} onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); setSelectedAdherentId(null); }}>{t("editBtn")}</button>
+                        <button style={styles.cancelBtn} onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>{t("deleteIconBtn")}</button>
                       </div>
                     </div>
                   ) : (
-                    <div style={styles.emptyState}><p>Adhérent non trouvé</p></div>
+                    <div style={styles.emptyState}><p>{t("memberNotFound")}</p></div>
                   );
                 })()}
               </div>
@@ -1477,7 +2376,7 @@ function App() {
         {/* ── COTISATIONS ─────────────────────────────────────── */}
         {page === "cotisations" && (
           <div>
-            <h1>Cotisations</h1>
+            <h1>{t("cotisationsTitle")}</h1>
 
             {apiError && (
               <div style={styles.errorMessage}>
@@ -1491,7 +2390,7 @@ function App() {
               <div style={styles.modalOverlay}>
                 <div style={{ background: "white", borderRadius: "14px", width: "380px", maxWidth: "95vw", padding: "36px 30px 28px", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", textAlign: "center" }}>
                   <div style={{ fontSize: "52px", marginBottom: "12px" }}>✅</div>
-                  <h2 style={{ margin: "0 0 8px", color: "#27ae60", fontSize: "20px" }}>Paiement effectué avec succès !</h2>
+                  <h2 style={{ margin: "0 0 8px", color: "#27ae60", fontSize: "20px" }}>{t("paymentSuccess")}</h2>
                   {lastPaiement && (
                     <p style={{ color: "#7f8c8d", fontSize: "14px", margin: "0 0 8px" }}>
                       {lastPaiement.nom} {lastPaiement.prenom}
@@ -1499,22 +2398,22 @@ function App() {
                   )}
                   {lastPaiement && (
                     <p style={{ color: "#2c3e50", fontSize: "15px", fontWeight: "bold", margin: "0 0 22px" }}>
-                      Montant payé : <span style={{ color: "#27ae60" }}>{lastPaiement.montantPaye}</span>
+                      {t("amountPaidLabel2")} <span style={{ color: "#27ae60" }}>{lastPaiement.montantPaye}</span>
                     </p>
                   )}
-                  <p style={{ color: "#2c3e50", marginBottom: "20px", fontSize: "14px" }}>Voulez-vous générer un reçu pour ce paiement ?</p>
+                  <p style={{ color: "#2c3e50", marginBottom: "20px", fontSize: "14px" }}>{t("generateReceiptQ")}</p>
                   <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                     <button
                       style={{ padding: "10px 22px", background: "#2980b9", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
                       onClick={() => { setShowRecu(true); setShowSuccessMessage(false); setShowRecuPrompt(false); }}
                     >
-                      🧾 Générer un reçu
+                      {t("generateReceiptBtn")}
                     </button>
                     <button
                       style={{ padding: "10px 18px", background: "transparent", color: "#7f8c8d", border: "1px solid #bdc3c7", borderRadius: "8px", cursor: "pointer", fontSize: "14px" }}
                       onClick={() => { setShowSuccessMessage(false); setShowRecuPrompt(false); }}
                     >
-                      Non, merci
+                      {t("noThanks")}
                     </button>
                   </div>
                 </div>
@@ -1524,10 +2423,10 @@ function App() {
             <div style={styles.toolbarSection}>
               <div style={styles.toolbarTop}>
                 <button style={styles.addBtn} onClick={() => { setCotisationFormData({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" }); setShowCotisationForm(true); }}>
-                  ➕ Nouvelle cotisation
+                  {t("newContributionBtn")}
                 </button>
                 <div style={styles.statsBox}>
-                  <span>Périodes : <strong>{periodes.length}</strong></span>
+                  <span>{t("periodsLabel")} <strong>{periodes.length}</strong></span>
                 </div>
               </div>
             </div>
@@ -1536,9 +2435,9 @@ function App() {
             {showCotisationForm && (
               <div style={styles.modalOverlay}>
                 <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} onMouseDown={dragProps}>
-                  <h2>Nouvelle cotisation</h2>
+                  <h2>{t("newContributionTitle")}</h2>
                   <div style={styles.formRow}>
-                    <label style={styles.label}>Montant dû :</label>
+                    <label style={styles.label}>{t("amountDue")}</label>
                     <input
                       type="number"
                       min="1"
@@ -1553,7 +2452,7 @@ function App() {
                     />
                   </div>
                   <div style={styles.formRow}>
-                    <label style={styles.label}>Période de cotisation :</label>
+                    <label style={styles.label}>{t("contributionPeriod")}</label>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <select
                         value={cotisationFormData.mois}
@@ -1564,9 +2463,9 @@ function App() {
                         }}
                         style={{ ...styles.input, flex: 1 }}
                       >
-                        <option value="">-- Mois --</option>
-                        {MOIS_LISTE.map((m) => (
-                          <option key={m} value={m}>{m}</option>
+                        <option value="">{t("monthPlaceholder")}</option>
+                        {FR_MOIS.map((mFr, i) => (
+                          <option key={mFr} value={mFr}>{MOIS_LISTE[i]}</option>
                         ))}
                       </select>
                       <select
@@ -1586,12 +2485,12 @@ function App() {
                   </div>
                   {cotisationFormData.periode && (
                     <div style={{ textAlign: "center", fontSize: "13px", color: "#7f8c8d", marginBottom: "8px" }}>
-                      Période : <strong style={{ color: "#2c3e50" }}>{cotisationFormData.periode}</strong>
+                      {t("periodPreview")} <strong style={{ color: "#2c3e50" }}>{periodeLabel(cotisationFormData.periode)}</strong>
                     </div>
                   )}
                   <div style={styles.modalButtons}>
-                    <button style={styles.addBtn} onClick={handleSaveCotisation}>Enregistrer</button>
-                    <button style={styles.cancelBtn} onClick={() => { setShowCotisationForm(false); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); }}>Annuler</button>
+                    <button style={styles.addBtn} onClick={handleSaveCotisation}>{t("save")}</button>
+                    <button style={styles.cancelBtn} onClick={() => { setShowCotisationForm(false); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); }}>{t("cancel")}</button>
                   </div>
                 </div>
               </div>
@@ -1603,7 +2502,7 @@ function App() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <label style={{ color: "#2c3e50", fontWeight: "600", fontSize: "15px", whiteSpace: "nowrap" }}>
-                      Période :
+                      {t("periodPreview")}
                     </label>
                     <div style={{ position: "relative", display: "inline-block" }}>
                       <select
@@ -1635,7 +2534,7 @@ function App() {
                       >
                         {periodes.map((p, i) => (
                           <option key={i} value={p.libelle} style={{ background: "white", color: "#2c3e50" }}>
-                            {p.libelle}
+                            {periodeLabel(p.libelle)}
                           </option>
                         ))}
                       </select>
@@ -1656,7 +2555,7 @@ function App() {
                         style={{ ...styles.addBtn, background: "#8e44ad", width: "auto", minWidth: "190px" }}
                         onClick={() => { setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); setShowAddPaiementForm(true); setShowSuccessMessage(false); setShowRecuPrompt(false); }}
                       >
-                        ➕ Ajouter un paiement
+                        {t("addPaymentBtn")}
                       </button>
                       <button
                         style={{ ...styles.addBtn, background: "#27ae60", width: "auto", minWidth: "190px" }}
@@ -1675,7 +2574,7 @@ function App() {
                           exportPeriodeExcel([...l, ...sp], selectedPeriode, selectedPeriodeObj);
                         }}
                       >
-                        ⬇️ Exporter Excel
+                        {t("exportExcel")}
                       </button>
                     </div>
                   )}
@@ -1724,7 +2623,7 @@ function App() {
                   return (
                     <div>
                       <h3 style={{ color: "#2c3e50", marginBottom: "14px" }}>
-                        📊 {selectedPeriode} — Montant dû :{" "}
+                        📊 {periodeLabel(selectedPeriode)} — {t("amountDueRow")}{" "}
                         <span style={{ color: "#e74c3c" }}>{selectedPeriodeObj.montantDu} F</span>
                       </h3>
 
@@ -1732,15 +2631,15 @@ function App() {
                       {showAddPaiementForm && selectedPeriodeObj && (
                         <div style={styles.modalOverlay}>
                           <div style={{ ...styles.modal, position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", cursor: "default" }}>
-                            <h2>Ajouter un paiement</h2>
+                            <h2>{t("addPaymentTitle")}</h2>
                             <p style={{ color: "#7f8c8d", fontSize: "13px", margin: "0 0 16px" }}>
-                              Période : <strong>{selectedPeriode}</strong> — Montant dû :{" "}
+                              {t("periodPreview")} <strong>{periodeLabel(selectedPeriode)}</strong> — {t("amountDue")}{" "}
                               <strong>{selectedPeriodeObj.montantDu} F</strong>
                             </p>
 
                             {/* Sélection de l'adhérent */}
                             <div style={styles.formRow}>
-                              <label style={styles.label}>Adhérent :</label>
+                              <label style={styles.label}>{t("members")} :</label>
                               <select
                                 value={addPaiementFormData.adherentId}
                                 onChange={(e) => {
@@ -1751,7 +2650,7 @@ function App() {
                                 }}
                                 style={styles.input}
                               >
-                                <option value="">-- Sélectionner un adhérent --</option>
+                                <option value="">{t("selectMember")}</option>
                                 {adherents.filter((a) => eligibleSet.has(a.id)).map((a) => (
                                   <option key={a.id} value={a.id}>
                                     {a.nom} {a.prenom}{a.matricule ? ` (${a.matricule})` : ""}
@@ -1762,7 +2661,7 @@ function App() {
 
                             {/* Montant payé — chiffres uniquement */}
                             <div style={styles.formRow}>
-                              <label style={styles.label}>Montant payé :</label>
+                              <label style={styles.label}>{t("amountPaidInput")}</label>
                               <input
                                 type="number"
                                 min="1"
@@ -1778,17 +2677,17 @@ function App() {
                             </div>
 
                             <div style={styles.formRow}>
-                              <label style={styles.label}>Mode de paiement :</label>
+                              <label style={styles.label}>{t("paymentMethodLabel")}</label>
                               <select
                                 value={addPaiementFormData.modePaiement}
                                 onChange={(e) => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: e.target.value })}
                                 style={styles.input}
                               >
-                                <option>Espèces</option>
-                                <option>Mobile Money</option>
-                                <option>Virement</option>
-                                <option>Chèque</option>
-                                <option>Autre</option>
+                                <option value="Espèces">{t("cash")}</option>
+                                <option value="Mobile Money">{t("mobileMoney")}</option>
+                                <option value="Virement">{t("transfer")}</option>
+                                <option value="Chèque">{t("check")}</option>
+                                <option value="Autre">{t("other")}</option>
                               </select>
                             </div>
 
@@ -1810,17 +2709,17 @@ function App() {
                                     <>
                                       {depasse && (
                                         <div style={{ color: "#e74c3c", fontWeight: "bold", marginBottom: "8px", background: "#fdecea", padding: "8px", borderRadius: "6px" }}>
-                                          ⚠️ Montant supérieur au reste à payer ({formatAmount(d - deja)})
+                                          {t("amountExceedsRemaining")} ({formatAmount(d - deja)})
                                         </div>
                                       )}
-                                      <div style={styles.calcRow}><span>Montant dû :</span><strong>{formatAmount(d)}</strong></div>
-                                      <div style={styles.calcRow}><span>Déjà payé :</span><strong style={{ color: "#7f8c8d" }}>{formatAmount(deja)}</strong></div>
-                                      <div style={styles.calcRow}><span>Ce paiement :</span><strong style={{ color: "#27ae60" }}>{formatAmount(p)}</strong></div>
+                                      <div style={styles.calcRow}><span>{t("amountDueRow")}</span><strong>{formatAmount(d)}</strong></div>
+                                      <div style={styles.calcRow}><span>{t("alreadyPaidRow")}</span><strong style={{ color: "#7f8c8d" }}>{formatAmount(deja)}</strong></div>
+                                      <div style={styles.calcRow}><span>{t("thisPaymentRow")}</span><strong style={{ color: "#27ae60" }}>{formatAmount(p)}</strong></div>
                                       <div style={{ ...styles.calcRow, borderTop: "1px solid #e0e6ed", paddingTop: "8px", marginTop: "4px" }}>
-                                        <span>Total payé :</span><strong style={{ color: "#2980b9" }}>{formatAmount(total)}</strong>
+                                        <span>{t("totalPaidRow")}</span><strong style={{ color: "#2980b9" }}>{formatAmount(total)}</strong>
                                       </div>
-                                      <div style={styles.calcRow}><span>Reste à payer :</span><strong style={{ color: "#e74c3c" }}>{formatAmount(r)}</strong></div>
-                                      <div style={styles.calcRow}><span>Statut :</span><strong style={{ color: statutColor(s) }}>{s}</strong></div>
+                                      <div style={styles.calcRow}><span>{t("remainingToPayRow")}</span><strong style={{ color: "#e74c3c" }}>{formatAmount(r)}</strong></div>
+                                      <div style={styles.calcRow}><span>{t("statusRow")}</span><strong style={{ color: statutColor(s) }}>{s === "Payé" ? t("statusPaid") : s === "Partiel" ? t("statusPartial") : t("statusUnpaid")}</strong></div>
                                     </>
                                   );
                                 })()}
@@ -1828,8 +2727,8 @@ function App() {
                             )}
 
                             <div style={styles.modalButtons}>
-                              <button style={{ ...styles.addBtn, background: "#0daf3e" }} onClick={handleSaveAddPaiement}>Payer</button>
-                              <button style={styles.cancelBtn} onClick={() => { setShowAddPaiementForm(false); setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); }}>Annuler</button>
+                              <button style={{ ...styles.addBtn, background: "#0daf3e" }} onClick={handleSaveAddPaiement}>{t("pay")}</button>
+                              <button style={styles.cancelBtn} onClick={() => { setShowAddPaiementForm(false); setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); }}>{t("cancel")}</button>
                             </div>
                           </div>
                         </div>
@@ -1838,10 +2737,10 @@ function App() {
                       {/* Filtres avec compteurs */}
                       <div style={{ display: "flex", gap: "8px", marginBottom: "15px", flexWrap: "wrap" }}>
                         {[
-                          ["tous",    "Tous",     "#7f8c8d", nbPaye + nbPartiel + nbImpaye],
-                          ["Payé",    "Payés",    "#27ae60", nbPaye],
-                          ["Impayé",  "Impayés",  "#e74c3c", nbImpaye],
-                          ["Partiel", "Partiels", "#f39c12", nbPartiel],
+                          ["tous",    t("filterAll"),     "#7f8c8d", nbPaye + nbPartiel + nbImpaye],
+                          ["Payé",    t("filterPaid"),    "#27ae60", nbPaye],
+                          ["Impayé",  t("filterUnpaid"),  "#e74c3c", nbImpaye],
+                          ["Partiel", t("filterPartial"), "#f39c12", nbPartiel],
                         ].map(([val, label, color, count]) => (
                           <button key={val} onClick={() => setSelectedStatutFilter(val)} style={{ padding: "7px 16px", background: selectedStatutFilter === val ? color : "#ecf0f1", color: selectedStatutFilter === val ? "white" : "#2c3e50", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: selectedStatutFilter === val ? "bold" : "normal" }}>
                             {label} ({count})
@@ -1860,34 +2759,34 @@ function App() {
                         const barColor = pct >= 100 ? "#27ae60" : pct >= 50 ? "#f39c12" : "#3498db";
                         const nbPayeComplet = liste.filter((p) => p.statut === "Payé").length;
                         return (
-                          <div style={{ background: "#c8d8e8", border: "1px solid #a0b8cc", borderRadius: "10px", padding: "16px 20px", marginBottom: "15px" }}>
+                          <div style={{ background: "#e0f3fc", border: "1px solid #bbdff0", borderRadius: "10px", padding: "16px 20px", marginBottom: "15px" }}>
                             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "space-around", marginBottom: "14px" }}>
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Montant collecté</div>
+                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("collectedAmount")}</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#27ae60" }}>{formatAmount(totalCollecte)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#a0b8cc" }} />
+                              <div style={{ width: "1px", background: "#bbdff0" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Total attendu</div>
+                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("expectedTotal")}</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{formatAmount(totalDu)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#a0b8cc" }} />
+                              <div style={{ width: "1px", background: "#bbdff0" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Reste à collecter</div>
+                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("remainingToCollect")}</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#e74c3c" }}>{formatAmount(resteACollecter)}</div>
                               </div>
-                              <div style={{ width: "1px", background: "#a0b8cc" }} />
+                              <div style={{ width: "1px", background: "#bbdff0" }} />
                               <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#3d5a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>Payeurs complets</div>
+                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("fullPayers")}</div>
                                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#3498db" }}>{nbPayeComplet} / {totalPeriode}</div>
                               </div>
                             </div>
                             <div>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#3d5a6e", marginBottom: "5px", fontWeight: "600" }}>
-                                <span>Progression de la collecte</span>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#1a4a6e", marginBottom: "5px", fontWeight: "600" }}>
+                                <span>{t("collectionProgress")}</span>
                                 <strong style={{ color: barColor }}>{pct.toFixed(1)} %</strong>
                               </div>
-                              <div style={{ background: "#a0b8cc", borderRadius: "10px", height: "12px", overflow: "hidden" }}>
+                              <div style={{ background: "#bbdff0", borderRadius: "10px", height: "12px", overflow: "hidden" }}>
                                 <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "10px", transition: "width 0.6s ease" }} />
                               </div>
                             </div>
@@ -1900,17 +2799,17 @@ function App() {
                         <table style={{ ...styles.table, tableLayout: "auto" }}>
                           <thead>
                             <tr>
-                              <th style={styles.th}>Matricule</th><th style={styles.th}>Nom</th><th style={styles.th}>Prénom</th>
-                              <th style={styles.th}>Téléphone</th><th style={styles.th}>Email</th>
-                              <th style={styles.th}>Solde payé</th><th style={styles.th}>Reste</th>
-                              <th style={styles.th}>Total dû</th><th style={styles.th}>Statut</th>
+                              <th style={styles.th}>{t("matricule")}</th><th style={styles.th}>{t("nameTh")}</th><th style={styles.th}>{t("surnameTh")}</th>
+                              <th style={styles.th}>{t("telephoneTh")}</th><th style={styles.th}>{t("emailTh")}</th>
+                              <th style={styles.th}>{t("balancePaid")}</th><th style={styles.th}>{t("remaining")}</th>
+                              <th style={styles.th}>{t("totalDue")}</th><th style={styles.th}>{t("statusTh")}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filtres.length === 0 ? (
                               <tr>
                                 <td colSpan="9" style={{ ...styles.td, textAlign: "center", padding: "20px", color: "#7f8c8d" }}>
-                                  {adherents.length === 0 ? "Aucun adhérent enregistré." : "Aucun résultat pour ce filtre."}
+                                  {adherents.length === 0 ? t("noMemberRegistered") : t("noResultsFilter")}
                                 </td>
                               </tr>
                             ) : (
@@ -1924,9 +2823,9 @@ function App() {
                                   <td style={styles.td}>{c.soldePaye}</td>
                                   <td style={styles.td}>{c.reste}</td>
                                   <td style={styles.td}>{selectedPeriodeObj.montantDu} F</td>
-                                  <td style={styles.td}>
-                                    <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut) }}>
-                                      {c.statut}
+                                  <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                                    <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
+                                      {statutLabel(c.statut)}
                                     </span>
                                   </td>
                                 </tr>
@@ -1943,7 +2842,7 @@ function App() {
 
             {periodes.length === 0 && (
               <div style={styles.emptyState}>
-                <p>Aucune cotisation enregistrée. Cliquez sur "Nouvelle cotisation" pour commencer.</p>
+                <p>{t("noContribution")}</p>
               </div>
             )}
           </div>
@@ -1953,17 +2852,17 @@ function App() {
         {page === "nonRegle" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "8px" }}>
-              <button style={styles.cancelBtn} onClick={() => setPage("accueil")}>← Retour</button>
-              <h1 style={{ margin: 0 }}>Non réglés</h1>
+              <button style={styles.cancelBtn} onClick={() => setPage("accueil")}>{t("backBtn")}</button>
+              <h1 style={{ margin: 0 }}>{t("unpaidTitle")}</h1>
             </div>
             {currentPeriode && (
               <p style={{ color: "#7f8c8d", marginBottom: "20px", fontSize: "14px" }}>
-                Période en cours : <strong style={{ color: "#2c3e50" }}>{currentPeriode.libelle}</strong> — Montant dû :{" "}
+                {t("currentPeriodLabel")} <strong style={{ color: "#2c3e50" }}>{periodeLabel(currentPeriode.libelle)}</strong> — {t("amountDue")}{" "}
                 <strong style={{ color: "#e74c3c" }}>{currentPeriode.montantDu} F</strong>
               </p>
             )}
             {!currentPeriode ? (
-              <div style={styles.emptyState}><p>Aucune période de cotisation enregistrée.</p></div>
+              <div style={styles.emptyState}><p>{t("noPeriodRegistered")}</p></div>
             ) : (() => {
               const liste = currentPeriode.paiements || [];
               const idAvecPaiement = new Set(liste.map((p) => p.adherent_id));
@@ -1985,25 +2884,25 @@ function App() {
                 ...sansPaiement,
               ];
               return nonRegles.length === 0 ? (
-                <div style={styles.emptyState}><p>🎉 Tous les adhérents ont réglé leur cotisation pour cette période !</p></div>
+                <div style={styles.emptyState}><p>{t("allMembersPaid")}</p></div>
               ) : (
                 <>
                   <p style={{ marginBottom: "12px", color: "#2c3e50", fontWeight: "600" }}>
-                    {nonRegles.length} adhérent{nonRegles.length > 1 ? "s" : ""} non réglé{nonRegles.length > 1 ? "s" : ""}
+                    {nonRegles.length} {nonRegles.length > 1 ? t("memberPlural") : t("memberSingular")} {nonRegles.length > 1 ? t("nonReglePlural") : t("nonRegleSingular")}
                   </p>
                   <div style={styles.tableContainer}>
                     <table style={{ ...styles.table, tableLayout: "auto" }}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>N°</th>
-                          <th style={styles.th}>Matricule</th>
-                          <th style={styles.th}>Nom</th>
-                          <th style={styles.th}>Prénom</th>
-                          <th style={styles.th}>Téléphone</th>
-                          <th style={styles.th}>Email</th>
-                          <th style={styles.th}>Solde payé</th>
-                          <th style={styles.th}>Reste à payer</th>
-                          <th style={styles.th}>Statut</th>
+                          <th style={styles.th}>{t("numberTh")}</th>
+                          <th style={styles.th}>{t("matricule")}</th>
+                          <th style={styles.th}>{t("nameTh")}</th>
+                          <th style={styles.th}>{t("surnameTh")}</th>
+                          <th style={styles.th}>{t("telephoneTh")}</th>
+                          <th style={styles.th}>{t("emailTh")}</th>
+                          <th style={styles.th}>{t("balancePaid")}</th>
+                          <th style={styles.th}>{t("remainingToPayTh")}</th>
+                          <th style={styles.th}>{t("statusTh")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2017,9 +2916,9 @@ function App() {
                             <td style={styles.td}>{c.email}</td>
                             <td style={styles.td}>{c.soldePaye}</td>
                             <td style={styles.td}>{c.reste}</td>
-                            <td style={styles.td}>
-                              <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut) }}>
-                                {c.statut}
+                            <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                              <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
+                                {statutLabel(c.statut)}
                               </span>
                             </td>
                           </tr>
@@ -2036,20 +2935,20 @@ function App() {
         {/* ── HISTORIQUE ───────────────────────────────────────── */}
         {page === "historique" && (
           <div>
-            <h1>Historique des paiements</h1>
+            <h1>{t("paymentHistory")}</h1>
             <div style={{ background: "#f7f9fc", padding: "12px 18px", borderRadius: "8px", marginBottom: "16px", display: "flex", gap: "24px", flexWrap: "wrap", border: "1px solid #e0e6ed" }}>
-              <span>Total transactions : <strong>{historiqueTransactions.length}</strong></span>
+              <span>{t("totalTransactions")} <strong>{historiqueTransactions.length}</strong></span>
               <span>
-                Montant total encaissé :{" "}
+                {t("totalAmountCollected")}{" "}
                 <strong style={{ color: "#27ae60" }}>
-                  {formatAmount(historiqueTransactions.reduce((s, t) => s + parseAmount(t.montantPaye), 0))}
+                  {formatAmount(historiqueTransactions.reduce((s, tx) => s + parseAmount(tx.montantPaye), 0))}
                 </strong>
               </span>
             </div>
             <div style={styles.toolbarSection}>
               <input
                 type="text"
-                placeholder="🔍 Rechercher par nom, prénom, période ou N° reçu..."
+                placeholder={t("searchHistory")}
                 value={searchHistorique}
                 onChange={(e) => setSearchHistorique(e.target.value)}
                 style={styles.searchInput}
@@ -2057,48 +2956,38 @@ function App() {
             </div>
 
             {historiqueTransactions.length === 0 ? (
-              <div style={styles.emptyState}><p>Aucun paiement enregistré pour le moment.</p></div>
+              <div style={styles.emptyState}><p>{t("noPaymentYet")}</p></div>
             ) : (
               <div style={styles.tableContainer}>
                 <table style={{ ...styles.table, tableLayout: "auto" }}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>N° Reçu</th>
-                      <th style={styles.th}>Date</th>
-                      <th style={styles.th}>Adhérent</th>
-                      <th style={styles.th}>Période</th>
-                      <th style={styles.th}>Montant payé</th>
-                      <th style={styles.th}>Total payé</th>
-                      <th style={styles.th}>Reste</th>
-                      <th style={styles.th}>Mode</th>
-                      <th style={styles.th}>Statut</th>
+                      <th style={styles.th}>{t("receiptNumberTh")}</th>
+                      <th style={styles.th}>{t("dateTh")}</th>
+                      <th style={styles.th}>{t("memberTh")}</th>
+                      <th style={styles.th}>{t("periodTh")}</th>
+                      <th style={styles.th}>{t("amountPaidTh")}</th>
+                      <th style={styles.th}>{t("modeTh")}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[...historiqueTransactions].reverse().filter((t) => {
+                    {[...historiqueTransactions].reverse().filter((tx) => {
                       const q = searchHistorique.toLowerCase();
                       if (!q) return true;
                       return (
-                        (t.nom || "").toLowerCase().includes(q) ||
-                        (t.prenom || "").toLowerCase().includes(q) ||
-                        (t.periode || "").toLowerCase().includes(q) ||
-                        (t.numeroRecu || "").toLowerCase().includes(q)
+                        (tx.nom || "").toLowerCase().includes(q) ||
+                        (tx.prenom || "").toLowerCase().includes(q) ||
+                        (tx.periode || "").toLowerCase().includes(q) ||
+                        (tx.numeroRecu || "").toLowerCase().includes(q)
                       );
-                    }).map((t, i) => (
+                    }).map((tx, i) => (
                       <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
-                        <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d" }}>{t.numeroRecu}</td>
-                        <td style={styles.td}>{t.datePaiement}</td>
-                        <td style={styles.td}><strong>{t.nom} {t.prenom}</strong></td>
-                        <td style={styles.td}>{t.periode}</td>
-                        <td style={{ ...styles.td, fontWeight: "bold", color: "#27ae60" }}>{t.montantPaye}</td>
-                        <td style={{ ...styles.td, color: "#2980b9" }}>{t.totalPaye}</td>
-                        <td style={{ ...styles.td, color: "#e74c3c" }}>{t.reste}</td>
-                        <td style={styles.td}>{t.modePaiement}</td>
-                        <td style={styles.td}>
-                          <span style={{ padding: "3px 10px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "12px", background: t.statut === "Payé" ? "#27ae60" : t.statut === "Partiel" ? "#f39c12" : "#e74c3c" }}>
-                            {t.statut}
-                          </span>
-                        </td>
+                        <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d" }}>{tx.numeroRecu}</td>
+                        <td style={styles.td}>{tx.datePaiement}</td>
+                        <td style={styles.td}><strong>{tx.nom} {tx.prenom}</strong></td>
+                        <td style={styles.td}>{periodeLabel(tx.periode)}</td>
+                        <td style={{ ...styles.td, fontWeight: "bold", color: "#27ae60" }}>{tx.montantPaye}</td>
+                        <td style={styles.td}>{modeLabel(tx.modePaiement)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2114,8 +3003,8 @@ function App() {
         <div style={styles.modalOverlay}>
           <div style={{ background: "white", borderRadius: "12px", width: "520px", maxWidth: "95vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "14px 20px 0", background: "#f7f9fc", borderRadius: "12px 12px 0 0" }}>
-              <button onClick={handlePrintRecu} style={{ padding: "8px 18px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>🖨️ Imprimer</button>
-              <button onClick={() => setShowRecu(false)} style={{ padding: "8px 18px", background: "#e74c3c", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>✕ Fermer</button>
+              <button onClick={handlePrintRecu} style={{ padding: "8px 18px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("printBtn")}</button>
+              <button onClick={() => setShowRecu(false)} style={{ padding: "8px 18px", background: "#e74c3c", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("closeBtn")}</button>
             </div>
             <div ref={recuRef} style={{ padding: "30px" }}>
               <div style={{ textAlign: "center", borderBottom: "3px double #2c3e50", paddingBottom: "18px", marginBottom: "24px" }}>
@@ -2123,41 +3012,348 @@ function App() {
                   <img src={logo} alt="Logo" style={{ height: "52px", width: "52px", objectFit: "contain" }} />
                   <h1 style={{ margin: 0, fontSize: "26px", color: "#2c3e50", letterSpacing: "3px", textTransform: "uppercase" }}>Cotisation Pro</h1>
                 </div>
-                <p style={{ margin: "6px 0 0", color: "#7f8c8d", fontSize: "13px" }}>Reçu officiel de paiement</p>
+                <p style={{ margin: "6px 0 0", color: "#7f8c8d", fontSize: "13px" }}>{t("officialReceipt")}</p>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "22px", fontSize: "13px", color: "#7f8c8d" }}>
-                <span>N° Reçu : <strong style={{ color: "#2c3e50" }}>{lastPaiement.numeroRecu}</strong></span>
-                <span>Date : <strong style={{ color: "#2c3e50" }}>{lastPaiement.datePaiement}</strong></span>
+                <span>{t("receiptNLabel")} <strong style={{ color: "#2c3e50" }}>{lastPaiement.numeroRecu}</strong></span>
+                <span>{t("dateLabel")} <strong style={{ color: "#2c3e50" }}>{lastPaiement.datePaiement}</strong></span>
               </div>
               <div style={{ background: "#f7f9fc", border: "1px solid #e0e6ed", borderRadius: "8px", padding: "16px", marginBottom: "18px" }}>
-                <h3 style={styles.recuSectionTitle}>Informations de l'adhérent</h3>
-                <div style={styles.recuRow}><span>Matricule</span><strong>{lastPaiement.matricule}</strong></div>
-                <div style={styles.recuRow}><span>Nom</span><strong>{lastPaiement.nom}</strong></div>
-                <div style={styles.recuRow}><span>Prénom</span><strong>{lastPaiement.prenom}</strong></div>
-                <div style={styles.recuRow}><span>Téléphone</span><strong>{lastPaiement.telephone}</strong></div>
-                <div style={styles.recuRow}><span>Email</span><strong>{lastPaiement.email}</strong></div>
+                <h3 style={styles.recuSectionTitle}>{t("memberInfoTitle")}</h3>
+                <div style={styles.recuRow}><span>{t("matricule")}</span><strong>{lastPaiement.matricule}</strong></div>
+                <div style={styles.recuRow}><span>{t("nameTh")}</span><strong>{lastPaiement.nom}</strong></div>
+                <div style={styles.recuRow}><span>{t("surnameTh")}</span><strong>{lastPaiement.prenom}</strong></div>
+                <div style={styles.recuRow}><span>{t("telephoneTh")}</span><strong>{lastPaiement.telephone}</strong></div>
+                <div style={styles.recuRow}><span>{t("emailTh")}</span><strong>{lastPaiement.email}</strong></div>
               </div>
               <div style={{ background: "#f7f9fc", border: "1px solid #e0e6ed", borderRadius: "8px", padding: "16px", marginBottom: "18px" }}>
-                <h3 style={styles.recuSectionTitle}>Détails du paiement</h3>
-                <div style={styles.recuRow}><span>Période concernée</span><strong>{lastPaiement.periode}</strong></div>
-                <div style={styles.recuRow}><span>Mode de paiement</span><strong>{lastPaiement.modePaiement}</strong></div>
-                <div style={styles.recuRow}><span>Montant dû</span><strong>{lastPaiement.montantDu}</strong></div>
-                <div style={styles.recuRow}><span>Montant déjà payé</span><strong>{lastPaiement.dejaPaye}</strong></div>
+                <h3 style={styles.recuSectionTitle}>{t("paymentDetailsTitle")}</h3>
+                <div style={styles.recuRow}><span>{t("concernedPeriod")}</span><strong>{periodeLabel(lastPaiement.periode)}</strong></div>
+                <div style={styles.recuRow}><span>{t("paymentMethodTitle")}</span><strong>{modeLabel(lastPaiement.modePaiement)}</strong></div>
+                <div style={styles.recuRow}><span>{t("montantDuTitle")}</span><strong>{lastPaiement.montantDu}</strong></div>
+                <div style={styles.recuRow}><span>{t("alreadyPaidTitle")}</span><strong>{lastPaiement.dejaPaye}</strong></div>
                 <div style={{ ...styles.recuRow, background: "#eafaf1", borderRadius: "6px", padding: "8px", margin: "6px 0" }}>
-                  <span>Ce paiement</span><strong style={{ color: "#27ae60", fontSize: "16px" }}>{lastPaiement.montantPaye}</strong>
+                  <span>{t("thisPaymentTitle")}</span><strong style={{ color: "#27ae60", fontSize: "16px" }}>{lastPaiement.montantPaye}</strong>
                 </div>
-                <div style={styles.recuRow}><span>Total payé</span><strong style={{ color: "#2980b9" }}>{lastPaiement.totalPaye}</strong></div>
-                <div style={styles.recuRow}><span>Reste à payer</span><strong style={{ color: "#e74c3c" }}>{lastPaiement.reste}</strong></div>
+                <div style={styles.recuRow}><span>{t("totalPaidTitle")}</span><strong style={{ color: "#2980b9" }}>{lastPaiement.totalPaye}</strong></div>
+                <div style={styles.recuRow}><span>{t("remainingTitle")}</span><strong style={{ color: "#e74c3c" }}>{lastPaiement.reste}</strong></div>
               </div>
               <div style={{ textAlign: "center", background: statutBg(lastPaiement.statut), border: `2px solid ${statutColor(lastPaiement.statut)}`, borderRadius: "10px", padding: "14px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "22px", fontWeight: "bold", color: statutColor(lastPaiement.statut) }}>
-                  Statut : {lastPaiement.statut.toUpperCase()}
+                  {t("statusTitle")} {statutLabel(lastPaiement.statut).toUpperCase()}
                 </div>
               </div>
               <div style={{ textAlign: "center", fontSize: "12px", color: "#bdc3c7", borderTop: "1px solid #ecf0f1", paddingTop: "14px" }}>
-                <p style={{ margin: 0 }}>Cotisation Pro — Document généré automatiquement</p>
-                <p style={{ margin: "4px 0 0" }}>Ce reçu fait foi de paiement pour la période indiquée.</p>
+                <p style={{ margin: 0 }}>{t("autoGenerated")}</p>
+                <p style={{ margin: "4px 0 0" }}>{t("receiptProof")}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL MODIFIER EMAIL ─────────────────────────────── */}
+      {showChangeEmail && (
+        <div style={styles.modalOverlay} onClick={() => setShowChangeEmail(false)}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "32px 36px", width: "420px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "18px", color: "#2c3e50" }}>✉️ {t("changeEmailTitle")}</h3>
+            <p style={{ margin: "0 0 18px", fontSize: "13px", color: "#95a5a6" }}>
+              {changeEmailStep === 1 ? t("changeEmailStep1Label") : t("changeEmailStep2Label")}
+            </p>
+
+            {changeEmailSuccess ? (
+              <>
+                <div style={{ background: "#d5f5e3", border: "1px solid #27ae60", borderRadius: "8px", padding: "16px", textAlign: "center", color: "#1e8449", fontWeight: "600", marginBottom: "20px" }}>
+                  ✅ {t("changeEmailSuccess")}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <button style={{ padding: "10px 24px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                    onClick={() => setShowChangeEmail(false)}>
+                    {t("aboutClose")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <form onSubmit={handleChangeEmail}>
+                {changeEmailError && (
+                  <div style={{ background: "#ffecec", color: "#b02a2a", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>
+                    ⚠️ {changeEmailError}
+                  </div>
+                )}
+
+                {changeEmailStep === 1 ? (
+                  <>
+                    <div style={{ marginBottom: "8px", padding: "10px 14px", background: "#f0f8ff", borderRadius: "8px", fontSize: "13px", color: "#2c3e50" }}>
+                      <span style={{ color: "#7f8c8d" }}>{t("currentEmailLabel")} : </span>
+                      <strong>{compte.email}</strong>
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("newEmailLabel")}</label>
+                      <input
+                        type="email"
+                        value={changeEmailForm.email}
+                        onChange={(e) => setChangeEmailForm(f => ({ ...f, email: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                        placeholder="nouvelle@email.com"
+                        autoFocus
+                      />
+                    </div>
+                    <div style={{ marginBottom: "18px" }}>
+                      <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("password")}</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showChangeEmailPwd ? "text" : "password"}
+                          value={changeEmailForm.mot_de_passe}
+                          onChange={(e) => setChangeEmailForm(f => ({ ...f, mot_de_passe: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                          placeholder={t("yourPassword")}
+                        />
+                        <button type="button" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d", padding: "4px" }}
+                          onClick={() => setShowChangeEmailPwd(v => !v)}>
+                          {showChangeEmailPwd ? <EyeOff /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ marginBottom: "18px" }}>
+                    <p style={{ margin: "0 0 14px", fontSize: "14px", color: "#2c3e50", lineHeight: "1.5" }}>
+                      {t("changeEmailCodeSentTo")} <strong>{changeEmailForm.email}</strong>.
+                      <br /><span style={{ fontSize: "12px", color: "#95a5a6" }}>{t("otpExpires")}</span>
+                    </p>
+                    <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("changeEmailEnterCode")}</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={changeEmailOtp}
+                      onChange={(e) => setChangeEmailOtp(e.target.value.replace(/\D/g, ""))}
+                      style={{ width: "100%", padding: "12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "22px", textAlign: "center", letterSpacing: "12px", fontWeight: "700", boxSizing: "border-box", outline: "none" }}
+                      placeholder="----"
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  {changeEmailStep === 2 && (
+                    <button type="button" style={{ padding: "10px 18px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                      onClick={() => { setChangeEmailStep(1); setChangeEmailError(""); setChangeEmailOtp(""); }}>
+                      ←
+                    </button>
+                  )}
+                  <button type="button" style={{ padding: "10px 18px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                    onClick={() => setShowChangeEmail(false)}>
+                    {t("cancel")}
+                  </button>
+                  <button type="submit" disabled={changeEmailLoading}
+                    style={{ padding: "10px 20px", background: changeEmailLoading ? "#95a5a6" : "#3498db", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: changeEmailLoading ? "not-allowed" : "pointer" }}>
+                    {changeEmailLoading ? "..." : changeEmailStep === 1 ? t("changeEmailSendCode") : t("changeEmailConfirm")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL MODIFIER MOT DE PASSE ─────────────────────── */}
+      {showChangePwd && (
+        <div style={styles.modalOverlay} onClick={() => setShowChangePwd(false)}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "32px 36px", width: "400px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "18px", color: "#2c3e50" }}>✏️ {t("changePwdTitle")}</h3>
+            <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#95a5a6" }}>
+              {changePwdStep === 1 ? t("changePwdStep1Label") : t("changePwdStep2Label")}
+            </p>
+            {changePwdSuccessMsg ? (
+              <div style={{ background: "#d5f5e3", border: "1px solid #27ae60", borderRadius: "8px", padding: "16px", textAlign: "center", color: "#1e8449", fontWeight: "600", marginBottom: "16px" }}>
+                ✅ {t("changePwdSuccess")}
+              </div>
+            ) : (
+              <form onSubmit={handleChangePassword}>
+                {changePwdError && (
+                  <div style={{ background: "#ffecec", color: "#b02a2a", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>
+                    ⚠️ {changePwdError}
+                  </div>
+                )}
+                {changePwdStep === 1 ? (
+                  <div style={{ marginBottom: "18px" }}>
+                    <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("oldPassword")}</label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showOldPwd ? "text" : "password"}
+                        value={changePwdForm.ancien}
+                        onChange={(e) => setChangePwdForm(f => ({ ...f, ancien: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                        placeholder="••••••••"
+                        autoFocus
+                      />
+                      <button type="button" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d", padding: "4px" }} onClick={() => setShowOldPwd(v => !v)}>
+                        {showOldPwd ? <EyeOff /> : <EyeOpen />}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("newPassword")}</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showNewPwd2 ? "text" : "password"}
+                          value={changePwdForm.nouveau}
+                          onChange={(e) => setChangePwdForm(f => ({ ...f, nouveau: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                          placeholder={t("minChars")}
+                          autoFocus
+                        />
+                        <button type="button" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d", padding: "4px" }} onClick={() => setShowNewPwd2(v => !v)}>
+                          {showNewPwd2 ? <EyeOff /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "18px" }}>
+                      <label style={{ display: "block", fontWeight: "600", fontSize: "13px", color: "#2c3e50", marginBottom: "6px" }}>{t("confirmPassword")}</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showConfirmPwd2 ? "text" : "password"}
+                          value={changePwdForm.confirmer}
+                          onChange={(e) => setChangePwdForm(f => ({ ...f, confirmer: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                          placeholder={t("repeatPassword")}
+                        />
+                        <button type="button" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d", padding: "4px" }} onClick={() => setShowConfirmPwd2(v => !v)}>
+                          {showConfirmPwd2 ? <EyeOff /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  {changePwdStep === 2 && (
+                    <button type="button" style={{ padding: "10px 20px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                      onClick={() => { setChangePwdStep(1); setChangePwdError(""); }}>
+                      ← {t("backToPrevStep").replace("← ", "")}
+                    </button>
+                  )}
+                  <button type="button" style={{ padding: "10px 20px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                    onClick={() => setShowChangePwd(false)}>
+                    {t("cancel")}
+                  </button>
+                  <button type="submit" disabled={changePwdLoading}
+                    style={{ padding: "10px 22px", background: changePwdLoading ? "#95a5a6" : "#3498db", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: changePwdLoading ? "not-allowed" : "pointer" }}>
+                    {changePwdLoading ? t("saving") : changePwdStep === 1 ? t("changePwdNext") : t("changePwdBtn")}
+                  </button>
+                </div>
+              </form>
+            )}
+            {changePwdSuccessMsg && (
+              <div style={{ textAlign: "right" }}>
+                <button style={{ padding: "10px 24px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                  onClick={() => setShowChangePwd(false)}>
+                  {t("cancel").replace("Annuler", "Fermer").replace("Cancel", "Close")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL AIDE ───────────────────────────────────────── */}
+      {showHelp && (() => {
+        const helpSections = [
+          { key: 0, color: "#3498db", bg: "#eaf4fb", title: t("helpSection1Title"), steps: t("helpSection1Steps") },
+          { key: 1, color: "#27ae60", bg: "#eafaf1", title: t("helpSection2Title"), steps: t("helpSection2Steps") },
+          { key: 2, color: "#e67e22", bg: "#fef9f0", title: t("helpSection3Title"), steps: t("helpSection3Steps") },
+          { key: 3, color: "#9b59b6", bg: "#f5eef8", title: t("helpSection4Title"), steps: t("helpSection4Steps") },
+        ];
+        const active = helpSection !== null ? helpSections[helpSection] : null;
+        return (
+          <div style={styles.modalOverlay} onClick={() => { setShowHelp(false); setHelpSection(null); }}>
+            <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "520px", maxWidth: "96vw", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
+
+              {/* En-tête */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px" }}>
+                {active ? (
+                  <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "#3498db", fontWeight: "700", fontFamily: "inherit", padding: 0 }}
+                    onClick={() => setHelpSection(null)}>
+                    ← {lang === "fr" ? "Retour" : "Back"}
+                  </button>
+                ) : (
+                  <h3 style={{ margin: 0, fontSize: "18px", color: "#2c3e50" }}>
+                    {lang === "fr" ? "Aide — Guide d'utilisation" : "Help — User Guide"}
+                  </h3>
+                )}
+                <button style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#7f8c8d", lineHeight: 1 }}
+                  onClick={() => { setShowHelp(false); setHelpSection(null); }}>✕</button>
+              </div>
+
+              {/* Vue liste des 4 cartes */}
+              {!active && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {helpSections.map(({ key, color, bg, title }) => (
+                    <button key={key}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: bg, border: `1.5px solid ${color}22`, borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "box-shadow 0.15s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 16px ${color}33`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+                      onClick={() => setHelpSection(key)}
+                    >
+                      <span style={{ fontSize: "15px", fontWeight: "700", color }}>{title}</span>
+                      <span style={{ fontSize: "18px", color, opacity: 0.7 }}>›</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Vue détail d'une section */}
+              {active && (
+                <div>
+                  <h4 style={{ margin: "0 0 18px", fontSize: "16px", fontWeight: "700", color: active.color, borderLeft: `4px solid ${active.color}`, paddingLeft: "12px" }}>{active.title}</h4>
+                  <ol style={{ margin: 0, paddingLeft: "20px" }}>
+                    {active.steps.map((step, i) => (
+                      <li key={i} style={{ marginBottom: "12px", fontSize: "14px", color: "#2c3e50", lineHeight: "1.6", background: active.bg, padding: "10px 14px", borderRadius: "8px", listStyle: "none", display: "flex", gap: "10px" }}>
+                        <span style={{ minWidth: "24px", height: "24px", background: active.color, color: "white", borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "700", flexShrink: 0, marginTop: "1px" }}>{i + 1}</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <div style={{ textAlign: "right", marginTop: "20px" }}>
+                    <button style={{ padding: "10px 28px", background: active.color, color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                      onClick={() => setHelpSection(null)}>
+                      ← {lang === "fr" ? "Retour" : "Back"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── MODAL À PROPOS ───────────────────────────────────── */}
+      {showAbout && (
+        <div style={styles.modalOverlay} onClick={() => setShowAbout(false)}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "32px 36px", width: "480px", maxWidth: "96vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <img src={logo} alt="Logo" style={{ height: "64px", width: "64px", objectFit: "cover", borderRadius: "50%", marginBottom: "12px" }} />
+              <h3 style={{ margin: "0 0 4px", fontSize: "20px", fontWeight: "800", color: "#2c3e50" }}>Cotisation Pro</h3>
+              <span style={{ fontSize: "12px", color: "#95a5a6", background: "#ecf0f1", padding: "3px 10px", borderRadius: "12px" }}>v{t("aboutVersionNum")}</span>
+            </div>
+            <p style={{ fontSize: "14px", color: "#555", lineHeight: "1.65", margin: "0 0 24px", textAlign: "justify" }}>{t("aboutAppDesc")}</p>
+            <div style={{ background: "#f8f9fa", borderRadius: "10px", padding: "16px 20px", marginBottom: "20px" }}>
+              <p style={{ margin: "0 0 4px", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.8px", color: "#95a5a6" }}>{t("aboutDeveloper")}</p>
+              <p style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: "700", color: "#2c3e50" }}>{t("aboutDevName")}</p>
+              <p style={{ margin: "0 0 6px", fontSize: "13px", color: "#7f8c8d" }}>{t("aboutDevRole")}</p>
+              <p style={{ margin: 0, fontSize: "13px", color: "#2980b9" }}>📧 {t("aboutDevEmail")} : {t("aboutDevEmailVal")}</p>
+            </div>
+            <div style={{ background: "#eaf6fd", borderRadius: "10px", padding: "12px 20px", marginBottom: "20px" }}>
+              <p style={{ margin: "0 0 4px", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.8px", color: "#95a5a6" }}>{t("aboutTechLabel")}</p>
+              <p style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "#2980b9" }}>{t("aboutTechVal")}</p>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <button style={{ padding: "10px 36px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }} onClick={() => setShowAbout(false)}>
+                {t("aboutClose")}
+              </button>
             </div>
           </div>
         </div>
@@ -2167,20 +3363,20 @@ function App() {
       {showLogoutConfirm && (
         <div style={styles.modalOverlay} onClick={() => setShowLogoutConfirm(false)}>
           <div style={{ background: "white", borderRadius: "14px", padding: "32px 36px", width: "360px", maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 8px", fontSize: "18px", color: "#2c3e50" }}>Déconnexion</h3>
-            <p style={{ margin: "0 0 24px", fontSize: "14px", color: "#7f8c8d", lineHeight: "1.5" }}>Êtes-vous sûr de vouloir vous déconnecter ?</p>
+            <h3 style={{ margin: "0 0 8px", fontSize: "18px", color: "#2c3e50" }}>{t("logoutTitle")}</h3>
+            <p style={{ margin: "0 0 24px", fontSize: "14px", color: "#7f8c8d", lineHeight: "1.5" }}>{t("logoutConfirm")}</p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
               <button
                 style={{ padding: "11px 28px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
                 onClick={() => setShowLogoutConfirm(false)}
               >
-                Annuler
+                {t("cancel")}
               </button>
               <button
                 style={{ padding: "11px 28px", background: "#c0392b", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}
                 onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}
               >
-                Se déconnecter
+                {t("logoutBtn")}
               </button>
             </div>
           </div>
@@ -2197,7 +3393,7 @@ const styles = {
   btn: { padding: "10px 16px", background: "#3498db", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" },
   content: { padding: "20px" },
   cards: { display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" },
-  card: { padding: "20px", background: "#b8ccd8", textAlign: "center", minWidth: "180px", borderRadius: "8px" },
+  card: { padding: "20px", background: "#e0f3fc", textAlign: "center", minWidth: "180px", borderRadius: "8px" },
   addBtn: { padding: "10px 20px", background: "green", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
   alertButton: { marginLeft: "12px", padding: "8px 14px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" },
   cancelBtn: { padding: "10px 20px", background: "red", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
@@ -2215,13 +3411,13 @@ const styles = {
   input: { width: "100%", padding: "8px", minWidth: 0, boxSizing: "border-box" },
   modalButtons: { display: "flex", justifyContent: "center", gap: "10px", marginTop: "16px" },
   summarySection: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "15px", margin: "20px 0" },
-  summaryCard: { background: "#c8d8e8", padding: "15px", borderRadius: "10px", textAlign: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" },
+  summaryCard: { background: "#e0f3fc", padding: "15px", borderRadius: "10px", textAlign: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.10)" },
   alerts: { display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" },
   alert: { background: "#ffecec", color: "#b02a2a", padding: "12px 15px", borderRadius: "8px", fontWeight: "600" },
-  welcomeText: { margin: "30px 0 40px", color: "#1a2d40", fontSize: "clamp(20px, 2.1vw, 36px)", fontWeight: "bold", width: "100%", boxSizing: "border-box", lineHeight: "1.4", backgroundColor: "#c8d8e8", padding: "20px 28px", borderRadius: "10px", boxShadow: "0 3px 10px rgba(0,0,0,0.18)" },
-  toolbarSection: { background: "#d0dfe8", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #b0c4d4" },
+  welcomeText: { margin: "30px 0 40px", color: "#1a2d40", fontSize: "clamp(20px, 2.1vw, 36px)", fontWeight: "bold", width: "100%", boxSizing: "border-box", lineHeight: "1.4", backgroundColor: "#e0f3fc", padding: "20px 28px", borderRadius: "10px", boxShadow: "0 3px 10px rgba(0,0,0,0.10)" },
+  toolbarSection: { background: "#eaf6fd", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #c5e8f7" },
   toolbarTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0", gap: "15px", flexWrap: "wrap" },
-  statsBox: { display: "flex", gap: "20px", background: "#dce8f2", padding: "12px 20px", borderRadius: "8px", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" },
+  statsBox: { display: "flex", gap: "20px", background: "#eaf6fd", padding: "12px 20px", borderRadius: "8px", boxShadow: "0 1px 4px rgba(0,0,0,0.10)" },
   filtersSection: { display: "flex", flexDirection: "column", gap: "10px" },
   searchInput: { width: "100%", padding: "10px 15px", fontSize: "14px", border: "1px solid #bdc3c7", borderRadius: "5px", boxSizing: "border-box" },
   detailsBtn: { padding: "0", background: "#9b59b6", color: "white", border: "none", borderRadius: "6px", width: "42px", height: "42px", marginRight: "8px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },
