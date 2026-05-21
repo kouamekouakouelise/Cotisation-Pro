@@ -1,4 +1,4 @@
-require("dns").setDefaultResultOrder("ipv4first"); // Force IPv4 (Railway bloque IPv6 SMTP)
+require("dns").setDefaultResultOrder("ipv4first");
 const nodemailer = require("nodemailer");
 const express = require("express");
 const cors = require("cors");
@@ -77,31 +77,28 @@ setInterval(() => {
   for (const [key, val] of otpRateLimit.entries()) if (now - val.firstAt > OTP_WINDOW_MS) otpRateLimit.delete(key);
 }, 15 * 60 * 1000);
 
-// ── Transporteur email (Gmail SMTP via nodemailer) ─────────────
-// ── Envoi email via Brevo (HTTPS — jamais bloqué par Railway) ─────────────
-// ── Transporteur email : Brevo SMTP (port 587, IPv4 forcé) ───────────────
-const BREVO_SMTP_USER = process.env.BREVO_SMTP_USER || process.env.EMAIL_USER;
-const BREVO_SMTP_PASS = process.env.BREVO_SMTP_PASS;
-let emailReady = false;
-let transporter = null;
+// ── Envoi email via Gmail SMTP (port 465 SSL) ─────────────────
+const GMAIL_USER = process.env.EMAIL_USER;
+const GMAIL_PASS = process.env.EMAIL_PASS;
+const emailReady = !!(GMAIL_USER && GMAIL_PASS);
 
-if (!BREVO_SMTP_USER || !BREVO_SMTP_PASS) {
-  console.warn("⚠️  BREVO_SMTP_USER ou BREVO_SMTP_PASS manquant — envoi d'OTP désactivé.");
+let transporter = null;
+if (!emailReady) {
+  console.warn("⚠️  EMAIL_USER ou EMAIL_PASS manquant — envoi d'OTP désactivé.");
 } else {
   transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false,
-    auth: { user: BREVO_SMTP_USER, pass: BREVO_SMTP_PASS },
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: GMAIL_USER, pass: GMAIL_PASS },
   });
-  emailReady = true;
-  console.log(`✉️  Email (Brevo SMTP) prêt — expéditeur : ${BREVO_SMTP_USER}`);
+  console.log(`✉️  Email (Gmail SSL) prêt — expéditeur : ${GMAIL_USER}`);
 }
 
 async function sendEmail({ to, subject, html }) {
   if (!transporter) throw new Error("Service email non configuré.");
   await transporter.sendMail({
-    from: `"Cotisation Pro" <${BREVO_SMTP_USER}>`,
+    from: `"Cotisation Pro" <${GMAIL_USER}>`,
     to,
     subject,
     html,
