@@ -450,7 +450,41 @@ button:disabled {
     gap: 10px !important;
   }
 
-  /* Modal: centré sur mobile, ignore la position du drag desktop */
+  /* Tables: scroll horizontal sur mobile */
+  .table-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
+  /* Toolbar: filtres en colonne */
+  .toolbar-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .toolbar-filters input,
+  .toolbar-filters select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Boutons d'action (✏️ 🗑️) plus grands sur mobile pour faciliter le tap */
+  .action-btn-group button {
+    width: 38px !important;
+    height: 38px !important;
+  }
+}
+
+/* ── Tablette (769px–1024px) : grille 2 colonnes pour les cards ── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .summary-section {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Modaux : toujours centrés sur mobile ET tablette (≤ 1024px) ─ */
+@media (max-width: 1024px) {
   .modal-box {
     position: fixed !important;
     left: 50% !important;
@@ -459,7 +493,7 @@ button:disabled {
     width: 92vw !important;
     max-width: 92vw !important;
     min-width: unset !important;
-    max-height: 85vh !important;
+    max-height: 88vh !important;
     overflow-y: auto !important;
     resize: none !important;
     cursor: default !important;

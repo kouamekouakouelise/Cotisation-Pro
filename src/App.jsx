@@ -1979,6 +1979,7 @@ function App() {
   const selectedPeriodeObj = periodes.find((p) => p.libelle === selectedPeriode);
 
   const dragProps = (e) => {
+    if (window.innerWidth <= 1024) return; // pas de drag sur mobile/tablette
     if (!["INPUT", "BUTTON", "SELECT"].includes(e.target.tagName)) {
       setIsDragging(true);
       const rect = modalRef.current.getBoundingClientRect();
@@ -2240,7 +2241,7 @@ function App() {
                 {loadingAdherents && <div style={styles.infoMessage}>{t("loadingMembers")}</div>}
                 <div style={styles.toolbarSection}>
                   <div style={styles.toolbarTop} className="toolbar-top">
-                    <button style={styles.addBtn} className="toolbar-btn" onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setShowForm(true); }}>
+                    <button style={styles.addBtn} className="toolbar-btn" onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>
                       {t("addMemberBtn")}
                     </button>
                     <div style={styles.statsBox} className="stats-box">
@@ -2318,7 +2319,7 @@ function App() {
                 {/* Modal confirmation suppression */}
                 {showDeleteConfirm && (
                   <div style={styles.modalOverlay}>
-                    <div style={{ background: "white", padding: "30px", borderRadius: "10px", width: "360px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
+                    <div style={{ background: "white", padding: "30px", borderRadius: "10px", width: "360px", maxWidth: "92vw", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
                       <h3 style={{ color: "#e74c3c", marginTop: 0 }}>{t("confirmDeletion")}</h3>
                       <p style={{ color: "#555", lineHeight: "1.6" }}>{t("deleteMemberConfirm")}<br /><strong>{t("irreversibleAction")}</strong></p>
                       <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "20px" }}>
@@ -2352,7 +2353,7 @@ function App() {
                             <td style={styles.td}>{a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-"}</td>
                             <td style={styles.td}>
                               <button style={styles.detailsBtn} onClick={() => setSelectedAdherentId(a.id)}><EyeOpen /></button>
-                              <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); }}>✏️</button>
+                              <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>
                               <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>
                             </td>
                           </tr>
@@ -2399,7 +2400,7 @@ function App() {
                         ))}
                       </div>
                       <div style={styles.detailsActions}>
-                        <button style={styles.addBtn} onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setShowForm(true); setSelectedAdherentId(null); }}>{t("editBtn")}</button>
+                        <button style={styles.addBtn} onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); setSelectedAdherentId(null); }}>{t("editBtn")}</button>
                         <button style={styles.cancelBtn} onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>{t("deleteIconBtn")}</button>
                       </div>
                     </div>
@@ -2461,7 +2462,7 @@ function App() {
 
             <div style={styles.toolbarSection}>
               <div style={styles.toolbarTop}>
-                <button style={styles.addBtn} onClick={() => { setCotisationFormData({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" }); setShowCotisationForm(true); }}>
+                <button style={styles.addBtn} onClick={() => { setCotisationFormData({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" }); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowCotisationForm(true); }}>
                   {t("newContributionBtn")}
                 </button>
                 <div style={styles.statsBox}>
