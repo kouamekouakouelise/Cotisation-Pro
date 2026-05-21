@@ -1,3 +1,5 @@
+require("dns").setDefaultResultOrder("ipv4first"); // Force IPv4 (Railway bloque IPv6 SMTP)
+const nodemailer = require("nodemailer");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
@@ -77,38 +79,33 @@ setInterval(() => {
 
 // ── Transporteur email (Gmail SMTP via nodemailer) ─────────────
 // ── Envoi email via Brevo (HTTPS — jamais bloqué par Railway) ─────────────
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_FROM    = process.env.BREVO_FROM || process.env.EMAIL_USER;
-let emailReady = !!BREVO_API_KEY;
+// ── Transporteur email : Brevo SMTP (port 587, IPv4 forcé) ───────────────
+const BREVO_SMTP_USER = process.env.BREVO_SMTP_USER || process.env.EMAIL_USER;
+const BREVO_SMTP_PASS = process.env.BREVO_SMTP_PASS;
+let emailReady = false;
+let transporter = null;
 
-if (!BREVO_API_KEY) {
-  console.warn("⚠️  BREVO_API_KEY manquant — l'envoi d'OTP sera désactivé.");
+if (!BREVO_SMTP_USER || !BREVO_SMTP_PASS) {
+  console.warn("⚠️  BREVO_SMTP_USER ou BREVO_SMTP_PASS manquant — envoi d'OTP désactivé.");
 } else {
-  console.log(`✉️  Email (Brevo HTTPS) prêt — expéditeur : ${BREVO_FROM}`);
+  transporter = nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false,
+    auth: { user: BREVO_SMTP_USER, pass: BREVO_SMTP_PASS },
+  });
+  emailReady = true;
+  console.log(`✉️  Email (Brevo SMTP) prêt — expéditeur : ${BREVO_SMTP_USER}`);
 }
 
 async function sendEmail({ to, subject, html }) {
-  if (!BREVO_API_KEY) throw new Error("BREVO_API_KEY non configuré.");
-
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "accept": "application/json",
-      "api-key": BREVO_API_KEY,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      sender: { name: "Cotisation Pro", email: BREVO_FROM },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-    }),
+  if (!transporter) throw new Error("Service email non configuré.");
+  await transporter.sendMail({
+    from: `"Cotisation Pro" <${BREVO_SMTP_USER}>`,
+    to,
+    subject,
+    html,
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Brevo erreur HTTP ${res.status}`);
-  }
 }
 
 // ── Initialisation de la base de données ──────────────────────
