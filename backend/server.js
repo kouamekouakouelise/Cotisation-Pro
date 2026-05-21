@@ -3,6 +3,7 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
@@ -76,30 +77,27 @@ setInterval(() => {
   for (const [key, val] of otpRateLimit.entries()) if (now - val.firstAt > OTP_WINDOW_MS) otpRateLimit.delete(key);
 }, 15 * 60 * 1000);
 
-// ── Transporteur email (Gmail) ─────────────────────────────────
-let emailTransporter = null;
+// ── Transporteur email (Resend) ────────────────────────────────
+let resendClient = null;
 let emailReady = false;
 
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn("⚠️  EMAIL_USER ou EMAIL_PASS manquant — l'envoi d'OTP par email sera désactivé.");
+if (!process.env.RESEND_API_KEY) {
+  console.warn("⚠️  RESEND_API_KEY manquant — l'envoi d'OTP par email sera désactivé.");
 } else {
-  emailTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    tls: { rejectUnauthorized: false },
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  emailReady = true;
+  console.log("✉️  Email (Resend) prêt");
+}
+
+async function sendEmail({ to, subject, html }) {
+  if (!resendClient) throw new Error("Service email non configuré");
+  const { error } = await resendClient.emails.send({
+    from: "Cotisation Pro <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
   });
-  emailTransporter.verify((err) => {
-    if (err) {
-      console.error("❌ Email (Gmail) : identifiants invalides ou accès refusé —", err.message);
-      console.error("   → Vérifiez EMAIL_USER et EMAIL_PASS dans backend/.env");
-      console.error("   → Si Gmail, créez un mot de passe d'application : myaccount.google.com/apppasswords");
-    } else {
-      emailReady = true;
-      console.log("✉️  Email (Gmail) prêt :", process.env.EMAIL_USER);
-    }
-  });
+  if (error) throw new Error(error.message);
 }
 
 // ── Initialisation de la base de données ──────────────────────
@@ -290,16 +288,14 @@ app.post("/api/auth/send-otp", async (req, res) => {
       return res.status(429).json({ error: "Trop de demandes. Attendez 10 minutes avant de réessayer." });
     }
 
-    // Vérifier que le transporteur email est prêt
-    if (!emailTransporter || !emailReady) {
+    if (!emailReady) {
       return res.status(503).json({ error: "Service email indisponible. Contactez l'administrateur." });
     }
 
     const code = String(Math.floor(1000 + Math.random() * 9000));
     otpStore.set(emailKey, { code, expires: Date.now() + 10 * 60 * 1000 });
 
-    await emailTransporter.sendMail({
-      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+    await sendEmail({
       to: emailKey,
       subject: "Votre code de vérification — Cotisation Pro",
       html: `
@@ -317,14 +313,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
     res.json({ message: "Code envoyé." });
   } catch (err) {
     console.error("Erreur envoi OTP:", err.message);
-    // Distinguer erreur d'authentification Gmail vs autre erreur réseau
-    if (err.code === "EAUTH" || err.responseCode === 535) {
-      res.status(503).json({ error: "Échec d'authentification Gmail. Vérifiez le mot de passe d'application dans backend/.env" });
-    } else if (err.code === "ECONNECTION" || err.code === "ESOCKET") {
-      res.status(503).json({ error: "Impossible de contacter le serveur Gmail. Vérifiez votre connexion Internet." });
-    } else {
-      res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
-    }
+    res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
   }
 });
 
@@ -534,12 +523,11 @@ app.post("/api/auth/send-change-email-otp", authMiddleware, async (req, res) => 
       return res.status(400).json({ error: "Cette adresse email est déjà utilisée par un autre compte." });
     if (!checkOtpRateLimit(newEmailKey))
       return res.status(429).json({ error: "Trop de demandes. Attendez 10 minutes avant de réessayer." });
-    if (!emailTransporter || !emailReady)
+    if (!emailReady)
       return res.status(503).json({ error: "Service email indisponible. Contactez l'administrateur." });
     const code = String(Math.floor(1000 + Math.random() * 9000));
     otpStore.set(newEmailKey, { code, expires: Date.now() + 10 * 60 * 1000 });
-    await emailTransporter.sendMail({
-      from: `"Cotisation Pro" <${process.env.EMAIL_USER}>`,
+    await sendEmail({
       to: newEmailKey,
       subject: "Confirmation de changement d'email — Cotisation Pro",
       html: `
@@ -556,12 +544,7 @@ app.post("/api/auth/send-change-email-otp", authMiddleware, async (req, res) => 
     res.json({ message: "Code envoyé." });
   } catch (err) {
     console.error("Erreur send-change-email-otp:", err.message);
-    if (err.code === "EAUTH" || err.responseCode === 535)
-      res.status(503).json({ error: "Échec d'authentification Gmail. Vérifiez le mot de passe d'application." });
-    else if (err.code === "ECONNECTION" || err.code === "ESOCKET")
-      res.status(503).json({ error: "Impossible de contacter le serveur Gmail. Vérifiez votre connexion." });
-    else
-      res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
+    res.status(500).json({ error: "Impossible d'envoyer l'email de vérification." });
   }
 });
 
