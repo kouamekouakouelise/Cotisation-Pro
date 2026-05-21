@@ -58,12 +58,18 @@ body {
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
+  text-align: left;
   border-inline: 1px solid var(--border);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  #root {
+    border-inline: none;
+  }
 }
 
 h1,
@@ -150,4 +156,160 @@ button[style*="background:none"]:not(:disabled):hover {
 button:disabled {
   opacity: 0.65;
   cursor: not-allowed !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE MOBILE
+═══════════════════════════════════════════════════════ */
+
+/* ── Sélecteur de langue (landing + partout) ──────────── */
+.lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 30px 6px 12px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ffffff'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-color: rgba(255,255,255,0.1) !important;
+  cursor: pointer;
+}
+
+/* ── Landing page navbar ──────────────────────────────── */
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Tablette / grand téléphone : cacher le titre, rester en une ligne */
+@media (max-width: 620px) {
+  .landing-nav {
+    padding: 0 14px !important;
+    height: 60px !important;
+    flex-wrap: nowrap !important;
+  }
+  .landing-nav-title {
+    display: none;
+  }
+  .landing-nav-logo {
+    height: 36px !important;
+    width: 36px !important;
+  }
+  .landing-nav-actions {
+    gap: 6px;
+  }
+  .landing-btn-outline,
+  .landing-btn-primary {
+    padding: 7px 13px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+}
+
+/* Très petit écran : boutons encore plus compacts */
+@media (max-width: 380px) {
+  .landing-btn-outline,
+  .landing-btn-primary {
+    padding: 6px 9px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* ── Menu authentifié ─────────────────────────────────── */
+.app-menu {
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.app-menu-buttons {
+  flex-wrap: wrap !important;
+}
+
+@media (max-width: 768px) {
+  .app-menu {
+    padding: 8px 12px !important;
+  }
+  .app-menu-logo {
+    height: 50px !important;
+    width: 50px !important;
+  }
+  .app-menu-buttons {
+    width: 100%;
+    gap: 6px !important;
+  }
+  .app-menu-btn {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    flex: 1 1 calc(50% - 6px);
+    max-width: calc(50% - 6px);
+    text-align: center;
+  }
+  .app-menu-account {
+    flex: 1 1 calc(50% - 6px) !important;
+    max-width: calc(50% - 6px) !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* ── Contenu principal ────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-content {
+    padding: 12px 8px !important;
+  }
+
+  /* Accueil: summary cards 3 colonnes → 1 colonne */
+  .summary-section {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Accueil: texte animé */
+  .welcome-text {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .welcome-span {
+    white-space: normal !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  /* Adhérent: toolbar en colonne */
+  .toolbar-top {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .toolbar-btn {
+    width: 100% !important;
+    text-align: center;
+    min-width: unset !important;
+    margin-left: 0 !important;
+  }
+  .stats-box {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+
+  /* Adhérent: fiche détail */
+  .details-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .details-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  /* Modal: pleine largeur */
+  .modal-box {
+    width: 95vw !important;
+    min-width: unset !important;
+    max-width: 95vw !important;
+    resize: none !important;
+    left: 2.5vw !important;
+    right: 2.5vw !important;
+    top: 20px !important;
+  }
 }

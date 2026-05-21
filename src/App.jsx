@@ -19,21 +19,7 @@ const FlagEN = () => (
     <path d="M11,0 V15 M0,7.5 H22" stroke="#C8102E" strokeWidth="3"/>
   </svg>
 );
-function LangToggle({ lang, setLang }) {
-  const btn = (code) => ({
-    display: "flex", alignItems: "center", gap: "5px",
-    background: lang === code ? "rgba(52,152,219,0.25)" : "transparent",
-    border: lang === code ? "1px solid #3498db" : "1px solid rgba(255,255,255,0.3)",
-    color: "#fff", padding: "4px 10px", borderRadius: "14px",
-    cursor: "pointer", fontSize: "12px", fontWeight: lang === code ? "700" : "500",
-  });
-  return (
-    <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-      <button style={btn("fr")} onClick={() => setLang("fr")}><FlagFR /> FR</button>
-      <button style={btn("en")} onClick={() => setLang("en")}><FlagEN /> EN</button>
-    </div>
-  );
-}
+
 
 // ═══════════════════════════════════════════════════════
 // PAGE D'ACCUEIL PUBLIQUE (LANDING)
@@ -74,12 +60,14 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
       display: "flex",
       alignItems: "center",
       gap: "10px",
+      flexShrink: 0,
     },
     navLogo: {
       height: "42px",
       width: "42px",
       objectFit: "cover",
       borderRadius: "50%",
+      flexShrink: 0,
     },
     navTitle: {
       fontSize: "18px",
@@ -87,11 +75,13 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
       color: "#fff",
       margin: 0,
       letterSpacing: "-0.3px",
+      whiteSpace: "nowrap",
     },
     navActions: {
       display: "flex",
       alignItems: "center",
       gap: "12px",
+      flexShrink: 0,
     },
     langSelect: {
       padding: "6px 12px",
@@ -339,15 +329,23 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
   return (
     <div style={ls.root}>
       {/* ── NAVBAR ── */}
-      <nav style={ls.nav}>
+      <nav style={ls.nav} className="landing-nav">
         <div style={ls.navBrand}>
-          <img src={logo} alt="Logo" style={ls.navLogo} />
-          <span style={ls.navTitle}>Cotisation Pro</span>
+          <img src={logo} alt="Logo" style={ls.navLogo} className="landing-nav-logo" />
+          <span style={ls.navTitle} className="landing-nav-title">Cotisation Pro</span>
         </div>
-        <div style={ls.navActions}>
-          <LangToggle lang={lang} setLang={setLang} />
-          <button style={ls.btnOutline} onClick={onLogin}>{t("landingNavLogin")}</button>
-          <button style={ls.btnPrimary} onClick={onRegister}>{t("landingNavRegister")}</button>
+        <div style={ls.navActions} className="landing-nav-actions">
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            style={ls.langSelect}
+            className="lang-select"
+          >
+            <option value="fr" style={{ background: "#0a1426" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#0a1426" }}>🇬🇧 EN</option>
+          </select>
+          <button style={ls.btnOutline} className="landing-btn-outline" onClick={onLogin}>{t("landingNavLogin")}</button>
+          <button style={ls.btnPrimary} className="landing-btn-primary" onClick={onRegister}>{t("landingNavRegister")}</button>
         </div>
       </nav>
 
@@ -686,7 +684,15 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <LangToggle lang={lang} setLang={setLang} />
+            <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+                className="lang-select"
+              >
+                <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
+                <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
+              </select>
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -731,7 +737,15 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <LangToggle lang={lang} setLang={setLang} />
+            <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+                className="lang-select"
+              >
+                <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
+                <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
+              </select>
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -778,7 +792,15 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       <div style={{ position: "relative" }}>
         <div style={authSt.page}>
           <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-            <LangToggle lang={lang} setLang={setLang} />
+            <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+                className="lang-select"
+              >
+                <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
+                <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
+              </select>
           </div>
           <div style={authSt.card}>
             <div style={authSt.cardHeader}>
@@ -842,7 +864,15 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     <div style={{ position: "relative" }}>
       <div style={authSt.page}>
         <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
-          <LangToggle lang={lang} setLang={setLang} />
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+            style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+            className="lang-select"
+          >
+            <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
+          </select>
         </div>
         {onBackToLanding && (
           <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10 }}>
@@ -2025,30 +2055,32 @@ function App() {
       )}
 
       {/* ── MENU ────────────────────────────────────────────── */}
-      <div style={styles.menu}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img src={logo} alt="Logo Cotisation Pro" style={{ height: "72px", width: "72px", objectFit: "cover", borderRadius: "50%" }} />
+      <div style={styles.menu} className="app-menu">
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }} className="app-menu-brand">
+          <img src={logo} alt="Logo Cotisation Pro" style={{ height: "72px", width: "72px", objectFit: "cover", borderRadius: "50%" }} className="app-menu-logo" />
           <div>
             <h2 style={{ color: "white", margin: 0, fontSize: "18px" }}>Cotisation Pro</h2>
             <span style={{ color: "#3498db", fontSize: "13px", fontWeight: "600" }}>🏛️ {compte.nom_association}</span>
           </div>
         </div>
-        <div style={styles.menuButtons}>
+        <div style={styles.menuButtons} className="app-menu-buttons">
           <select
             value={lang}
             onChange={(e) => setLang(e.target.value)}
-            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+            style={{ padding: "6px 30px 6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
+            className="lang-select"
           >
             <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
             <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
           </select>
-          <button style={styles.btn} onClick={() => setPage("accueil")}>{t("home")}</button>
-          <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
-          <button style={styles.btn} onClick={() => setPage("cotisations")}>{t("contributions")}</button>
-          <button style={styles.btn} onClick={() => setPage("historique")}>{t("history")}</button>
-          <div style={{ position: "relative", marginLeft: "14px" }} ref={accountMenuRef}>
+          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("accueil")}>{t("home")}</button>
+          <button style={styles.btn} className="app-menu-btn" onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
+          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("cotisations")}>{t("contributions")}</button>
+          <button style={styles.btn} className="app-menu-btn" onClick={() => setPage("historique")}>{t("history")}</button>
+          <div style={{ position: "relative", marginLeft: "14px" }} className="app-menu-account" ref={accountMenuRef}>
             <button
               style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }}
+              className="app-menu-btn"
               onClick={() => setShowAccountMenu(v => !v)}
             >
               {t("accountMenu")} ▾
@@ -2090,14 +2122,14 @@ function App() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="app-content">
 
         {/* ── ACCUEIL ─────────────────────────────────────────── */}
         {page === "accueil" && (
           <div>
-            <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px", backgroundColor: "#b8ddf0", boxShadow: "0 8px 24px rgba(52,152,219,0.30), 0 2px 6px rgba(0,0,0,0.12)", cursor: "default" }}>
+            <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px", backgroundColor: "#b8ddf0", boxShadow: "0 8px 24px rgba(52,152,219,0.30), 0 2px 6px rgba(0,0,0,0.12)", cursor: "default" }} className="welcome-text">
               <img src={logo} alt="Logo Cotisation Pro" style={{ height: "130px", width: "130px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} />
-              <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{currentText}</span>
+              <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }} className="welcome-span">{currentText}</span>
             </div>
             <div style={styles.cards}>
               <div
@@ -2108,7 +2140,7 @@ function App() {
                 <span style={{ fontSize: "36px", fontWeight: "bold", color: "#2c3e50" }}>{t("totalMembers")} {adherents.length}</span>
               </div>
             </div>
-            <div style={styles.summarySection}>
+            <div style={styles.summarySection} className="summary-section">
               <div
                 style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
@@ -2213,14 +2245,14 @@ function App() {
                 {apiError && <div style={styles.errorMessage}>{apiError}</div>}
                 {loadingAdherents && <div style={styles.infoMessage}>{t("loadingMembers")}</div>}
                 <div style={styles.toolbarSection}>
-                  <div style={styles.toolbarTop}>
-                    <button style={styles.addBtn} onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setShowForm(true); }}>
+                  <div style={styles.toolbarTop} className="toolbar-top">
+                    <button style={styles.addBtn} className="toolbar-btn" onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setShowForm(true); }}>
                       {t("addMemberBtn")}
                     </button>
-                    <div style={styles.statsBox}>
+                    <div style={styles.statsBox} className="stats-box">
                       <span>{t("totalLabel")} <strong>{adherents.length}</strong></span>
                     </div>
-                    <button style={{ ...styles.addBtn, background: "#27ae60", marginLeft: "10px" }} onClick={exportExcel}>
+                    <button style={{ ...styles.addBtn, background: "#27ae60", marginLeft: "10px" }} className="toolbar-btn" onClick={exportExcel}>
                       {t("exportExcel")}
                     </button>
                   </div>
@@ -2238,7 +2270,7 @@ function App() {
                 {/* Modal ajout/modification adhérent */}
                 {showForm && (
                   <div style={styles.modalOverlay}>
-                    <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} onMouseDown={dragProps}>
+                    <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} className="modal-box" onMouseDown={dragProps}>
                       <h2>{editingIndex !== null ? t("editMemberTitle") : t("addMemberTitle")}</h2>
                       <div style={styles.formRow}><label style={styles.label}>{t("lastName")}</label><input name="nom" value={formData.nom} onChange={handleChange} placeholder="Ex. Kouakou" style={styles.input} autoFocus /></div>
                       <div style={styles.formRow}><label style={styles.label}>{t("firstName")}</label><input name="prenom" value={formData.prenom} onChange={handleChange} placeholder="Ex. Jean" style={styles.input} /></div>
@@ -2343,7 +2375,7 @@ function App() {
                   const adherent = adherents.find((a) => a.id === selectedAdherentId);
                   return adherent ? (
                     <div style={styles.detailsContainer}>
-                      <div style={styles.detailsHeader}>
+                      <div style={styles.detailsHeader} className="details-header">
                         <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
                           {adherent.photo ? (
                             <img
@@ -2357,7 +2389,7 @@ function App() {
                           <h1 style={{ margin: 0 }}>{adherent.nom} {adherent.prenom}</h1>
                         </div>
                       </div>
-                      <div style={styles.detailsGrid}>
+                      <div style={styles.detailsGrid} className="details-grid">
                         {[
                           [t("matricule"), adherent.matricule],
                           [t("nameTh"), adherent.nom],
@@ -2447,7 +2479,7 @@ function App() {
             {/* Modal nouvelle cotisation */}
             {showCotisationForm && (
               <div style={styles.modalOverlay}>
-                <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} onMouseDown={dragProps}>
+                <div ref={modalRef} style={{ ...styles.modal, ...modalPos }} className="modal-box" onMouseDown={dragProps}>
                   <h2>{t("newContributionTitle")}</h2>
                   <div style={styles.formRow}>
                     <label style={styles.label}>{t("amountDue")}</label>
