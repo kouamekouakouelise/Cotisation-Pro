@@ -1042,7 +1042,7 @@ function App() {
   };
 
   // ─────────────────────────────────────────────────────
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [currentText, setCurrentText] = useState("");
   const [page, setPage] = useState("accueil");
   const [showForm, setShowForm] = useState(false);
@@ -2114,43 +2114,7 @@ function App() {
           </div>
         </div>
 
-        {/* Bouton hamburger — mobile uniquement */}
-        <button className="hamburger-btn" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Menu">
-          {mobileMenuOpen ? "✕" : "☰"}
-        </button>
       </div>
-
-      {/* ── MENU MOBILE DÉROULANT ───────────────────────────── */}
-      {mobileMenuOpen && (
-        <div className="mobile-nav-dropdown">
-          {/* Infos compte */}
-          <div className="mobile-nav-account-info">
-            <div style={{ fontWeight: "700", color: "#fff", fontSize: "15px" }}>{compte.nom_association}</div>
-            <div style={{ color: "#7f8c8d", fontSize: "12px" }}>{compte.email}</div>
-          </div>
-          <div className="mobile-nav-divider" />
-          {/* Langue */}
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select mobile-nav-lang">
-            <option value="fr" style={{ background: "#1a2540" }}>🇫🇷 Français</option>
-            <option value="en" style={{ background: "#1a2540" }}>🇬🇧 English</option>
-          </select>
-          <div className="mobile-nav-divider" />
-          {/* Navigation */}
-          <button className="mobile-nav-btn" onClick={() => { setPage("accueil"); setMobileMenuOpen(false); }}>🏠 {t("home")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); setMobileMenuOpen(false); }}>👥 {t("members")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setPage("cotisations"); setMobileMenuOpen(false); }}>💰 {t("contributions")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setPage("historique"); setMobileMenuOpen(false); }}>📋 {t("history")}</button>
-          <div className="mobile-nav-divider" />
-          {/* Compte */}
-          <div className="mobile-nav-section-label">{t("accountMenu")}</div>
-          <button className="mobile-nav-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileMenuOpen(false); }}>🔑 {t("changePassword")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileMenuOpen(false); }}>✉️ {t("changeEmail")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileMenuOpen(false); }}>❓ {t("helpMenu")}</button>
-          <button className="mobile-nav-btn" onClick={() => { setShowAbout(true); setMobileMenuOpen(false); }}>ℹ️ {t("aboutMenu")}</button>
-          <div className="mobile-nav-divider" />
-          <button className="mobile-nav-btn mobile-nav-logout" onClick={() => { setShowLogoutConfirm(true); setMobileMenuOpen(false); }}>🚪 {t("logout")}</button>
-        </div>
-      )}
 
       <div style={styles.content} className="app-content">
 
@@ -3430,6 +3394,56 @@ function App() {
                 {t("aboutClose")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BARRE DE NAVIGATION BAS — MOBILE ────────────────── */}
+      <nav className="bottom-nav">
+        <button className={`bnav-item${page === "accueil" ? " bnav-active" : ""}`} onClick={() => setPage("accueil")}>
+          <span className="bnav-icon">🏠</span>
+          <span className="bnav-label">{t("home")}</span>
+        </button>
+        <button className={`bnav-item${page === "adherents" ? " bnav-active" : ""}`} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>
+          <span className="bnav-icon">👥</span>
+          <span className="bnav-label">{t("members")}</span>
+        </button>
+        <button className={`bnav-item${page === "cotisations" ? " bnav-active" : ""}`} onClick={() => setPage("cotisations")}>
+          <span className="bnav-icon">💰</span>
+          <span className="bnav-label">{t("contributions")}</span>
+        </button>
+        <button className={`bnav-item${page === "historique" ? " bnav-active" : ""}`} onClick={() => setPage("historique")}>
+          <span className="bnav-icon">📋</span>
+          <span className="bnav-label">{t("history")}</span>
+        </button>
+        <button className={`bnav-item${mobileAccountOpen ? " bnav-active" : ""}`} onClick={() => setMobileAccountOpen(v => !v)}>
+          <span className="bnav-icon">👤</span>
+          <span className="bnav-label">{t("accountMenu")}</span>
+        </button>
+      </nav>
+
+      {/* ── FICHE COMPTE MOBILE (bottom sheet) ──────────────── */}
+      {mobileAccountOpen && (
+        <div className="mobile-account-overlay" onClick={() => setMobileAccountOpen(false)}>
+          <div className="mobile-account-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-account-header">
+              <div>
+                <div style={{ fontWeight: "700", color: "#fff", fontSize: "16px" }}>{compte.nom_association}</div>
+                <div style={{ color: "#95a5a6", fontSize: "13px" }}>{compte.email}</div>
+              </div>
+              <button style={{ background: "none", border: "none", color: "#95a5a6", fontSize: "22px", cursor: "pointer", lineHeight: 1 }} onClick={() => setMobileAccountOpen(false)}>✕</button>
+            </div>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select mobile-sheet-lang">
+              <option value="fr" style={{ background: "#1e2d3d" }}>🇫🇷 Français</option>
+              <option value="en" style={{ background: "#1e2d3d" }}>🇬🇧 English</option>
+            </select>
+            <div className="mobile-sheet-divider" />
+            <button className="mobile-sheet-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileAccountOpen(false); }}>🔑 {t("changePassword")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileAccountOpen(false); }}>✉️ {t("changeEmail")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileAccountOpen(false); }}>❓ {t("helpMenu")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}>ℹ️ {t("aboutMenu")}</button>
+            <div className="mobile-sheet-divider" />
+            <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}>🚪 {t("logout")}</button>
           </div>
         </div>
       )}
