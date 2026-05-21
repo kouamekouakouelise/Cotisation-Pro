@@ -345,14 +345,7 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
           <span style={ls.navTitle}>Cotisation Pro</span>
         </div>
         <div style={ls.navActions}>
-          <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            style={ls.langSelect}
-          >
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
-          </select>
+          <LangToggle lang={lang} setLang={setLang} />
           <button style={ls.btnOutline} onClick={onLogin}>{t("landingNavLogin")}</button>
           <button style={ls.btnPrimary} onClick={onRegister}>{t("landingNavRegister")}</button>
         </div>
