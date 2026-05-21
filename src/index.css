@@ -450,14 +450,18 @@ button:disabled {
     gap: 10px !important;
   }
 
-  /* Modal: pleine largeur */
+  /* Modal: centré sur mobile, ignore la position du drag desktop */
   .modal-box {
-    width: 95vw !important;
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 92vw !important;
+    max-width: 92vw !important;
     min-width: unset !important;
-    max-width: 95vw !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
     resize: none !important;
-    left: 2.5vw !important;
-    right: 2.5vw !important;
-    top: 20px !important;
+    cursor: default !important;
   }
 }
