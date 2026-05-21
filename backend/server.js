@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
@@ -77,31 +76,39 @@ setInterval(() => {
 }, 15 * 60 * 1000);
 
 // ── Transporteur email (Gmail SMTP via nodemailer) ─────────────
-let transporter = null;
-let emailReady = false;
+// ── Envoi email via Brevo (HTTPS — jamais bloqué par Railway) ─────────────
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_FROM    = process.env.BREVO_FROM || process.env.EMAIL_USER;
+let emailReady = !!BREVO_API_KEY;
 
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-
-if (!EMAIL_USER || !EMAIL_PASS) {
-  console.warn("⚠️  EMAIL_USER ou EMAIL_PASS manquant — l'envoi d'OTP par email sera désactivé.");
+if (!BREVO_API_KEY) {
+  console.warn("⚠️  BREVO_API_KEY manquant — l'envoi d'OTP sera désactivé.");
 } else {
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-  });
-  emailReady = true;
-  console.log(`✉️  Email (Gmail SMTP) prêt — expéditeur : ${EMAIL_USER}`);
+  console.log(`✉️  Email (Brevo HTTPS) prêt — expéditeur : ${BREVO_FROM}`);
 }
 
 async function sendEmail({ to, subject, html }) {
-  if (!transporter) throw new Error("Service email non configuré (EMAIL_USER/EMAIL_PASS manquants)");
-  await transporter.sendMail({
-    from: `"Cotisation Pro" <${EMAIL_USER}>`,
-    to,
-    subject,
-    html,
+  if (!BREVO_API_KEY) throw new Error("BREVO_API_KEY non configuré.");
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "api-key": BREVO_API_KEY,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Cotisation Pro", email: BREVO_FROM },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Brevo erreur HTTP ${res.status}`);
+  }
 }
 
 // ── Initialisation de la base de données ──────────────────────
