@@ -21,11 +21,37 @@ const FlagEN = () => (
 );
 
 
+function InView({ children, delay = 0, style: extra = {}, className = "", ...rest }) {
+  const ref = useRef(null);
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVis(true); obs.disconnect(); } },
+      { threshold: 0.1, rootMargin: "0px 0px -30px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={className} style={{
+      ...extra,
+      opacity: vis ? 1 : 0,
+      transform: vis ? "none" : "translateY(30px)",
+      transition: `opacity 0.65s ease ${delay}s, transform 0.65s ease ${delay}s`,
+    }} {...rest}>
+      {children}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 // PAGE D'ACCUEIL PUBLIQUE (LANDING)
 // ═══════════════════════════════════════════════════════
-function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
+function LandingPage({ lang, setLang, t, onLogin, onRegister, onJoin }) {
   const [scrolled, setScrolled] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -33,414 +59,558 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const ls = {
-    root: {
-      fontFamily: "Arial, sans-serif",
-      minHeight: "100vh",
-      background: "linear-gradient(160deg,#0f1b2d 0%,#1a2d46 40%,#0d2137 100%)",
-      color: "#fff",
-      overflowX: "hidden",
-    },
-    nav: {
-      position: "sticky",
-      top: 0,
-      zIndex: 100,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "0 32px",
-      height: "68px",
-      background: scrolled ? "rgba(10,20,38,0.97)" : "rgba(10,20,38,0.6)",
-      backdropFilter: "blur(12px)",
-      borderBottom: scrolled ? "1px solid rgba(52,152,219,0.2)" : "1px solid transparent",
-      transition: "all 0.3s ease",
-      boxSizing: "border-box",
-    },
-    navBrand: {
-      display: "flex",
-      alignItems: "center",
-      gap: "10px",
-      flexShrink: 0,
-    },
-    navLogo: {
-      height: "42px",
-      width: "42px",
-      objectFit: "cover",
-      borderRadius: "50%",
-      flexShrink: 0,
-    },
-    navTitle: {
-      fontSize: "18px",
-      fontWeight: "700",
-      color: "#fff",
-      margin: 0,
-      letterSpacing: "-0.3px",
-      whiteSpace: "nowrap",
-    },
-    navActions: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      flexShrink: 0,
-    },
-    langSelect: {
-      padding: "6px 12px",
-      background: "rgba(255,255,255,0.1)",
-      color: "#fff",
-      border: "1px solid rgba(255,255,255,0.25)",
-      borderRadius: "20px",
-      cursor: "pointer",
-      fontWeight: "600",
-      fontSize: "13px",
-      outline: "none",
-    },
-    btnOutline: {
-      padding: "8px 20px",
-      background: "transparent",
-      color: "#3498db",
-      border: "1.5px solid #3498db",
-      borderRadius: "22px",
-      cursor: "pointer",
-      fontWeight: "600",
-      fontSize: "14px",
-      transition: "all 0.2s",
-    },
-    btnPrimary: {
-      padding: "8px 20px",
-      background: "linear-gradient(135deg,#3498db,#2980b9)",
-      color: "#fff",
-      border: "none",
-      borderRadius: "22px",
-      cursor: "pointer",
-      fontWeight: "600",
-      fontSize: "14px",
-      boxShadow: "0 2px 12px rgba(52,152,219,0.4)",
-      transition: "all 0.2s",
-    },
-    // ── HERO ──────────────────────────────────────────────
-    hero: {
-      textAlign: "center",
-      padding: "90px 24px 80px",
-      maxWidth: "760px",
-      margin: "0 auto",
-    },
-    heroBadge: {
-      display: "inline-block",
-      background: "rgba(52,152,219,0.15)",
-      color: "#3498db",
-      border: "1px solid rgba(52,152,219,0.4)",
-      borderRadius: "20px",
-      padding: "5px 16px",
-      fontSize: "13px",
-      fontWeight: "600",
-      marginBottom: "28px",
-      letterSpacing: "0.3px",
-    },
-    heroTitle: {
-      fontSize: "clamp(28px, 5vw, 52px)",
-      fontWeight: "800",
-      lineHeight: "1.15",
-      letterSpacing: "-1px",
-      margin: "0 0 24px",
-      color: "#fff",
-    },
-    heroTitleAccent: {
-      background: "linear-gradient(90deg,#3498db,#9b59b6)",
-      WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent",
-      backgroundClip: "text",
-    },
-    heroSub: {
-      fontSize: "18px",
-      color: "rgba(255,255,255,0.72)",
-      lineHeight: "1.65",
-      margin: "0 0 40px",
-      maxWidth: "580px",
-      marginLeft: "auto",
-      marginRight: "auto",
-    },
-    heroCTAs: {
-      display: "flex",
-      gap: "16px",
-      justifyContent: "center",
-      flexWrap: "wrap",
-    },
-    ctaPrimary: {
-      padding: "14px 32px",
-      background: "linear-gradient(135deg,#3498db,#2980b9)",
-      color: "#fff",
-      border: "none",
-      borderRadius: "30px",
-      cursor: "pointer",
-      fontWeight: "700",
-      fontSize: "16px",
-      boxShadow: "0 4px 20px rgba(52,152,219,0.45)",
-      transition: "transform 0.15s, box-shadow 0.15s",
-    },
-    ctaSecondary: {
-      padding: "14px 32px",
-      background: "rgba(255,255,255,0.08)",
-      color: "#fff",
-      border: "1.5px solid rgba(255,255,255,0.25)",
-      borderRadius: "30px",
-      cursor: "pointer",
-      fontWeight: "600",
-      fontSize: "16px",
-      transition: "all 0.15s",
-    },
-    // ── FEATURES ──────────────────────────────────────────
-    featSection: {
-      background: "rgba(255,255,255,0.03)",
-      borderTop: "1px solid rgba(255,255,255,0.06)",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      padding: "80px 24px",
-    },
-    featInner: {
-      maxWidth: "1060px",
-      margin: "0 auto",
-    },
-    sectionLabel: {
-      textAlign: "center",
-      fontSize: "13px",
-      fontWeight: "700",
-      color: "#3498db",
-      letterSpacing: "1.2px",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    },
-    sectionTitle: {
-      textAlign: "center",
-      fontSize: "clamp(22px, 3.5vw, 36px)",
-      fontWeight: "800",
-      color: "#fff",
-      margin: "0 0 56px",
-      letterSpacing: "-0.5px",
-    },
-    featGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-      gap: "24px",
-    },
-    featCard: {
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: "18px",
-      padding: "36px 28px",
-      transition: "transform 0.2s, box-shadow 0.2s",
-      cursor: "default",
-    },
-    featIcon: {
-      fontSize: "40px",
-      marginBottom: "18px",
-      display: "block",
-    },
-    featTitle: {
-      fontSize: "18px",
-      fontWeight: "700",
-      color: "#fff",
-      marginBottom: "10px",
-    },
-    featDesc: {
-      fontSize: "15px",
-      color: "rgba(255,255,255,0.62)",
-      lineHeight: "1.65",
-    },
-    // ── HOW IT WORKS ──────────────────────────────────────
-    howSection: {
-      padding: "80px 24px",
-      maxWidth: "860px",
-      margin: "0 auto",
-    },
-    stepsGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-      gap: "32px",
-      marginTop: "8px",
-    },
-    stepCard: {
-      textAlign: "center",
-      padding: "32px 20px",
-    },
-    stepNum: {
-      width: "56px",
-      height: "56px",
-      borderRadius: "50%",
-      background: "linear-gradient(135deg,#3498db,#2980b9)",
-      color: "#fff",
-      fontSize: "22px",
-      fontWeight: "800",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      margin: "0 auto 20px",
-      boxShadow: "0 4px 16px rgba(52,152,219,0.4)",
-    },
-    stepTitle: {
-      fontSize: "17px",
-      fontWeight: "700",
-      color: "#fff",
-      marginBottom: "10px",
-    },
-    stepDesc: {
-      fontSize: "14px",
-      color: "rgba(255,255,255,0.6)",
-      lineHeight: "1.6",
-    },
-    // ── CTA BOTTOM ────────────────────────────────────────
-    ctaSection: {
-      textAlign: "center",
-      padding: "70px 24px",
-      background: "linear-gradient(135deg,rgba(52,152,219,0.12),rgba(155,89,182,0.1))",
-      borderTop: "1px solid rgba(52,152,219,0.15)",
-    },
-    ctaTitle: {
-      fontSize: "clamp(22px, 3vw, 34px)",
-      fontWeight: "800",
-      color: "#fff",
-      margin: "0 0 14px",
-    },
-    ctaSub: {
-      fontSize: "16px",
-      color: "rgba(255,255,255,0.65)",
-      margin: "0 0 36px",
-    },
-    // ── FOOTER ────────────────────────────────────────────
-    footer: {
-      textAlign: "center",
-      padding: "24px",
-      borderTop: "1px solid rgba(255,255,255,0.06)",
-      color: "rgba(255,255,255,0.35)",
-      fontSize: "13px",
-    },
-  };
+  const fr = lang === "fr";
+
+  const btnHover = (color = "#3498db") => ({
+    onMouseEnter: (e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 28px ${color}55`; },
+    onMouseLeave: (e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; },
+  });
 
   const features = [
-    { icon: t("landingFeat1Icon"), title: t("landingFeat1Title"), desc: t("landingFeat1Desc") },
-    { icon: t("landingFeat2Icon"), title: t("landingFeat2Title"), desc: t("landingFeat2Desc") },
-    { icon: t("landingFeat3Icon"), title: t("landingFeat3Title"), desc: t("landingFeat3Desc") },
+    { icon: "👥", title: fr ? "Gestion des adhérents" : "Member management", desc: fr ? "Ajoutez, modifiez et suivez tous vos adhérents. Photos, matricules et coordonnées centralisés." : "Add, edit and track all your members. Photos, IDs and contact info centralized." },
+    { icon: "💰", title: fr ? "Suivi des cotisations" : "Contribution tracking", desc: fr ? "Créez des périodes de cotisation, enregistrez les paiements et visualisez les statuts en temps réel." : "Create contribution periods, record payments and view statuses in real time." },
+    { icon: "🧾", title: fr ? "Reçus officiels PDF" : "Official PDF receipts", desc: fr ? "Générez des reçus de paiement professionnels en un clic, prêts à imprimer ou partager." : "Generate professional payment receipts in one click, ready to print or share." },
+    { icon: "🔗", title: fr ? "Inscription en autonomie" : "Self-registration", desc: fr ? "Partagez un code d'invitation : vos membres s'inscrivent eux-mêmes et rejoignent automatiquement la liste." : "Share an invite code: members register themselves and join the list automatically." },
+    { icon: "📊", title: fr ? "Tableaux de bord" : "Dashboards", desc: fr ? "Statistiques claires : taux de paiement, alertes impayés, historique complet des transactions." : "Clear statistics: payment rates, unpaid alerts, full transaction history." },
+    { icon: "📤", title: fr ? "Export Excel & PDF" : "Excel & PDF export", desc: fr ? "Exportez vos données en Excel ou PDF pour vos rapports d'assemblée générale." : "Export your data to Excel or PDF for your general assembly reports." },
   ];
 
   const steps = [
-    { num: t("landingStep1Num"), title: t("landingStep1Title"), desc: t("landingStep1Desc") },
-    { num: t("landingStep2Num"), title: t("landingStep2Title"), desc: t("landingStep2Desc") },
-    { num: t("landingStep3Num"), title: t("landingStep3Title"), desc: t("landingStep3Desc") },
+    { num: "1", icon: "🏛️", title: fr ? "Créez votre association" : "Create your association", desc: fr ? "Inscrivez-vous en 1 minute avec le nom de votre association et votre email." : "Sign up in 1 minute with your association name and email." },
+    { num: "2", icon: "🔗", title: fr ? "Invitez vos membres" : "Invite your members", desc: fr ? "Partagez votre code d'invitation unique. Chaque membre crée son propre compte." : "Share your unique invite code. Each member creates their own account." },
+    { num: "3", icon: "✅", title: fr ? "Gérez en toute simplicité" : "Manage with ease", desc: fr ? "Suivez les cotisations, enregistrez les paiements et générez les reçus automatiquement." : "Track contributions, record payments and generate receipts automatically." },
   ];
 
+  const audiences = [
+    {
+      icon: "🏛️",
+      role: fr ? "Administrateur" : "Administrator",
+      color: "#3498db",
+      items: fr
+        ? ["Créez et gérez votre association", "Ajoutez et modifiez les adhérents", "Créez les périodes de cotisation", "Enregistrez les paiements", "Générez les reçus PDF", "Exportez les données Excel/PDF", "Gérez les accès membres"]
+        : ["Create and manage your association", "Add and edit members", "Create contribution periods", "Record payments", "Generate PDF receipts", "Export Excel/PDF data", "Manage member access"],
+    },
+    {
+      icon: "👤",
+      role: fr ? "Adhérent" : "Member",
+      color: "#2ecc71",
+      items: fr
+        ? ["Consultez votre profil personnel", "Suivez vos propres paiements", "Visualisez les cotisations de l'association", "Voyez la liste des autres membres", "Modifiez vos informations personnelles", "Changez votre mot de passe"]
+        : ["View your personal profile", "Track your own payments", "View association contributions", "See the list of other members", "Edit your personal info", "Change your password"],
+    },
+  ];
+
+  const faqs = fr ? [
+    { q: "Est-ce gratuit ?", a: "Oui, Cotisation Pro est entièrement gratuit. Créez votre compte et commencez à gérer votre association sans frais cachés." },
+    { q: "Comment mes membres rejoignent-ils l'association ?", a: "Dans votre espace admin, allez dans 'Accès membres', générez un code d'invitation et partagez-le. Vos membres cliquent sur 'Rejoindre' sur la page d'accueil et saisissent ce code." },
+    { q: "Les données sont-elles sécurisées ?", a: "Vos données sont stockées sur votre propre serveur. Vous en êtes le seul propriétaire. Les mots de passe sont chiffrés avec bcrypt." },
+    { q: "Un administrateur peut-il gérer plusieurs associations ?", a: "Oui, chaque compte administrateur est lié à une association distincte. Vous pouvez créer autant de comptes que nécessaire." },
+    { q: "Les adhérents peuvent-ils modifier les données ?", a: "Non. Les adhérents ne peuvent modifier que leurs propres informations personnelles (nom, téléphone, photo, mot de passe). Toutes les données de l'association sont en lecture seule pour eux." },
+  ] : [
+    { q: "Is it free?", a: "Yes, Cotisation Pro is completely free. Create your account and start managing your association with no hidden fees." },
+    { q: "How do my members join the association?", a: "In your admin space, go to 'Member Access', generate an invite code and share it. Members click 'Join' on the home page and enter this code." },
+    { q: "Is the data secure?", a: "Your data is stored on your own server. You are the sole owner. Passwords are encrypted with bcrypt." },
+    { q: "Can an administrator manage multiple associations?", a: "Yes, each admin account is linked to a separate association. You can create as many accounts as needed." },
+    { q: "Can members edit data?", a: "No. Members can only edit their own personal information (name, phone, photo, password). All association data is read-only for them." },
+  ];
+
+  const S = {
+    root: { fontFamily: "'Segoe UI', Arial, sans-serif", minHeight: "100vh", background: "linear-gradient(160deg,#0a1628 0%,#0f1f38 50%,#0a1628 100%)", color: "#fff", overflowX: "hidden" },
+    nav: { position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: "66px", background: scrolled ? "rgba(8,16,30,0.97)" : "rgba(8,16,30,0.5)", backdropFilter: "blur(16px)", borderBottom: scrolled ? "1px solid rgba(52,152,219,0.18)" : "1px solid transparent", transition: "all 0.3s", boxSizing: "border-box" },
+    navBrand: { display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 },
+    navLogo: { height: "40px", width: "40px", objectFit: "cover", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 0 2px rgba(52,152,219,0.4)" },
+    navTitle: { fontSize: "17px", fontWeight: "800", color: "#fff", margin: 0, letterSpacing: "-0.3px" },
+    navActions: { display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 },
+    langSelect: { padding: "5px 10px", background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "18px", cursor: "pointer", fontWeight: "600", fontSize: "12px", outline: "none" },
+    btnOutline: { padding: "7px 18px", background: "transparent", color: "#3498db", border: "1.5px solid #3498db", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
+    btnGreen: { padding: "7px 18px", background: "rgba(46,204,113,0.12)", color: "#2ecc71", border: "1.5px solid rgba(46,204,113,0.4)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
+    btnPrimary: { padding: "7px 18px", background: "linear-gradient(135deg,#3498db,#2980b9)", color: "#fff", border: "none", borderRadius: "20px", cursor: "pointer", fontWeight: "700", fontSize: "13px", boxShadow: "0 2px 10px rgba(52,152,219,0.4)" },
+    // Hero
+    heroWrap: { position: "relative", textAlign: "center", padding: "100px 24px 90px", maxWidth: "820px", margin: "0 auto", overflow: "hidden" },
+    orb1: { position: "absolute", top: "-80px", left: "10%", width: "360px", height: "360px", borderRadius: "50%", background: "radial-gradient(circle,rgba(52,152,219,0.18) 0%,transparent 70%)", pointerEvents: "none" },
+    orb2: { position: "absolute", bottom: "-60px", right: "5%", width: "300px", height: "300px", borderRadius: "50%", background: "radial-gradient(circle,rgba(155,89,182,0.15) 0%,transparent 70%)", pointerEvents: "none" },
+    orb3: { position: "absolute", top: "50%", left: "-8%", width: "220px", height: "220px", borderRadius: "50%", background: "radial-gradient(circle,rgba(46,204,113,0.1) 0%,transparent 70%)", pointerEvents: "none" },
+    badge: { display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(52,152,219,0.12)", color: "#3498db", border: "1px solid rgba(52,152,219,0.35)", borderRadius: "20px", padding: "5px 16px", fontSize: "13px", fontWeight: "600", marginBottom: "30px" },
+    heroTitle: { fontSize: "clamp(30px,5.5vw,58px)", fontWeight: "900", lineHeight: "1.12", letterSpacing: "-1.5px", margin: "0 0 22px", color: "#fff" },
+    accent: { background: "linear-gradient(90deg,#3498db,#9b59b6,#3498db)", backgroundSize: "200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" },
+    heroSub: { fontSize: "18px", color: "rgba(255,255,255,0.68)", lineHeight: "1.7", margin: "0 0 44px", maxWidth: "600px", marginLeft: "auto", marginRight: "auto" },
+    heroCTAs: { display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap" },
+    ctaPrimary: { padding: "15px 36px", background: "linear-gradient(135deg,#3498db,#2980b9)", color: "#fff", border: "none", borderRadius: "32px", cursor: "pointer", fontWeight: "700", fontSize: "16px", boxShadow: "0 4px 22px rgba(52,152,219,0.45)", transition: "transform 0.15s,box-shadow 0.15s" },
+    ctaGreen: { padding: "15px 36px", background: "rgba(46,204,113,0.1)", color: "#2ecc71", border: "1.5px solid rgba(46,204,113,0.45)", borderRadius: "32px", cursor: "pointer", fontWeight: "700", fontSize: "16px", transition: "all 0.15s" },
+    ctaSecondary: { padding: "15px 36px", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(255,255,255,0.2)", borderRadius: "32px", cursor: "pointer", fontWeight: "600", fontSize: "16px", transition: "all 0.15s" },
+    // Stats
+    statsWrap: { display: "flex", justifyContent: "center", gap: "0", flexWrap: "wrap", borderTop: "1px solid rgba(255,255,255,0.07)", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" },
+    statItem: { textAlign: "center", padding: "32px 40px", borderRight: "1px solid rgba(255,255,255,0.06)" },
+    statVal: { fontSize: "clamp(28px,4vw,42px)", fontWeight: "900", color: "#fff", margin: 0, lineHeight: 1 },
+    statLabel: { fontSize: "13px", color: "rgba(255,255,255,0.5)", marginTop: "6px", fontWeight: "500" },
+    // Section
+    section: { padding: "90px 24px", maxWidth: "1080px", margin: "0 auto" },
+    sectionLabel: { textAlign: "center", fontSize: "12px", fontWeight: "700", color: "#3498db", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" },
+    sectionTitle: { textAlign: "center", fontSize: "clamp(22px,3.5vw,38px)", fontWeight: "800", color: "#fff", margin: "0 0 54px", letterSpacing: "-0.5px", lineHeight: "1.2" },
+    // Feature grid
+    featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: "20px" },
+    featCard: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px", padding: "32px 26px", transition: "transform 0.2s,border-color 0.2s,box-shadow 0.2s" },
+    featIconBox: { width: "52px", height: "52px", borderRadius: "14px", background: "rgba(52,152,219,0.12)", border: "1px solid rgba(52,152,219,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", marginBottom: "18px" },
+    featTitle: { fontSize: "17px", fontWeight: "700", color: "#fff", marginBottom: "8px" },
+    featDesc: { fontSize: "14px", color: "rgba(255,255,255,0.58)", lineHeight: "1.65" },
+    // Steps
+    stepsRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "0", position: "relative" },
+    stepCard: { textAlign: "center", padding: "32px 24px", position: "relative" },
+    stepCircle: { width: "64px", height: "64px", borderRadius: "50%", background: "linear-gradient(135deg,#3498db,#2980b9)", color: "#fff", fontSize: "28px", fontWeight: "900", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 6px 20px rgba(52,152,219,0.4)" },
+    stepTitle: { fontSize: "17px", fontWeight: "700", color: "#fff", marginBottom: "10px" },
+    stepDesc: { fontSize: "14px", color: "rgba(255,255,255,0.58)", lineHeight: "1.65" },
+    // Audience
+    audienceGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "24px" },
+    audienceCard: { borderRadius: "20px", padding: "36px 32px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" },
+    audienceRole: { fontSize: "20px", fontWeight: "800", marginBottom: "24px", display: "flex", alignItems: "center", gap: "10px" },
+    audienceItem: { display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "12px", fontSize: "14px", color: "rgba(255,255,255,0.75)" },
+    checkIcon: { fontSize: "16px", flexShrink: 0, marginTop: "1px" },
+    // FAQ
+    faqWrap: { maxWidth: "740px", margin: "0 auto" },
+    faqItem: { borderBottom: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" },
+    faqQ: { width: "100%", background: "none", border: "none", color: "#fff", textAlign: "left", padding: "20px 4px", fontSize: "16px", fontWeight: "600", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
+    faqA: { fontSize: "14px", color: "rgba(255,255,255,0.62)", lineHeight: "1.7", paddingBottom: "18px", paddingLeft: "4px" },
+    // CTA bottom
+    ctaBottom: { textAlign: "center", padding: "90px 24px", background: "linear-gradient(135deg,rgba(52,152,219,0.1) 0%,rgba(155,89,182,0.08) 100%)", borderTop: "1px solid rgba(52,152,219,0.12)" },
+    // Footer
+    footer: { borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 32px 32px", maxWidth: "1080px", margin: "0 auto" },
+    footerGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "40px", marginBottom: "40px" },
+    footerBrand: { fontSize: "18px", fontWeight: "800", color: "#fff", marginBottom: "10px" },
+    footerTagline: { fontSize: "13px", color: "rgba(255,255,255,0.45)", lineHeight: "1.6" },
+    footerColTitle: { fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "14px" },
+    footerLink: { display: "block", fontSize: "14px", color: "rgba(255,255,255,0.55)", marginBottom: "8px", cursor: "pointer", background: "none", border: "none", padding: 0, textAlign: "left", transition: "color 0.15s" },
+    footerBottom: { borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", fontSize: "12px", color: "rgba(255,255,255,0.3)" },
+  };
+
+  const stats = fr
+    ? [{ val: "100%", label: "Gratuit" }, { val: "∞", label: "Adhérents" }, { val: "PDF", label: "Reçus officiels" }, { val: "2FA", label: "Données sécurisées" }]
+    : [{ val: "100%", label: "Free" }, { val: "∞", label: "Members" }, { val: "PDF", label: "Official receipts" }, { val: "2FA", label: "Secure data" }];
+
   return (
-    <div style={ls.root}>
+    <div style={S.root}>
+      <style>{`
+        @keyframes lp-fadeInUp {
+          from { opacity: 0; transform: translateY(28px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes lp-float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-8px); }
+        }
+        @keyframes lp-gradientMove {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes lp-orbPulse {
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50%       { opacity: 1;   transform: scale(1.14); }
+        }
+        @keyframes lp-ctaPulse {
+          0%, 100% { box-shadow: 0 4px 22px rgba(52,152,219,0.45); }
+          50%       { box-shadow: 0 8px 42px rgba(52,152,219,0.75); }
+        }
+        @keyframes lp-badgeGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(52,152,219,0); border-color: rgba(52,152,219,0.35); }
+          50%       { box-shadow: 0 0 14px 3px rgba(52,152,219,0.22); border-color: rgba(52,152,219,0.65); }
+        }
+        @keyframes lp-particleFloat {
+          0%, 100% { transform: translate(0,0) scale(1); opacity: 0.18; }
+          33%       { transform: translate(10px,-22px) scale(1.3); opacity: 0.45; }
+          66%       { transform: translate(-8px,-38px) scale(0.85); opacity: 0.22; }
+        }
+        @keyframes lp-particleFloat2 {
+          0%, 100% { transform: translate(0,0) scale(1); opacity: 0.14; }
+          40%       { transform: translate(-14px,-28px) scale(1.2); opacity: 0.38; }
+          80%       { transform: translate(10px,-42px) scale(0.9); opacity: 0.2; }
+        }
+        @keyframes lp-shimmerBar {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        /* ── Hero persistent (loads immediately) ── */
+        .lp-hero-badge { animation: lp-float 3.5s ease-in-out infinite, lp-fadeInUp 0.5s ease 0.1s both, lp-badgeGlow 3s ease-in-out infinite; }
+        .lp-hero-title { animation: lp-fadeInUp 0.7s ease 0.2s both; }
+        .lp-hero-sub   { animation: lp-fadeInUp 0.7s ease 0.35s both; }
+        .lp-hero-ctas  { animation: lp-fadeInUp 0.7s ease 0.5s both; }
+        /* ── Orbs ── */
+        .lp-orb1 { animation: lp-orbPulse 7s ease-in-out infinite; }
+        .lp-orb2 { animation: lp-orbPulse 9s ease-in-out 1.5s infinite; }
+        .lp-orb3 { animation: lp-orbPulse 11s ease-in-out 3s infinite; }
+        /* ── Accent gradient ── */
+        .lp-accent {
+          background: linear-gradient(90deg,#3498db,#9b59b6,#2ecc71,#e67e22,#3498db);
+          background-size: 400%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: lp-gradientMove 5s ease infinite;
+        }
+        /* ── CTA ── */
+        .lp-cta-primary { animation: lp-ctaPulse 2.8s ease-in-out infinite; }
+        /* ── Particles (hero) ── */
+        .lp-particle { position: absolute; border-radius: 50%; pointer-events: none; }
+        .lp-p1 { width:6px;  height:6px;  background:#3498db; top:18%; left:12%;  animation: lp-particleFloat  5s ease-in-out infinite; }
+        .lp-p2 { width:4px;  height:4px;  background:#9b59b6; top:28%; right:18%; animation: lp-particleFloat2 6.5s ease-in-out infinite; }
+        .lp-p3 { width:8px;  height:8px;  background:#2ecc71; top:62%; left:7%;   animation: lp-particleFloat  7s ease-in-out 1s infinite; }
+        .lp-p4 { width:5px;  height:5px;  background:#e67e22; top:72%; right:14%; animation: lp-particleFloat2 4.5s ease-in-out 0.5s infinite; }
+        .lp-p5 { width:7px;  height:7px;  background:#3498db; top:48%; left:88%;  animation: lp-particleFloat  8s ease-in-out 2s infinite; }
+        /* ── Particles pleine page (fixed = toujours visibles au scroll) ── */
+        .lp-fp { position: fixed; border-radius: 50%; pointer-events: none; z-index: 1; }
+        .lp-fp1  { width:5px; height:5px; background:#3498db; top:8%;  left:6%;  animation: lp-particleFloat  6s ease-in-out infinite; }
+        .lp-fp2  { width:4px; height:4px; background:#9b59b6; top:18%; right:7%; animation: lp-particleFloat2 8s ease-in-out 1s infinite; }
+        .lp-fp3  { width:6px; height:6px; background:#2ecc71; top:30%; left:4%;  animation: lp-particleFloat  9s ease-in-out 2s infinite; }
+        .lp-fp4  { width:4px; height:4px; background:#e67e22; top:42%; right:5%; animation: lp-particleFloat2 7s ease-in-out 0.5s infinite; }
+        .lp-fp5  { width:7px; height:7px; background:#3498db; top:55%; left:3%;  animation: lp-particleFloat  5s ease-in-out 3s infinite; }
+        .lp-fp6  { width:4px; height:4px; background:#e74c3c; top:68%; right:6%; animation: lp-particleFloat2 6s ease-in-out 1.5s infinite; }
+        .lp-fp7  { width:5px; height:5px; background:#1abc9c; top:80%; left:8%;  animation: lp-particleFloat  8s ease-in-out 4s infinite; }
+        .lp-fp8  { width:4px; height:4px; background:#f39c12; top:90%; right:9%; animation: lp-particleFloat2 7s ease-in-out 2.5s infinite; }
+        .lp-fp9  { width:5px; height:5px; background:#9b59b6; top:22%; left:93%; animation: lp-particleFloat  9s ease-in-out 1s infinite; }
+        .lp-fp10 { width:4px; height:4px; background:#3498db; top:48%; left:95%; animation: lp-particleFloat2 6s ease-in-out 3.5s infinite; }
+        .lp-fp11 { width:6px; height:6px; background:#2ecc71; top:72%; left:92%; animation: lp-particleFloat  7s ease-in-out 2s infinite; }
+        .lp-fp12 { width:3px; height:3px; background:#e67e22; top:60%; left:50%; animation: lp-particleFloat2 10s ease-in-out 0s infinite; }
+        /* ── Shimmer bar (persistent divider) ── */
+        .lp-shimmer-bar {
+          height: 3px; border-radius: 2px; margin: 0 auto 0;
+          background: linear-gradient(90deg,transparent,rgba(52,152,219,0.7),rgba(155,89,182,0.6),transparent);
+          background-size: 200% auto;
+          animation: lp-shimmerBar 2.5s linear infinite;
+        }
+        /* ── Ambient section orbs (persistent everywhere) ── */
+        .lp-amb { position: absolute; border-radius: 50%; pointer-events: none; }
+        .lp-amb-bl { background: radial-gradient(circle, rgba(52,152,219,0.14) 0%, transparent 70%); animation: lp-orbPulse  8s ease-in-out infinite; }
+        .lp-amb-pu { background: radial-gradient(circle, rgba(155,89,182,0.12) 0%, transparent 70%); animation: lp-orbPulse 10s ease-in-out 2s infinite; }
+        .lp-amb-gr { background: radial-gradient(circle, rgba(46,204,113,0.10) 0%, transparent 70%); animation: lp-orbPulse 12s ease-in-out 4s infinite; }
+        .lp-amb-go { background: radial-gradient(circle, rgba(241,196,15,0.08) 0%, transparent 70%); animation: lp-orbPulse  9s ease-in-out 1s infinite; }
+        /* ── Card glow (persistent on cards) ── */
+        @keyframes lp-cardGlow {
+          0%, 100% { box-shadow: 0 2px 16px rgba(0,0,0,0.1); }
+          50%       { box-shadow: 0 4px 32px rgba(52,152,219,0.2); }
+        }
+        .lp-card-glow { animation: lp-cardGlow 4s ease-in-out infinite; }
+        .lp-card-glow:nth-child(2) { animation-delay: 0.7s; }
+        .lp-card-glow:nth-child(3) { animation-delay: 1.4s; }
+        .lp-card-glow:nth-child(4) { animation-delay: 2.1s; }
+        .lp-card-glow:nth-child(5) { animation-delay: 2.8s; }
+        .lp-card-glow:nth-child(6) { animation-delay: 3.5s; }
+      `}</style>
+
+      {/* ── PARTICULES PLEINE PAGE ── */}
+      <div className="lp-fp lp-fp1" /><div className="lp-fp lp-fp2" /><div className="lp-fp lp-fp3" />
+      <div className="lp-fp lp-fp4" /><div className="lp-fp lp-fp5" /><div className="lp-fp lp-fp6" />
+      <div className="lp-fp lp-fp7" /><div className="lp-fp lp-fp8" /><div className="lp-fp lp-fp9" />
+      <div className="lp-fp lp-fp10" /><div className="lp-fp lp-fp11" /><div className="lp-fp lp-fp12" />
+
       {/* ── NAVBAR ── */}
-      <nav style={ls.nav} className="landing-nav">
-        <div style={ls.navBrand}>
-          <img src={logo} alt="Logo" style={ls.navLogo} className="landing-nav-logo" />
-          <span style={ls.navTitle} className="landing-nav-title">Cotisation Pro</span>
+      <nav style={S.nav} className="landing-nav">
+        <div style={S.navBrand}>
+          <img src={logo} alt="Logo" style={S.navLogo} className="landing-nav-logo" />
+          <span style={S.navTitle} className="landing-nav-title">Cotisation Pro</span>
         </div>
-        <div style={ls.navActions} className="landing-nav-actions">
-          <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            style={ls.langSelect}
-            className="lang-select"
-          >
-            <option value="fr" style={{ background: "#0a1426" }}>🇫🇷 FR</option>
-            <option value="en" style={{ background: "#0a1426" }}>🇬🇧 EN</option>
+        <div style={S.navActions} className="landing-nav-actions">
+          <select value={lang} onChange={(e) => setLang(e.target.value)} style={S.langSelect} className="lang-select">
+            <option value="fr" style={{ background: "#0a1628" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#0a1628" }}>🇬🇧 EN</option>
           </select>
-          <button style={ls.btnOutline} className="landing-btn-outline" onClick={onLogin}>{t("landingNavLogin")}</button>
-          <button style={ls.btnPrimary} className="landing-btn-primary" onClick={onRegister}>{t("landingNavRegister")}</button>
+          <button style={S.btnOutline} onClick={onLogin}>{fr ? "Connexion" : "Login"}</button>
+          <button style={S.btnGreen} onClick={onJoin}>🔗 {fr ? "Rejoindre" : "Join"}</button>
+          <button style={S.btnPrimary} onClick={onRegister}>{fr ? "Créer un compte" : "Create account"}</button>
         </div>
       </nav>
 
       {/* ── HERO ── */}
-      <section style={ls.hero}>
-        <div style={ls.heroBadge}>🏛️ Cotisation Pro</div>
-        <h1 style={ls.heroTitle}>
-          {lang === "fr" ? (
-            <>Gérez les cotisations de votre association{" "}<span style={ls.heroTitleAccent}>en toute simplicité</span></>
-          ) : (
-            <>Manage your association's contributions{" "}<span style={ls.heroTitleAccent}>with ease</span></>
-          )}
+      <div style={S.heroWrap}>
+        <div style={S.orb1} className="lp-orb1" />
+        <div style={S.orb2} className="lp-orb2" />
+        <div style={S.orb3} className="lp-orb3" />
+        <div className="lp-particle lp-p1" />
+        <div className="lp-particle lp-p2" />
+        <div className="lp-particle lp-p3" />
+        <div className="lp-particle lp-p4" />
+        <div className="lp-particle lp-p5" />
+        <div style={S.badge} className="lp-hero-badge">
+          <span>✨</span>
+          <span>{fr ? "Solution complète pour les associations" : "Complete solution for associations"}</span>
+        </div>
+        <h1 style={S.heroTitle} className="lp-hero-title">
+          {fr ? <>Gérez les cotisations<br /><span className="lp-accent">en toute simplicité</span></> : <>Manage contributions<br /><span className="lp-accent">with ease</span></>}
         </h1>
-        <p style={ls.heroSub}>{t("landingHeroSubtitle")}</p>
-        <div style={ls.heroCTAs}>
-          <button
-            style={ls.ctaPrimary}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(52,152,219,0.55)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(52,152,219,0.45)"; }}
-            onClick={onRegister}
-          >
-            {t("landingCTAStart")} →
+        <p style={S.heroSub} className="lp-hero-sub">
+          {fr
+            ? "Cotisation Pro centralise vos adhérents, vos paiements et vos reçus dans un seul espace. Simple, gratuit, efficace."
+            : "Cotisation Pro centralizes your members, payments and receipts in one place. Simple, free, efficient."}
+        </p>
+        <div style={S.heroCTAs} className="lp-hero-ctas">
+          <button style={S.ctaPrimary} className="lp-cta-primary" {...btnHover()} onClick={onRegister}>
+            🏛️ {fr ? "Créer mon association" : "Create my association"} →
           </button>
-          <button
-            style={ls.ctaSecondary}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-            onClick={onLogin}
-          >
-            {t("landingCTALogin")}
+          <button style={S.ctaGreen}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(46,204,113,0.18)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(46,204,113,0.1)"; }}
+            onClick={onJoin}>
+            🔗 {fr ? "Rejoindre une association" : "Join an association"}
+          </button>
+          <button style={S.ctaSecondary}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+            onClick={onLogin}>
+            {fr ? "Se connecter" : "Sign in"}
           </button>
         </div>
-      </section>
+      </div>
+
+      {/* ── STATS ── */}
+      <div style={{ ...S.statsWrap, position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-bl" style={{ width:"380px",height:"380px",top:"-150px",left:"-80px" }} />
+        <div className="lp-amb lp-amb-pu" style={{ width:"320px",height:"320px",bottom:"-100px",right:"-60px" }} />
+        {stats.map((s, i) => (
+          <InView key={i} delay={i * 0.1} style={{ ...S.statItem, borderRight: i < stats.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+            <p style={S.statVal}>{s.val}</p>
+            <p style={S.statLabel}>{s.label}</p>
+          </InView>
+        ))}
+      </div>
 
       {/* ── FONCTIONNALITÉS ── */}
-      <section style={ls.featSection}>
-        <div style={ls.featInner}>
-          <p style={ls.sectionLabel}>Fonctionnalités</p>
-          <h2 style={ls.sectionTitle}>{t("landingFeaturesTitle")}</h2>
-          <div style={ls.featGrid}>
+      <div style={{ ...S.section, background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", maxWidth: "100%", padding: "90px 24px", position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-bl" style={{ width:"600px",height:"600px",top:"-220px",right:"-160px" }} />
+        <div className="lp-amb lp-amb-pu" style={{ width:"500px",height:"500px",bottom:"-180px",left:"-130px" }} />
+        <div className="lp-amb lp-amb-gr" style={{ width:"360px",height:"360px",top:"50%",right:"8%" }} />
+        <div style={{ maxWidth: "1080px", margin: "0 auto", position: "relative" }}>
+          <InView><p style={S.sectionLabel}>{fr ? "Fonctionnalités" : "Features"}</p></InView>
+          <InView delay={0.12}><h2 style={S.sectionTitle}>{fr ? "Tout ce dont vous avez besoin" : "Everything you need"}</h2></InView>
+          <div style={{ ...S.featGrid, marginTop: "8px" }}>
+            <div className="lp-shimmer-bar" style={{ gridColumn: "1/-1", marginBottom: "28px" }} />
             {features.map((f, i) => (
-              <div
-                key={i}
-                style={ls.featCard}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.25)"; e.currentTarget.style.borderColor = "rgba(52,152,219,0.35)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
-              >
-                <span style={ls.featIcon}>{f.icon}</span>
-                <div style={ls.featTitle}>{f.title}</div>
-                <div style={ls.featDesc}>{f.desc}</div>
-              </div>
+              <InView key={i} delay={i * 0.1}>
+                <div className="lp-card-glow" style={S.featCard}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "rgba(52,152,219,0.3)"; e.currentTarget.style.boxShadow = ""; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.boxShadow = ""; }}>
+                  <div style={S.featIconBox}>{f.icon}</div>
+                  <div style={S.featTitle}>{f.title}</div>
+                  <div style={S.featDesc}>{f.desc}</div>
+                </div>
+              </InView>
             ))}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ── COMMENT ÇA MARCHE ── */}
-      <section style={ls.howSection}>
-        <p style={ls.sectionLabel}>{lang === "fr" ? "En 3 étapes" : "3 simple steps"}</p>
-        <h2 style={{ ...ls.sectionTitle, marginBottom: "40px" }}>{t("landingHowTitle")}</h2>
-        <div style={ls.stepsGrid}>
-          {steps.map((s, i) => (
-            <div key={i} style={ls.stepCard}>
-              <div style={ls.stepNum}>{s.num}</div>
-              <div style={ls.stepTitle}>{s.title}</div>
-              <div style={ls.stepDesc}>{s.desc}</div>
-            </div>
-          ))}
+      <div style={{ ...S.section, position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-go" style={{ width:"420px",height:"420px",top:"-110px",right:"-90px" }} />
+        <div className="lp-amb lp-amb-bl" style={{ width:"360px",height:"360px",bottom:"-110px",left:"-80px" }} />
+        <div style={{ position: "relative" }}>
+          <div className="lp-shimmer-bar" style={{ width:"100px",marginBottom:"36px" }} />
+          <InView><p style={S.sectionLabel}>{fr ? "Démarrage rapide" : "Quick start"}</p></InView>
+          <InView delay={0.12}><h2 style={S.sectionTitle}>{fr ? "Lancez-vous en 3 étapes" : "Get started in 3 steps"}</h2></InView>
+          <div style={S.stepsRow}>
+            {steps.map((s, i) => (
+              <InView key={i} delay={i * 0.15}>
+                <div style={S.stepCard}>
+                  <div style={S.stepCircle}>{s.icon}</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#3498db", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "10px" }}>{fr ? `Étape ${s.num}` : `Step ${s.num}`}</div>
+                  <div style={S.stepTitle}>{s.title}</div>
+                  <div style={S.stepDesc}>{s.desc}</div>
+                </div>
+              </InView>
+            ))}
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* ── CTA BAS DE PAGE ── */}
-      <section style={ls.ctaSection}>
-        <h2 style={ls.ctaTitle}>
-          {lang === "fr" ? "Prêt à démarrer ?" : "Ready to get started?"}
+      {/* ── POUR QUI ? ── */}
+      <div style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "90px 24px", position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-pu" style={{ width:"520px",height:"520px",top:"-160px",left:"-130px" }} />
+        <div className="lp-amb lp-amb-gr" style={{ width:"460px",height:"460px",bottom:"-160px",right:"-110px" }} />
+        <div className="lp-amb lp-amb-bl" style={{ width:"300px",height:"300px",top:"50%",right:"5%" }} />
+        <div style={{ maxWidth: "1080px", margin: "0 auto", position: "relative" }}>
+          <div className="lp-shimmer-bar" style={{ width:"100px",marginBottom:"36px" }} />
+          <InView><p style={S.sectionLabel}>{fr ? "Pour qui ?" : "Who is it for?"}</p></InView>
+          <InView delay={0.12}><h2 style={S.sectionTitle}>{fr ? "Deux profils, une seule plateforme" : "Two profiles, one platform"}</h2></InView>
+          <div style={S.audienceGrid}>
+            {audiences.map((a, i) => (
+              <InView key={i} delay={i * 0.15}>
+                <div className="lp-card-glow" style={{ ...S.audienceCard, borderColor: `${a.color}30`, background: `${a.color}06` }}>
+                  <div style={{ ...S.audienceRole, color: a.color }}>
+                    <span style={{ fontSize: "28px" }}>{a.icon}</span>
+                    <span>{a.role}</span>
+                  </div>
+                  {a.items.map((item, j) => (
+                    <div key={j} style={S.audienceItem}>
+                      <span style={{ ...S.checkIcon, color: a.color }}>✓</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                  <button
+                    style={{ marginTop: "28px", width: "100%", padding: "12px", background: i === 0 ? "linear-gradient(135deg,#3498db,#2980b9)" : "linear-gradient(135deg,#27ae60,#2ecc71)", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "700", fontSize: "14px", cursor: "pointer", boxShadow: `0 4px 16px ${a.color}40` }}
+                    onClick={i === 0 ? onRegister : onJoin}
+                  >
+                    {i === 0 ? (fr ? "Créer mon association →" : "Create my association →") : (fr ? "Rejoindre avec un code →" : "Join with a code →")}
+                  </button>
+                </div>
+              </InView>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── TÉMOIGNAGES ── */}
+      <div style={{ padding: "90px 24px", background: "rgba(52,152,219,0.03)", borderTop: "1px solid rgba(52,152,219,0.08)", borderBottom: "1px solid rgba(52,152,219,0.08)", position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-bl" style={{ width:"520px",height:"520px",top:"-160px",right:"-130px" }} />
+        <div className="lp-amb lp-amb-go" style={{ width:"420px",height:"420px",bottom:"-130px",left:"-110px" }} />
+        <div className="lp-amb lp-amb-pu" style={{ width:"300px",height:"300px",top:"40%",left:"5%" }} />
+        <div style={{ maxWidth: "1080px", margin: "0 auto", position: "relative" }}>
+          <div className="lp-shimmer-bar" style={{ width:"100px",marginBottom:"36px" }} />
+          <InView><p style={S.sectionLabel}>{fr ? "Ils nous font confiance" : "They trust us"}</p></InView>
+          <InView delay={0.12}><h2 style={S.sectionTitle}>{fr ? "Ce que disent nos utilisateurs" : "What our users say"}</h2></InView>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: "20px" }}>
+            {[
+              { name: fr ? "Koné A." : "Koné A.", role: fr ? "Secrétaire, Amicale INPHB" : "Secretary, INPHB Alumni", text: fr ? "Cotisation Pro nous a permis de passer de cahiers Excel désorganisés à un suivi clair et professionnel. Les reçus PDF sont un vrai plus !" : "Cotisation Pro took us from messy Excel sheets to clear, professional tracking. The PDF receipts are a great feature!" },
+              { name: fr ? "Traoré M." : "Traoré M.", role: fr ? "Trésorier, Association Culturelle" : "Treasurer, Cultural Association", text: fr ? "Fini les erreurs de saisie et les oublis. Je vois en un coup d'œil qui a payé et qui doit encore régler sa cotisation." : "No more input errors and missed payments. I can see at a glance who paid and who still owes their contribution." },
+              { name: fr ? "Yao B." : "Yao B.", role: fr ? "Président, Tontine Solidarité" : "President, Solidarity Tontine", text: fr ? "L'inscription des membres par code d'invitation est brillante. Chacun crée son compte en autonomie, sans passer par moi." : "The invite-code member registration is brilliant. Everyone sets up their own account independently, without going through me." },
+            ].map((t, i) => (
+              <InView key={i} delay={i * 0.12}>
+                <div className="lp-card-glow" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(52,152,219,0.15)", borderRadius: "20px", padding: "28px 24px", transition: "transform 0.2s,box-shadow 0.2s", height: "100%", boxSizing: "border-box" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.25)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
+                  <div style={{ fontSize: "22px", color: "#f1c40f", marginBottom: "14px", letterSpacing: "2px" }}>★★★★★</div>
+                  <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.72)", lineHeight: "1.75", margin: "0 0 20px", fontStyle: "italic" }}>"{t.text}"</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: `linear-gradient(135deg,#3498db,#9b59b6)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", color: "#fff", fontWeight: "700", flexShrink: 0 }}>
+                      {t.name[0]}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "14px", color: "#fff" }}>{t.name}</div>
+                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)" }}>{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              </InView>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FAQ ── */}
+      <div style={{ ...S.section, position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-pu" style={{ width:"460px",height:"460px",top:"-130px",right:"-110px" }} />
+        <div className="lp-amb lp-amb-bl" style={{ width:"390px",height:"390px",bottom:"-110px",left:"-90px" }} />
+        <div style={{ position: "relative" }}>
+          <div className="lp-shimmer-bar" style={{ width:"100px",marginBottom:"36px" }} />
+          <InView><p style={S.sectionLabel}>FAQ</p></InView>
+          <InView delay={0.12}><h2 style={S.sectionTitle}>{fr ? "Questions fréquentes" : "Frequently asked questions"}</h2></InView>
+          <div style={S.faqWrap}>
+            {faqs.map((item, i) => (
+              <InView key={i} delay={i * 0.07}>
+                <div style={S.faqItem}>
+                  <button style={S.faqQ} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                    <span>{item.q}</span>
+                    <span style={{ fontSize: "20px", color: "#3498db", flexShrink: 0, transition: "transform 0.2s", transform: openFaq === i ? "rotate(45deg)" : "rotate(0deg)" }}>+</span>
+                  </button>
+                  {openFaq === i && <div style={S.faqA}>{item.a}</div>}
+                </div>
+              </InView>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── CTA BAS ── */}
+      <div style={{ ...S.ctaBottom, position: "relative", overflow: "hidden" }}>
+        <div className="lp-amb lp-amb-bl" style={{ width:"500px",height:"500px",top:"-160px",left:"-120px" }} />
+        <div className="lp-amb lp-amb-pu" style={{ width:"450px",height:"450px",top:"-140px",right:"-110px" }} />
+        <div className="lp-amb lp-amb-gr" style={{ width:"350px",height:"350px",bottom:"-120px",left:"30%" }} />
+        <div style={{ position: "relative" }}>
+        <div className="lp-shimmer-bar" style={{ width: "80px", marginBottom: "32px" }} />
+        <div style={{ fontSize: "12px", fontWeight: "700", color: "#3498db", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "16px" }}>
+          {fr ? "Prêt à démarrer ?" : "Ready to get started?"}
+        </div>
+        <h2 style={{ fontSize: "clamp(26px,4vw,46px)", fontWeight: "900", color: "#fff", margin: "0 0 16px", letterSpacing: "-1px" }}>
+          {fr ? "Votre association mérite le meilleur" : "Your association deserves the best"}
         </h2>
-        <p style={ls.ctaSub}>
-          {lang === "fr"
-            ? "Créez votre compte gratuit et gérez votre association dès aujourd'hui."
-            : "Create your free account and manage your association today."}
+        <p style={{ fontSize: "17px", color: "rgba(255,255,255,0.6)", margin: "0 0 40px", maxWidth: "500px", marginLeft: "auto", marginRight: "auto", lineHeight: "1.65" }}>
+          {fr ? "Rejoignez les associations qui font confiance à Cotisation Pro pour gérer leurs membres et leurs paiements." : "Join associations that trust Cotisation Pro to manage their members and payments."}
         </p>
-        <button
-          style={{ ...ls.ctaPrimary, fontSize: "17px", padding: "16px 40px" }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(52,152,219,0.55)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(52,152,219,0.45)"; }}
-          onClick={onRegister}
-        >
-          {t("landingCTAStart")} →
-        </button>
-      </section>
+        <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+          <button style={{ ...S.ctaPrimary, fontSize: "16px" }} className="lp-cta-primary" {...btnHover()} onClick={onRegister}>
+            🏛️ {fr ? "Créer mon association" : "Create my association"} →
+          </button>
+          <button style={{ ...S.ctaGreen, fontSize: "16px", padding: "15px 36px", borderRadius: "32px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(46,204,113,0.18)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(46,204,113,0.1)"; }}
+            onClick={onJoin}>
+            🔗 {fr ? "Rejoindre une association" : "Join an association"}
+          </button>
+        </div>
+        <div className="lp-shimmer-bar" style={{ width: "80px", marginTop: "36px" }} />
+        </div>
+      </div>
 
       {/* ── FOOTER ── */}
-      <footer style={ls.footer}>
-        {t("landingFooter")}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "56px 32px 32px", boxSizing: "border-box" }}>
+        <div style={{ maxWidth: "1080px", margin: "0 auto" }}>
+          <div style={S.footerGrid}>
+            {/* Brand */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                <img src={logo} alt="" style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover" }} />
+                <span style={S.footerBrand}>Cotisation Pro</span>
+              </div>
+              <p style={S.footerTagline}>{fr ? "La solution simple et gratuite pour gérer les cotisations de votre association." : "The simple, free solution to manage your association's contributions."}</p>
+            </div>
+            {/* Navigation */}
+            <div>
+              <div style={S.footerColTitle}>{fr ? "Navigation" : "Navigation"}</div>
+              <button style={S.footerLink} onClick={onLogin}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#3498db"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}>
+                {fr ? "Se connecter" : "Sign in"}
+              </button>
+              <button style={S.footerLink} onClick={onRegister}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#3498db"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}>
+                {fr ? "Créer un compte" : "Create account"}
+              </button>
+              <button style={S.footerLink} onClick={onJoin}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#2ecc71"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}>
+                {fr ? "Rejoindre une association" : "Join an association"}
+              </button>
+            </div>
+            {/* Fonctionnalités */}
+            <div>
+              <div style={S.footerColTitle}>{fr ? "Fonctionnalités" : "Features"}</div>
+              {(fr
+                ? ["Gestion des adhérents", "Suivi des cotisations", "Reçus PDF", "Export Excel", "Tableau de bord"]
+                : ["Member management", "Contribution tracking", "PDF receipts", "Excel export", "Dashboard"]
+              ).map((item) => (
+                <div key={item} style={{ ...S.footerLink, cursor: "default", marginBottom: "7px" }}>{item}</div>
+              ))}
+            </div>
+            {/* Contact */}
+            <div>
+              <div style={S.footerColTitle}>Contact</div>
+              <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", lineHeight: "1.7", margin: 0 }}>
+                kouamekouakouelise97@gmail.com
+              </p>
+              <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                <div style={{ padding: "6px 14px", background: "rgba(52,152,219,0.12)", border: "1px solid rgba(52,152,219,0.25)", borderRadius: "20px", fontSize: "12px", color: "#3498db", fontWeight: "600" }}>
+                  {fr ? "Gratuit" : "Free"}
+                </div>
+                <div style={{ padding: "6px 14px", background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: "20px", fontSize: "12px", color: "#2ecc71", fontWeight: "600" }}>
+                  {fr ? "Sécurisé" : "Secure"}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={S.footerBottom}>
+            <span>© {new Date().getFullYear()} Cotisation Pro. {fr ? "Tous droits réservés." : "All rights reserved."}</span>
+            <span>{fr ? "Fait avec ❤️ pour les associations" : "Made with ❤️ for associations"}</span>
+          </div>
+        </div>
       </footer>
+
     </div>
   );
 }
@@ -460,6 +630,8 @@ const EyeOff = () => (
     <line x1="1" y1="1" x2="23" y2="23"/>
   </svg>
 );
+
+const pwdOk = (pwd) => pwd.length >= 8 && /[^a-zA-Z0-9]/.test(pwd);
 
 // ═══════════════════════════════════════════════════════
 // PAGE D'AUTHENTIFICATION
@@ -513,7 +685,7 @@ function TermsModal({ lang, t, onClose, onAccept }) {
 }
 
 function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login", onBackToLanding }) {
-  const [mode, setMode] = useState(initialMode); // "login" | "register" | "reset"
+  const [mode, setMode] = useState(initialMode); // "login" | "register" | "reset" | "join"
   const [form, setForm] = useState({ email: "", mot_de_passe: "", confirmer_mot_de_passe: "", nom_association: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -526,9 +698,54 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
   const [successMsg, setSuccessMsg] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [joinForm, setJoinForm] = useState({ invite_token: "", nom: "", prenom: "", email: "", telephone: "", mot_de_passe: "", confirmer: "" });
+  const [joinShowPwd, setJoinShowPwd] = useState(false);
+  const [joinShowPwd2, setJoinShowPwd2] = useState(false);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const handleResetChange = (e) => setResetForm({ ...resetForm, [e.target.name]: e.target.value });
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value.trimStart() });
+  const handleResetChange = (e) => setResetForm({ ...resetForm, [e.target.name]: e.target.value.trimStart() });
+  const handleJoinChange = (e) => setJoinForm({ ...joinForm, [e.target.name]: e.target.value.trimStart() });
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!joinForm.invite_token.trim()) { setError(lang === "fr" ? "Code d'invitation requis." : "Invite code required."); return; }
+    if (!joinForm.nom.trim() || !joinForm.prenom.trim()) { setError(lang === "fr" ? "Nom et prénom obligatoires." : "First and last name required."); return; }
+    if (!joinForm.email.trim() && !joinForm.telephone.trim()) { setError(lang === "fr" ? "Email ou téléphone requis." : "Email or phone required."); return; }
+    if (!joinForm.mot_de_passe || !pwdOk(joinForm.mot_de_passe)) { setError(lang === "fr" ? "Le mot de passe doit contenir au moins 8 caractères et un caractère spécial (ex: @, #, !, %)." : "Password must be at least 8 characters and include a special character (e.g. @, #, !, %)."); return; }
+    if (joinForm.mot_de_passe !== joinForm.confirmer) { setError(t("passwordsNoMatch")); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/register-member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invite_token: joinForm.invite_token.trim(),
+          nom: joinForm.nom.trim(),
+          prenom: joinForm.prenom.trim(),
+          email: joinForm.email.trim() || undefined,
+          telephone: joinForm.telephone.trim() || undefined,
+          mot_de_passe: joinForm.mot_de_passe,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          const identifier = joinForm.email.trim() || joinForm.telephone.trim();
+          setForm(f => ({ ...f, email: identifier }));
+          setMode("login");
+          setSuccessMsg(lang === "fr"
+            ? "Vous avez déjà un compte. Connectez-vous avec votre email et mot de passe."
+            : "You already have an account. Sign in with your email and password.");
+          return;
+        }
+        setError(data.error || t("networkErrorShort"));
+        return;
+      }
+      onSuccess(data, "register");
+    } catch { setError(t("networkError")); }
+    finally { setLoading(false); }
+  };
 
   // Inscription directe (sans OTP)
   const handleRegister = async (e) => {
@@ -536,7 +753,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     setError("");
     if (!form.nom_association.trim() || !form.email.trim() || !form.mot_de_passe) { setError(t("allFieldsRequired")); return; }
     if (form.mot_de_passe !== form.confirmer_mot_de_passe) { setError(t("passwordsNoMatch")); return; }
-    if (form.mot_de_passe.length < 6) { setError(t("passwordMinLength")); return; }
+    if (!pwdOk(form.mot_de_passe)) { setError(t("passwordMinLength")); return; }
     if (!termsAccepted) { setError(t("termsNotAccepted")); return; }
     setLoading(true);
     try {
@@ -594,7 +811,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
   const handleReset = async (e) => {
     e.preventDefault();
     setError("");
-    if (!resetForm.nouveau_mot_de_passe || resetForm.nouveau_mot_de_passe.length < 6) { setError(t("passwordMinLength")); return; }
+    if (!resetForm.nouveau_mot_de_passe || !pwdOk(resetForm.nouveau_mot_de_passe)) { setError(t("passwordMinLength")); return; }
     if (resetForm.nouveau_mot_de_passe !== resetForm.confirmer) { setError(t("passwordsNoMatch")); return; }
     setLoading(true);
     try {
@@ -721,6 +938,96 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     );
   }
 
+  // ── Formulaire rejoindre une association ──
+  if (mode === "join") {
+    return (
+      <div style={{ position: "relative" }}>
+        <div style={authSt.page}>
+          <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10 }}>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 28px 6px 12px", background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }} className="lang-select">
+              <option value="fr" style={{ background: "#1a2d46" }}>🇫🇷 FR</option>
+              <option value="en" style={{ background: "#1a2d46" }}>🇬🇧 EN</option>
+            </select>
+          </div>
+          {onBackToLanding && (
+            <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10 }}>
+              <button onClick={onBackToLanding} style={{ padding: "7px 16px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
+                ← {lang === "fr" ? "Accueil" : "Home"}
+              </button>
+            </div>
+          )}
+          <div style={{ ...authSt.card, maxWidth: "460px" }}>
+            <div style={authSt.cardHeader}>
+              <img src={logo} alt="" style={authSt.cardLogo} />
+              <div>
+                <h2 style={authSt.cardTitle}>{lang === "fr" ? "Rejoindre une association" : "Join an association"}</h2>
+                <p style={authSt.cardSub}>{lang === "fr" ? "Créez votre compte membre" : "Create your member account"}</p>
+              </div>
+            </div>
+            <form onSubmit={handleJoin}>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{lang === "fr" ? "Code d'invitation" : "Invite code"}</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="text" name="invite_token" value={joinForm.invite_token} onChange={handleJoinChange} placeholder={lang === "fr" ? "Entrez le code reçu de votre admin" : "Enter the code from your admin"} autoFocus />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div style={authSt.field}>
+                  <label style={authSt.label}>{lang === "fr" ? "Nom" : "Last name"}</label>
+                  <div style={authSt.inputBox}>
+                    <input style={authSt.input} type="text" name="nom" value={joinForm.nom} onChange={handleJoinChange} placeholder="Dupont" />
+                  </div>
+                </div>
+                <div style={authSt.field}>
+                  <label style={authSt.label}>{lang === "fr" ? "Prénom" : "First name"}</label>
+                  <div style={authSt.inputBox}>
+                    <input style={authSt.input} type="text" name="prenom" value={joinForm.prenom} onChange={handleJoinChange} placeholder="Jean" />
+                  </div>
+                </div>
+              </div>
+              <div style={authSt.field}>
+                <label style={authSt.label}>Email</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="email" name="email" value={joinForm.email} onChange={handleJoinChange} placeholder="votre@email.com" />
+                </div>
+              </div>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{lang === "fr" ? "Téléphone (optionnel)" : "Phone (optional)"}</label>
+                <div style={authSt.inputBox}>
+                  <input style={authSt.input} type="tel" name="telephone" value={joinForm.telephone} onChange={handleJoinChange} placeholder="+225 07 00 00 00 00" />
+                </div>
+              </div>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("password")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={{ ...authSt.input, paddingRight: "44px" }} type={joinShowPwd ? "text" : "password"} name="mot_de_passe" value={joinForm.mot_de_passe} onChange={handleJoinChange} placeholder={t("minChars")} />
+                  <button type="button" style={authSt.eyeBtn} onClick={() => setJoinShowPwd((v) => !v)}>{joinShowPwd ? <EyeOff /> : <EyeOpen />}</button>
+                </div>
+              </div>
+              <div style={authSt.field}>
+                <label style={authSt.label}>{t("confirmPassword")}</label>
+                <div style={authSt.inputBox}>
+                  <input style={{ ...authSt.input, paddingRight: "44px" }} type={joinShowPwd2 ? "text" : "password"} name="confirmer" value={joinForm.confirmer} onChange={handleJoinChange} placeholder={t("repeatPassword")} />
+                  <button type="button" style={authSt.eyeBtn} onClick={() => setJoinShowPwd2((v) => !v)}>{joinShowPwd2 ? <EyeOff /> : <EyeOpen />}</button>
+                </div>
+              </div>
+              {error && <div style={authSt.error}>⚠️ {error}</div>}
+              <button type="submit" style={{ ...authSt.submitBtn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+                {loading ? (lang === "fr" ? "Création…" : "Creating…") : (lang === "fr" ? "Rejoindre l'association" : "Join association")}
+              </button>
+            </form>
+            <p style={authSt.switchText}>
+              {lang === "fr" ? "Déjà un compte ?" : "Already have an account?"}{" "}
+              <button style={authSt.switchLink} onClick={() => { setMode("login"); setError(""); }}>
+                {t("signIn")}
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Formulaire principal ──
   return (
     <div style={{ position: "relative" }}>
@@ -758,6 +1065,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
           <div style={authSt.tabs}>
             <button style={{ ...authSt.tab, ...(mode === "login" ? authSt.tabOn : {}) }} onClick={() => { setMode("login"); setError(""); }}>{t("login")}</button>
             <button style={{ ...authSt.tab, ...(mode === "register" ? authSt.tabOn : {}) }} onClick={() => { setMode("register"); setError(""); }}>{t("createAccount")}</button>
+            <button style={{ ...authSt.tab, background: mode === "login" || mode === "register" ? undefined : undefined, color: "#27ae60", fontWeight: "700", fontSize: "12px" }} onClick={() => { setMode("join"); setError(""); }}>🔗 {lang === "fr" ? "Rejoindre" : "Join"}</button>
           </div>
 
           <form onSubmit={mode === "register" ? handleRegister : handleSubmit}>
@@ -770,9 +1078,9 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
               </div>
             )}
             <div style={authSt.field}>
-              <label style={authSt.label}>{t("emailAddress")}</label>
+              <label style={authSt.label}>{mode === "login" ? (lang === "fr" ? "Email ou Téléphone" : "Email or Phone") : t("emailAddress")}</label>
               <div style={authSt.inputBox}>
-                <input style={authSt.input} type="email" name="email" value={form.email} onChange={handleChange} placeholder="votre@email.com" autoFocus={mode === "login"} />
+                <input style={authSt.input} type={mode === "login" ? "text" : "email"} name="email" value={form.email} onChange={handleChange} placeholder={mode === "login" ? (lang === "fr" ? "email ou téléphone" : "email or phone") : "votre@email.com"} autoFocus={mode === "login"} />
               </div>
             </div>
             <div style={authSt.field}>
@@ -869,6 +1177,541 @@ const authSt = {
   switchText: { textAlign: "center", marginTop: "18px", fontSize: "13px", color: "#95a5a6" },
   switchLink: { background: "none", border: "none", color: "#3498db", cursor: "pointer", fontWeight: "bold", fontSize: "13px", padding: 0 },
 };
+
+// ═══════════════════════════════════════════════════════
+// INTERFACE MEMBRE (role = user)
+// ═══════════════════════════════════════════════════════
+function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
+  const [profile, setProfile] = useState(null);
+  const [cotisations, setCotisations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState("profil");
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [changePwdStep, setChangePwdStep] = useState(1);
+  const [changePwdForm, setChangePwdForm] = useState({ ancien: "", nouveau: "", confirmer: "" });
+  const [changePwdError, setChangePwdError] = useState("");
+  const [changePwdSuccess, setChangePwdSuccess] = useState(false);
+  const [changePwdLoading, setChangePwdLoading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showOldPwd, setShowOldPwd] = useState(false);
+  const [showNewPwdU, setShowNewPwdU] = useState(false);
+  const [showConfirmPwdU, setShowConfirmPwdU] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [membres, setMembres] = useState([]);
+  const [toutesCotsations, setToutesCotisations] = useState([]);
+  const [membreSearch, setMembreSearch] = useState("");
+  const [userMessages, setUserMessages] = useState([]);
+  const [userMsgUnread, setUserMsgUnread] = useState(0);
+
+  const t2 = (fr, en) => lang === "fr" ? fr : en;
+
+  const apiFetch = (url, options = {}) =>
+    fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${compte.token}` } });
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch(`${API_BASE}/me`).then((r) => r.json()).then(setProfile),
+      apiFetch(`${API_BASE}/me/cotisations`).then((r) => r.json()).then(setCotisations),
+      apiFetch(`${API_BASE}/me/membres`).then((r) => r.json()).then((d) => setMembres(Array.isArray(d) ? d : [])),
+      apiFetch(`${API_BASE}/me/toutes-cotisations`).then((r) => r.json()).then((d) => setToutesCotisations(Array.isArray(d) ? d : [])),
+      apiFetch(`${API_BASE}/messages`).then((r) => r.json()).then((d) => {
+        if (!Array.isArray(d)) return;
+        setUserMessages(d);
+        const seenKey = `msg_seen_${compte?.email}`;
+        const seenAt = parseInt(localStorage.getItem(seenKey) || "0");
+        setUserMsgUnread(d.filter(m => new Date(m.created_at).getTime() > seenAt).length);
+      }).catch(() => {}),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  const handleSaveProfile = async () => {
+    setEditError("");
+    if (!editForm.nom || !editForm.prenom) { setEditError(t2("Nom et prénom obligatoires.", "First and last name are required.")); return; }
+    try {
+      const res = await apiFetch(`${API_BASE}/me`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom: editForm.nom, prenom: editForm.prenom, telephone: editForm.telephone, photo: editForm.photo }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEditError(data.error || t2("Erreur.", "Error.")); return; }
+      setProfile((prev) => ({ ...prev, ...editForm }));
+      setEditMode(false);
+      setEditSuccess(t2("Profil mis à jour !", "Profile updated!"));
+      setTimeout(() => setEditSuccess(""), 3000);
+    } catch { setEditError(t2("Erreur réseau.", "Network error.")); }
+  };
+
+  const handleChangePwd = async (e) => {
+    e.preventDefault();
+    setChangePwdError("");
+    if (changePwdStep === 1) {
+      if (!changePwdForm.ancien) { setChangePwdError(t2("Mot de passe actuel requis.", "Current password required.")); return; }
+      setChangePwdLoading(true);
+      try {
+        const res = await apiFetch(`${API_BASE}/auth/verify-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mot_de_passe: changePwdForm.ancien }),
+        });
+        if (!res.ok) { const d = await res.json(); setChangePwdError(d.error || t2("Mot de passe incorrect.", "Wrong password.")); return; }
+        setChangePwdStep(2);
+      } catch { setChangePwdError(t2("Erreur réseau.", "Network error.")); }
+      finally { setChangePwdLoading(false); }
+      return;
+    }
+    if (!changePwdForm.nouveau || changePwdForm.nouveau.length < 6) { setChangePwdError(t2("Minimum 6 caractères.", "Minimum 6 characters.")); return; }
+    if (changePwdForm.nouveau !== changePwdForm.confirmer) { setChangePwdError(t2("Les mots de passe ne correspondent pas.", "Passwords do not match.")); return; }
+    setChangePwdLoading(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/auth/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ancien_mot_de_passe: changePwdForm.ancien, nouveau_mot_de_passe: changePwdForm.nouveau }),
+      });
+      if (!res.ok) { const d = await res.json(); setChangePwdError(d.error || t2("Erreur.", "Error.")); return; }
+      setChangePwdSuccess(true);
+      setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" });
+      setChangePwdStep(1);
+    } catch { setChangePwdError(t2("Erreur réseau.", "Network error.")); }
+    finally { setChangePwdLoading(false); }
+  };
+
+  const statutColor = (s) => s === "Payé" ? "#27ae60" : s === "Partiel" ? "#f39c12" : "#e74c3c";
+  const statutBg = (s) => s === "Payé" ? "#d5f5e3" : s === "Partiel" ? "#fef9e7" : "#fdecea";
+  const statutLabel = (s) => s === "Payé" ? t2("Payé", "Paid") : s === "Partiel" ? t2("Partiel", "Partial") : t2("Impayé", "Unpaid");
+
+  const navBtnStyle = (active) => ({
+    padding: "8px 14px", background: active ? "#3498db" : "rgba(255,255,255,0.12)",
+    color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "13px", fontWeight: active ? "700" : "500",
+  });
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Arial", background: "#f0f4f8" }}>
+        <div style={{ textAlign: "center", color: "#2c3e50" }}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>⏳</div>
+          <p>{t2("Chargement…", "Loading…")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ fontFamily: "Arial", minHeight: "100vh", background: "#f0f4f8" }}>
+
+      {/* ── NAVBAR ── */}
+      <div style={{ background: "#2c3e50", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <img src={logo} alt="Logo" style={{ height: "42px", width: "42px", objectFit: "cover", borderRadius: "50%" }} />
+          <div>
+            <div style={{ color: "white", fontWeight: "700", fontSize: "15px" }}>Cotisation Pro</div>
+            <div style={{ color: "#3498db", fontSize: "11px", fontWeight: "600" }}>🏛️ {compte.nom_association}</div>
+          </div>
+        </div>
+        {/* Desktop nav */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }} className="app-menu-buttons">
+          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "5px 10px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "16px", cursor: "pointer", fontSize: "12px" }} className="lang-select">
+            <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
+          </select>
+          <button onClick={() => setPage("profil")} style={navBtnStyle(page === "profil")}>{t2("Mon Profil", "My Profile")}</button>
+          <button onClick={() => setPage("membres")} style={navBtnStyle(page === "membres")}>{t2("Membres", "Members")}</button>
+          <button onClick={() => setPage("cotisations")} style={navBtnStyle(page === "cotisations")}>{t2("Mes Paiements", "My Payments")}</button>
+          <button onClick={() => setPage("apercu")} style={navBtnStyle(page === "apercu")}>{t2("Cotisations", "Contributions")}</button>
+          <button onClick={() => { setPage("messages"); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setUserMsgUnread(0); }} style={{ ...navBtnStyle(page === "messages"), position: "relative" }}>
+            {t2("Messages", "Messages")}
+            {userMsgUnread > 0 && <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "16px", height: "16px", fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{userMsgUnread}</span>}
+          </button>
+          <button onClick={() => setShowLogoutConfirm(true)} style={{ ...navBtnStyle(false), background: "#c0392b" }}>{t2("Déconnexion", "Logout")}</button>
+        </div>
+      </div>
+
+      {/* ── CONTENU ── */}
+      <div style={{ maxWidth: "820px", margin: "0 auto", padding: "28px 16px" }}>
+
+        {/* Badge rôle */}
+        <div style={{ background: "#eaf6fd", border: "1px solid #3498db", borderRadius: "8px", padding: "8px 16px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#2c3e50" }}>
+          <span>👤</span>
+          <span><strong>{t2("Espace Membre", "Member Space")}</strong>{profile ? ` — ${profile.nom} ${profile.prenom}` : ""}</span>
+          <span style={{ marginLeft: "auto", background: "#3498db", color: "white", padding: "2px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: "700" }}>MEMBRE</span>
+        </div>
+
+        {/* ── PAGE PROFIL ── */}
+        {page === "profil" && profile && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
+              <h2 style={{ margin: 0, color: "#2c3e50", fontSize: "20px" }}>👤 {t2("Mon Profil", "My Profile")}</h2>
+              {!editMode && (
+                <button onClick={() => { setEditForm({ nom: profile.nom, prenom: profile.prenom, telephone: profile.telephone || "", photo: profile.photo || "" }); setEditMode(true); setEditError(""); }}
+                  style={{ padding: "8px 16px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
+                  ✏️ {t2("Modifier", "Edit")}
+                </button>
+              )}
+            </div>
+
+            {editSuccess && (
+              <div style={{ background: "#d5f5e3", border: "1px solid #27ae60", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px" }}>✅ {editSuccess}</div>
+            )}
+
+            {!editMode ? (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "24px" }}>
+                  {profile.photo ? (
+                    <img src={profile.photo} alt="Photo" style={{ width: "90px", height: "90px", borderRadius: "50%", objectFit: "cover", border: "3px solid #3498db", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: "90px", height: "90px", borderRadius: "50%", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px", flexShrink: 0 }}>👤</div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: "22px", fontWeight: "700", color: "#2c3e50" }}>{profile.nom} {profile.prenom}</div>
+                    {profile.matricule && <div style={{ color: "#7f8c8d", fontSize: "14px", marginTop: "4px" }}>#{profile.matricule}</div>}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
+                  {[
+                    { label: t2("Nom", "Last Name"), value: profile.nom },
+                    { label: t2("Prénom", "First Name"), value: profile.prenom },
+                    { label: t2("Téléphone", "Phone"), value: profile.telephone || "—" },
+                    { label: "Email", value: profile.email || "—" },
+                    { label: "Matricule", value: profile.matricule || "—" },
+                    { label: t2("Inscription", "Registered"), value: profile.date_inscription ? new Date(profile.date_inscription).toLocaleDateString("fr-FR") : "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ background: "#f7f9fc", borderRadius: "8px", padding: "14px", border: "1px solid #e0e6ed" }}>
+                      <div style={{ fontSize: "11px", color: "#7f8c8d", textTransform: "uppercase", fontWeight: "700", marginBottom: "6px" }}>{label}</div>
+                      <div style={{ fontSize: "15px", color: "#2c3e50", fontWeight: "500" }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid #f0f4f8" }}>
+                  <button onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccess(false); setShowChangePwd(true); }}
+                    style={{ padding: "10px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
+                    🔑 {t2("Changer le mot de passe", "Change Password")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "20px" }}>
+                  <div style={{ width: "90px", height: "90px", borderRadius: "50%", overflow: "hidden", border: "3px solid #3498db", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    onClick={() => document.getElementById("userPhotoInput").click()}>
+                    {editForm.photo ? <img src={editForm.photo} alt="Photo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "40px" }}>👤</span>}
+                  </div>
+                  <input type="file" accept="image/*" id="userPhotoInput" style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setEditForm((f) => ({ ...f, photo: ev.target.result }));
+                      reader.readAsDataURL(file);
+                    }} />
+                  <button type="button" style={{ marginTop: "8px", padding: "5px 12px", background: "#3498db", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
+                    onClick={() => document.getElementById("userPhotoInput").click()}>
+                    {editForm.photo ? t2("Changer la photo", "Change Photo") : t2("Ajouter une photo", "Add Photo")}
+                  </button>
+                </div>
+                {[
+                  { label: t2("Nom", "Last Name"), field: "nom", required: true },
+                  { label: t2("Prénom", "First Name"), field: "prenom", required: true },
+                  { label: t2("Téléphone", "Phone"), field: "telephone", required: false },
+                ].map(({ label, field, required }) => (
+                  <div key={field} style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "5px", textTransform: "uppercase" }}>{label}{required ? " *" : ""}</label>
+                    <input value={editForm[field] || ""} onChange={(e) => setEditForm((f) => ({ ...f, [field]: e.target.value }))}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "7px", fontSize: "14px", boxSizing: "border-box" }} />
+                  </div>
+                ))}
+                {editError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px", borderRadius: "7px", marginBottom: "14px", fontSize: "13px" }}>⚠️ {editError}</div>}
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  <button onClick={() => { setEditMode(false); setEditError(""); }}
+                    style={{ padding: "10px 20px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+                    {t2("Annuler", "Cancel")}
+                  </button>
+                  <button onClick={handleSaveProfile}
+                    style={{ padding: "10px 20px", background: "#27ae60", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "700" }}>
+                    {t2("Enregistrer", "Save")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PAGE COTISATIONS ── */}
+        {page === "cotisations" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
+              💰 {t2("Mes Cotisations", "My Contributions")}
+            </h2>
+            {cotisations.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0", fontSize: "15px" }}>
+                {t2("Aucune cotisation enregistrée.", "No contributions recorded.")}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {cotisations.map((c, i) => (
+                  <div key={i} style={{ border: `2px solid ${statutColor(c.statut)}33`, borderRadius: "10px", padding: "16px 20px", background: statutBg(c.statut) + "55" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                      <div>
+                        <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "16px" }}>{c.periode}</div>
+                        {c.dernierPaiement && <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Dernier paiement", "Last payment")}: {c.dernierPaiement}</div>}
+                      </div>
+                      <span style={{ background: statutColor(c.statut), color: "white", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", fontWeight: "700" }}>
+                        {statutLabel(c.statut)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "24px", marginTop: "12px", flexWrap: "wrap" }}>
+                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Montant dû", "Amount due")}: <strong style={{ color: "#2c3e50" }}>{c.montantDu}</strong></div>
+                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Payé", "Paid")}: <strong style={{ color: "#27ae60" }}>{c.soldePaye}</strong></div>
+                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Reste", "Remaining")}: <strong style={{ color: "#e74c3c" }}>{c.reste}</strong></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PAGE MEMBRES ── */}
+        {page === "membres" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 20px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
+              👥 {t2("Membres de l'association", "Association Members")}
+            </h2>
+            <div style={{ marginBottom: "16px" }}>
+              <input
+                value={membreSearch}
+                onChange={(e) => setMembreSearch(e.target.value)}
+                placeholder={t2("Rechercher un membre…", "Search a member…")}
+                style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }}
+              />
+            </div>
+            {membres.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0" }}>{t2("Aucun membre enregistré.", "No members registered.")}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {membres
+                  .filter((m) => {
+                    const q = membreSearch.toLowerCase();
+                    return !q || `${m.nom} ${m.prenom} ${m.matricule || ""} ${m.telephone || ""} ${m.email || ""}`.toLowerCase().includes(q);
+                  })
+                  .map((m) => (
+                    <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "14px", padding: "14px 16px", border: "1px solid #e0e6ed", borderRadius: "10px", background: "#f7f9fc" }}>
+                      {m.photo ? (
+                        <img src={m.photo} alt="" style={{ width: "46px", height: "46px", borderRadius: "50%", objectFit: "cover", border: "2px solid #3498db", flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: "46px", height: "46px", borderRadius: "50%", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>👤</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px" }}>{m.nom} {m.prenom}</div>
+                        <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>
+                          {m.matricule && <span style={{ marginRight: "10px" }}>#{m.matricule}</span>}
+                          {m.telephone && <span style={{ marginRight: "10px" }}>📞 {m.telephone}</span>}
+                          {m.email && <span>✉️ {m.email}</span>}
+                        </div>
+                      </div>
+                      {m.date_inscription && (
+                        <div style={{ fontSize: "11px", color: "#95a5a6", textAlign: "right", flexShrink: 0 }}>
+                          {t2("Inscrit le", "Joined")}<br />
+                          {new Date(m.date_inscription).toLocaleDateString("fr-FR")}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <div style={{ marginTop: "16px", fontSize: "12px", color: "#95a5a6", textAlign: "center" }}>
+              {membres.length} {t2("membre(s) au total", "member(s) total")}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAGE APERÇU COTISATIONS ── */}
+        {page === "apercu" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
+              📊 {t2("Suivi des cotisations", "Contributions Overview")}
+            </h2>
+            {toutesCotsations.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0" }}>{t2("Aucune cotisation créée.", "No contributions created.")}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {toutesCotsations.map((c) => {
+                  const pct = c.total > 0 ? Math.round((c.payes / c.total) * 100) : 0;
+                  return (
+                    <div key={c.id} style={{ border: "1px solid #e0e6ed", borderRadius: "12px", padding: "20px 24px", background: "#f7f9fc" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+                        <div>
+                          <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "16px" }}>{c.libelle}</div>
+                          <div style={{ fontSize: "13px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Montant dû :", "Amount due:")} <strong>{c.montantDu}</strong></div>
+                        </div>
+                        <div style={{ background: pct === 100 ? "#27ae60" : pct > 0 ? "#f39c12" : "#e74c3c", color: "white", padding: "4px 14px", borderRadius: "14px", fontSize: "13px", fontWeight: "700" }}>
+                          {pct}% {t2("payé", "paid")}
+                        </div>
+                      </div>
+                      <div style={{ background: "#e0e6ed", borderRadius: "6px", height: "8px", overflow: "hidden", marginBottom: "12px" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#27ae60" : "#3498db", borderRadius: "6px", transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                        <div style={{ fontSize: "13px", color: "#27ae60", fontWeight: "600" }}>✅ {c.payes} {t2("payé(s)", "paid")}</div>
+                        <div style={{ fontSize: "13px", color: "#f39c12", fontWeight: "600" }}>⏳ {c.partiels} {t2("partiel(s)", "partial")}</div>
+                        <div style={{ fontSize: "13px", color: "#e74c3c", fontWeight: "600" }}>❌ {c.impayes} {t2("impayé(s)", "unpaid")}</div>
+                        <div style={{ fontSize: "13px", color: "#7f8c8d" }}>👥 {c.total} {t2("total", "total")}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        {/* ── PAGE MESSAGES ── */}
+        {page === "messages" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px" }}>📢 {t2("Messages de l'association", "Association Messages")}</h2>
+            <p style={{ color: "#7f8c8d", fontSize: "13px", marginBottom: "20px" }}>
+              {t2("Annonces et informations envoyées par votre administrateur.", "Announcements and information sent by your administrator.")}
+            </p>
+            {userMessages.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "40px 0" }}>
+                <div style={{ fontSize: "40px", marginBottom: "10px" }}>📭</div>
+                <p style={{ margin: 0 }}>{t2("Aucun message pour le moment.", "No messages yet.")}</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {userMessages.map(m => (
+                  <div key={m.id} style={{ border: "1px solid #e0e6ed", borderRadius: "10px", padding: "18px 20px", background: "#f7f9fc" }}>
+                    <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px", marginBottom: "8px" }}>{m.titre}</div>
+                    <div style={{ color: "#555", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
+                    <div style={{ color: "#95a5a6", fontSize: "12px", marginTop: "10px" }}>
+                      🕐 {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* ── MODAL CHANGEMENT MOT DE PASSE ── */}
+      {showChangePwd && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "400px", maxWidth: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h3 style={{ margin: 0, color: "#2c3e50", fontSize: "17px" }}>🔑 {t2("Changer le mot de passe", "Change Password")}</h3>
+              <button onClick={() => setShowChangePwd(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#7f8c8d" }}>✕</button>
+            </div>
+            {changePwdSuccess ? (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>✅</div>
+                <p style={{ color: "#27ae60", fontWeight: "600", margin: "0 0 20px" }}>{t2("Mot de passe modifié avec succès !", "Password changed successfully!")}</p>
+                <button onClick={() => setShowChangePwd(false)} style={{ padding: "10px 28px", background: "#3498db", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600" }}>
+                  {t2("Fermer", "Close")}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleChangePwd}>
+                {changePwdStep === 1 ? (
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "5px", textTransform: "uppercase" }}>{t2("Mot de passe actuel", "Current Password")}</label>
+                    <div style={{ position: "relative" }}>
+                      <input type={showOldPwd ? "text" : "password"} value={changePwdForm.ancien} onChange={(e) => setChangePwdForm((f) => ({ ...f, ancien: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "7px", fontSize: "14px", boxSizing: "border-box" }} autoFocus />
+                      <button type="button" onClick={() => setShowOldPwd((v) => !v)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d" }}>
+                        {showOldPwd ? <EyeOff /> : <EyeOpen />}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "5px", textTransform: "uppercase" }}>{t2("Nouveau mot de passe", "New Password")}</label>
+                      <div style={{ position: "relative" }}>
+                        <input type={showNewPwdU ? "text" : "password"} value={changePwdForm.nouveau} onChange={(e) => setChangePwdForm((f) => ({ ...f, nouveau: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "7px", fontSize: "14px", boxSizing: "border-box" }}
+                          placeholder={t2("Min. 6 caractères", "Min. 6 characters")} autoFocus />
+                        <button type="button" onClick={() => setShowNewPwdU((v) => !v)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d" }}>
+                          {showNewPwdU ? <EyeOff /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "5px", textTransform: "uppercase" }}>{t2("Confirmer", "Confirm")}</label>
+                      <div style={{ position: "relative" }}>
+                        <input type={showConfirmPwdU ? "text" : "password"} value={changePwdForm.confirmer} onChange={(e) => setChangePwdForm((f) => ({ ...f, confirmer: e.target.value }))}
+                          style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "7px", fontSize: "14px", boxSizing: "border-box" }} />
+                        <button type="button" onClick={() => setShowConfirmPwdU((v) => !v)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#7f8c8d" }}>
+                          {showConfirmPwdU ? <EyeOff /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {changePwdError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px", borderRadius: "7px", marginBottom: "12px", fontSize: "13px" }}>⚠️ {changePwdError}</div>}
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  {changePwdStep === 2 && (
+                    <button type="button" onClick={() => { setChangePwdStep(1); setChangePwdError(""); }} style={{ padding: "10px 16px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+                      ← {t2("Retour", "Back")}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setShowChangePwd(false)} style={{ padding: "10px 16px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+                    {t2("Annuler", "Cancel")}
+                  </button>
+                  <button type="submit" disabled={changePwdLoading} style={{ padding: "10px 20px", background: changePwdLoading ? "#95a5a6" : "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "700" }}>
+                    {changePwdLoading ? "…" : changePwdStep === 1 ? t2("Continuer →", "Continue →") : t2("Modifier", "Change")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DÉCONNEXION ── */}
+      {showLogoutConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "32px 36px", width: "340px", maxWidth: "90vw", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: "17px", color: "#2c3e50" }}>{t2("Déconnexion", "Logout")}</h3>
+            <p style={{ margin: "0 0 22px", fontSize: "14px", color: "#7f8c8d" }}>{t2("Vous allez être déconnecté. Continuer ?", "You will be logged out. Continue?")}</p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button onClick={() => setShowLogoutConfirm(false)} style={{ padding: "10px 24px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "14px" }}>
+                {t2("Annuler", "Cancel")}
+              </button>
+              <button onClick={onLogout} style={{ padding: "10px 24px", background: "#c0392b", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "700" }}>
+                {t2("Déconnecter", "Logout")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── NAVIGATION BAS MOBILE ── */}
+      <nav className="bottom-nav">
+        <button className={`bnav-item${page === "profil" ? " bnav-active" : ""}`} onClick={() => setPage("profil")}>
+          <span className="bnav-label">{t2("Profil", "Profile")}</span>
+        </button>
+        <button className={`bnav-item${page === "cotisations" ? " bnav-active" : ""}`} onClick={() => setPage("cotisations")}>
+          <span className="bnav-label">{t2("Cotisations", "Contributions")}</span>
+        </button>
+        <button className={`bnav-item${page === "messages" ? " bnav-active" : ""}`} style={{ position: "relative" }} onClick={() => { setPage("messages"); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setUserMsgUnread(0); }}>
+          <span className="bnav-label">{t2("Messages", "Messages")}</span>
+          {userMsgUnread > 0 && <span style={{ position: "absolute", top: "4px", right: "8px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "14px", height: "14px", fontSize: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{userMsgUnread}</span>}
+        </button>
+        <button className="bnav-item" onClick={() => setShowChangePwd(true)}>
+          <span className="bnav-label">{t2("Mot de passe", "Password")}</span>
+        </button>
+        <button className="bnav-item" onClick={() => setShowLogoutConfirm(true)}>
+          <span className="bnav-label">{t2("Déconnexion", "Logout")}</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════
 // APPLICATION PRINCIPALE
@@ -1013,6 +1856,13 @@ function App() {
   const [periodes, setPeriodes] = useState([]);
   const [loadingAdherents, setLoadingAdherents] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [adminMessages, setAdminMessages] = useState([]);
+  const [msgForm, setMsgForm] = useState({ titre: "", contenu: "" });
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgError, setMsgError] = useState("");
+  const [msgSuccess, setMsgSuccess] = useState("");
+  const [adminMsgUnread, setAdminMsgUnread] = useState(0);
+  const [msgTab, setMsgTab] = useState("nouveau");
 
   // ── Chargement des adhérents ────────────────────────────────
   const loadAdherents = async () => {
@@ -1066,7 +1916,19 @@ function App() {
     }
   };
 
-  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); } }, [compte]);
+  const loadMessages = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/messages`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAdminMessages(data);
+      const seenKey = `msg_seen_${compte?.email}`;
+      const seenAt = parseInt(localStorage.getItem(seenKey) || "0");
+      setAdminMsgUnread(data.filter(m => new Date(m.created_at).getTime() > seenAt).length);
+    } catch {}
+  };
+
+  useEffect(() => { if (compte && compte.role !== "user") { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); } }, [compte]);
 
   // Fermer le menu compte au clic en dehors
   useEffect(() => {
@@ -1099,7 +1961,7 @@ function App() {
       return;
     }
     if (!changePwdForm.nouveau || !changePwdForm.confirmer) { setChangePwdError(t("allFieldsRequired")); return; }
-    if (changePwdForm.nouveau.length < 6) { setChangePwdError(t("passwordMinLength")); return; }
+    if (!pwdOk(changePwdForm.nouveau)) { setChangePwdError(t("passwordMinLength")); return; }
     if (changePwdForm.nouveau !== changePwdForm.confirmer) { setChangePwdError(t("passwordsNoMatch")); return; }
     setChangePwdLoading(true);
     try {
@@ -1161,6 +2023,21 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedPeriode, setSelectedPeriode] = useState(null);
   const [selectedStatutFilter, setSelectedStatutFilter] = useState("tous");
+
+  // ── Gestion utilisateurs (admin) ───────────────────────────
+  const [userList, setUserList] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({ nom: "", prenom: "", email: "", telephone: "", mot_de_passe: "", date_inscription: "" });
+  const [createUserError, setCreateUserError] = useState("");
+  const [createUserLoading, setCreateUserLoading] = useState(false);
+  const [createUserSuccess, setCreateUserSuccess] = useState("");
+  const [showCreateUserPwd, setShowCreateUserPwd] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
+  const [inviteToken, setInviteToken] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteResetting, setInviteResetting] = useState(false);
 
   const [formData, setFormData] = useState({
     matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false, photo: "", photoName: "",
@@ -1593,13 +2470,15 @@ function App() {
             telephone: formData.telephone,
             email: formData.email,
             date_inscription: formData.date,
-            photo: formData.photo || null,
           }),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result?.error || result?.message || "Erreur ajout");
         await loadAdherents();
-        showToast(t("memberAdded"));
+        const msg = result.emailSent
+          ? (lang === "fr" ? "Adhérent ajouté — identifiants envoyés par email ✅" : "Member added — credentials sent by email ✅")
+          : (lang === "fr" ? "Adhérent ajouté (aucun email envoyé — email manquant)" : "Member added (no email sent — email missing)");
+        showToast(msg);
       } catch (error) {
         setApiError(error.message);
         return;
@@ -1838,6 +2717,77 @@ function App() {
     }
   };
 
+  // ── Code d'invitation ──────────────────────────────────────
+  const loadInviteToken = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/invite-token`);
+      const data = await res.json();
+      if (res.ok) setInviteToken(data.token || "");
+    } catch (_) {}
+  };
+
+  const resetInviteToken = async () => {
+    setInviteResetting(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/invite-token/reset`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) { setInviteToken(data.token || ""); setInviteCopied(false); }
+    } catch (_) {}
+    finally { setInviteResetting(false); }
+  };
+
+  const copyInviteToken = () => {
+    navigator.clipboard.writeText(inviteToken).then(() => {
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2500);
+    });
+  };
+
+  // ── Chargement / création / suppression des comptes utilisateurs ──
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await apiFetch(`${API_BASE}/admin/users`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setUserList(data);
+    } catch (_) {}
+    finally { setLoadingUsers(false); }
+  };
+
+  const handleCreateUser = async () => {
+    setCreateUserError("");
+    const { nom, prenom, email, telephone, mot_de_passe } = createUserForm;
+    if (!nom || !prenom) { setCreateUserError(t("alertNameRequired")); return; }
+    if (!email && !telephone) { setCreateUserError(lang === "fr" ? "Email ou téléphone requis." : "Email or phone required."); return; }
+    if (!mot_de_passe || !pwdOk(mot_de_passe)) { setCreateUserError(t("passwordMinLength")); return; }
+    setCreateUserLoading(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createUserForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCreateUserError(data.error || t("networkError")); return; }
+      setCreateUserForm({ nom: "", prenom: "", email: "", telephone: "", mot_de_passe: "", date_inscription: "" });
+      setShowCreateUserForm(false);
+      setCreateUserSuccess(lang === "fr" ? `Compte créé — Matricule : ${data.matricule}` : `Account created — ID: ${data.matricule}`);
+      setTimeout(() => setCreateUserSuccess(""), 5000);
+      await loadUsers();
+      await loadAdherents();
+    } catch { setCreateUserError(t("networkError")); }
+    finally { setCreateUserLoading(false); }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      await apiFetch(`${API_BASE}/admin/users/${userId}`, { method: "DELETE" });
+      await loadUsers();
+      showToast(lang === "fr" ? "Accès supprimé" : "Access removed");
+    } catch (_) {}
+  };
+
   const selectedPeriodeObj = periodes.find((p) => p.libelle === selectedPeriode);
 
   const dragProps = (e) => {
@@ -1868,6 +2818,19 @@ function App() {
     return map[m] || m;
   };
 
+  // ── Guard : interface membre (role = user) ─────────────────
+  if (compte?.role === "user") {
+    return (
+      <UserDashboard
+        compte={compte}
+        API_BASE={API_BASE}
+        lang={lang}
+        setLang={setLang}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   // ── Guard : si non connecté → landing ou authentification ──
   if (!compte) {
     if (showLanding) {
@@ -1876,8 +2839,10 @@ function App() {
           lang={lang}
           setLang={setLang}
           t={t}
+          API_BASE={API_BASE}
           onLogin={() => { setInitialAuthMode("login"); setShowLanding(false); }}
           onRegister={() => { setInitialAuthMode("register"); setShowLanding(false); }}
+          onJoin={() => { setInitialAuthMode("join"); setShowLanding(false); }}
         />
       );
     }
@@ -1941,6 +2906,11 @@ function App() {
           <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
           <button style={styles.btn} onClick={() => setPage("cotisations")}>{t("contributions")}</button>
           <button style={styles.btn} onClick={() => setPage("historique")}>{t("history")}</button>
+
+          <button style={{ ...styles.btn, background: "#e67e22", position: "relative" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
+            {lang === "fr" ? "Messages" : "Messages"}
+            {adminMsgUnread > 0 && <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "16px", height: "16px", fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{adminMsgUnread}</span>}
+          </button>
           <div style={{ position: "relative", marginLeft: "14px" }} ref={accountMenuRef}>
             <button style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setShowAccountMenu(v => !v)}>
               {t("accountMenu")} ▾
@@ -2088,6 +3058,35 @@ function App() {
             {selectedAdherentId === null ? (
               <div>
                 <h1>{t("memberManagement")}</h1>
+
+                {/* ── Code d'invitation membres ── */}
+                <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", color: "white" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "18px" }}>🔗</span>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "14px" }}>{lang === "fr" ? "Code d'invitation — auto-inscription" : "Invite code — self-registration"}</div>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                        {lang === "fr" ? "Partagez ce code pour que les membres s'inscrivent eux-mêmes." : "Share this code so members can register themselves."}
+                      </div>
+                    </div>
+                  </div>
+                  {!inviteToken ? (
+                    <button style={{ padding: "8px 18px", background: "#3498db", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600", fontSize: "13px" }} onClick={loadInviteToken}>
+                      {lang === "fr" ? "Générer le code" : "Generate code"}
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <div style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.25)", borderRadius: "7px", padding: "8px 14px", fontFamily: "monospace", fontSize: "14px", fontWeight: "700", letterSpacing: "1px", flex: "1 1 160px", wordBreak: "break-all" }}>{inviteToken}</div>
+                      <button style={{ padding: "8px 14px", background: inviteCopied ? "#27ae60" : "#3498db", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600", fontSize: "12px", flexShrink: 0 }} onClick={copyInviteToken}>
+                        {inviteCopied ? (lang === "fr" ? "✅ Copié !" : "✅ Copied!") : (lang === "fr" ? "📋 Copier" : "📋 Copy")}
+                      </button>
+                      <button style={{ padding: "8px 14px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "7px", cursor: "pointer", fontSize: "12px", flexShrink: 0 }} onClick={resetInviteToken} disabled={inviteResetting}>
+                        {inviteResetting ? "…" : (lang === "fr" ? "🔄 Nouveau" : "🔄 New")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {showUnpaidOrPartial && (
                   <div style={{ background: "#fef9e7", border: "1px solid #f39c12", borderRadius: "8px", padding: "12px 18px", marginBottom: "14px", color: "#7d6608", fontWeight: "600", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>
@@ -2132,44 +3131,54 @@ function App() {
                       <div style={styles.formRow}><label style={styles.label}>{t("lastName")}</label><input name="nom" value={formData.nom} onChange={handleChange} placeholder="Ex. Kouakou" style={styles.input} autoFocus /></div>
                       <div style={styles.formRow}><label style={styles.label}>{t("firstName")}</label><input name="prenom" value={formData.prenom} onChange={handleChange} placeholder="Ex. Jean" style={styles.input} /></div>
                       <div style={styles.formRow}><label style={styles.label}>{t("phone")}</label><input name="telephone" value={formData.telephone} onChange={handleChange} placeholder="Ex. +225 07 00 00 00 00" style={styles.input} /></div>
-                      <div style={styles.formRow}><label style={styles.label}>{t("emailField")}</label><input name="email" value={formData.email} onChange={handleChange} placeholder="Ex. jean@example.com" type="email" style={styles.input} /></div>
-                      <div style={styles.formRow}><label style={styles.label}>{t("registrationDate")}</label><input type="date" name="date" value={formData.date} onChange={handleChange} style={styles.input} /></div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "14px" }}>
-                        <div
-                          style={{ width: "100px", height: "100px", borderRadius: "50%", overflow: "hidden", border: "3px solid #3498db", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
-                          onClick={() => document.getElementById("adherentPhotoInput").click()}
-                          title="Cliquer pour changer la photo"
-                        >
-                          {formData.photo ? (
-                            <img src={formData.photo} alt="Aperçu" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          ) : (
-                            <span style={{ fontSize: "48px" }}>👤</span>
-                          )}
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="adherentPhotoInput"
-                          style={{ display: "none" }}
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = (ev) => setFormData((prev) => ({ ...prev, photo: ev.target.result, photoName: file.name }));
-                            reader.readAsDataURL(file);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          style={{ marginTop: "8px", padding: "6px 14px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
-                          onClick={() => document.getElementById("adherentPhotoInput").click()}
-                        >
-                          {formData.photo ? t("changePhoto") : t("addPhoto")}
-                        </button>
-                        {formData.photoName && (
-                          <span style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "4px" }}>{formData.photoName}</span>
+                      <div style={styles.formRow}>
+                        <label style={styles.label}>{t("emailField")}</label>
+                        <input name="email" value={formData.email} onChange={handleChange} placeholder="Ex. jean@example.com" type="email" style={styles.input} />
+                        {editingIndex === null && (
+                          <span style={{ fontSize: "11px", color: "#27ae60", marginTop: "4px", display: "block" }}>
+                            {lang === "fr" ? "📧 Un mot de passe sera envoyé automatiquement par email." : "📧 A password will be sent automatically by email."}
+                          </span>
                         )}
                       </div>
+                      <div style={styles.formRow}><label style={styles.label}>{t("registrationDate")}</label><input type="date" name="date" value={formData.date} onChange={handleChange} style={styles.input} /></div>
+                      {editingIndex !== null && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "14px" }}>
+                          <div
+                            style={{ width: "100px", height: "100px", borderRadius: "50%", overflow: "hidden", border: "3px solid #3498db", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+                            onClick={() => document.getElementById("adherentPhotoInput").click()}
+                            title="Cliquer pour changer la photo"
+                          >
+                            {formData.photo ? (
+                              <img src={formData.photo} alt="Aperçu" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <span style={{ fontSize: "48px" }}>👤</span>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="adherentPhotoInput"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setFormData((prev) => ({ ...prev, photo: ev.target.result, photoName: file.name }));
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={{ marginTop: "8px", padding: "6px 14px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
+                            onClick={() => document.getElementById("adherentPhotoInput").click()}
+                          >
+                            {formData.photo ? t("changePhoto") : t("addPhoto")}
+                          </button>
+                          {formData.photoName && (
+                            <span style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "4px" }}>{formData.photoName}</span>
+                          )}
+                        </div>
+                      )}
                       <div style={styles.modalButtons}>
                         <button style={styles.addBtn} onClick={handleSave}>{editingIndex !== null ? t("edit") : t("add")}</button>
                         <button style={styles.cancelBtn} onClick={() => { setShowForm(false); setEditingIndex(null); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); }}>{t("cancel")}</button>
@@ -2750,6 +3759,118 @@ function App() {
           </div>
         )}
 
+        {/* ── MESSAGES ────────────────────────────────────────── */}
+        {page === "messages" && (
+          <div>
+            <h1 style={{ color: "#2c3e50", marginBottom: "6px" }}>{lang === "fr" ? "Messages aux membres" : "Member Messages"}</h1>
+            <p style={{ color: "#7f8c8d", marginBottom: "20px", fontSize: "14px" }}>
+              {lang === "fr" ? "Envoyez une information ou annonce à tous vos membres. Ils la verront dans leur espace." : "Send information or an announcement to all your members. They will see it in their space."}
+            </p>
+
+            {/* Sous-onglets */}
+            <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", background: "white" }}>
+              <button
+                style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: msgTab === "nouveau" ? "700" : "500", background: msgTab === "nouveau" ? "#e67e22" : "transparent", color: msgTab === "nouveau" ? "white" : "#7f8c8d", transition: "all 0.15s" }}
+                onClick={() => { setMsgTab("nouveau"); setMsgError(""); setMsgSuccess(""); }}
+              >
+                {lang === "fr" ? "Nouveau message" : "New Message"}
+              </button>
+              <button
+                style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "14px", fontWeight: msgTab === "envoyes" ? "700" : "500", background: msgTab === "envoyes" ? "#e67e22" : "transparent", color: msgTab === "envoyes" ? "white" : "#7f8c8d", transition: "all 0.15s", position: "relative" }}
+                onClick={() => setMsgTab("envoyes")}
+              >
+                {lang === "fr" ? "Messages envoyés" : "Sent Messages"}
+                {adminMessages.length > 0 && <span style={{ marginLeft: "8px", background: msgTab === "envoyes" ? "rgba(255,255,255,0.3)" : "#e67e22", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{adminMessages.length}</span>}
+              </button>
+            </div>
+
+            {/* Formulaire d'envoi */}
+            {msgTab === "nouveau" && (
+              <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {lang === "fr" ? "Titre" : "Title"}
+                  </label>
+                  <input
+                    style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+                    value={msgForm.titre}
+                    onChange={e => setMsgForm(f => ({ ...f, titre: e.target.value }))}
+                    placeholder={lang === "fr" ? "Objet du message" : "Message subject"}
+                    autoFocus
+                  />
+                </div>
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {lang === "fr" ? "Contenu" : "Content"}
+                  </label>
+                  <textarea
+                    style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit" }}
+                    value={msgForm.contenu}
+                    onChange={e => setMsgForm(f => ({ ...f, contenu: e.target.value }))}
+                    placeholder={lang === "fr" ? "Contenu du message…" : "Message content…"}
+                  />
+                </div>
+                {msgError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>⚠️ {msgError}</div>}
+                {msgSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>✅ {msgSuccess}</div>}
+                <button
+                  style={{ padding: "11px 32px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: msgLoading ? 0.7 : 1 }}
+                  disabled={msgLoading}
+                  onClick={async () => {
+                    setMsgError(""); setMsgSuccess("");
+                    if (!msgForm.titre.trim() || !msgForm.contenu.trim()) { setMsgError(lang === "fr" ? "Titre et contenu requis." : "Title and content required."); return; }
+                    setMsgLoading(true);
+                    try {
+                      const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(msgForm) });
+                      const data = await res.json();
+                      if (!res.ok) { setMsgError(data.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                      setAdminMessages(prev => [data, ...prev]);
+                      setMsgForm({ titre: "", contenu: "" });
+                      setMsgSuccess(lang === "fr" ? "Message envoyé avec succès ! Vos membres peuvent le consulter." : "Message sent successfully! Your members can now view it.");
+                      setTimeout(() => { setMsgSuccess(""); setMsgTab("envoyes"); }, 2500);
+                    } catch { setMsgError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                    finally { setMsgLoading(false); }
+                  }}
+                >
+                  {msgLoading ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer à tous les membres" : "Send to all members")}
+                </button>
+              </div>
+            )}
+
+            {/* Liste des messages envoyés */}
+            {msgTab === "envoyes" && (
+              adminMessages.length === 0 ? (
+                <div style={styles.emptyState}><p>{lang === "fr" ? "Aucun message envoyé pour le moment." : "No messages sent yet."}</p></div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {adminMessages.map(m => (
+                    <div key={m.id} style={{ background: "white", borderRadius: "10px", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", border: "1px solid #f0f4f8" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px", marginBottom: "6px" }}>{m.titre}</div>
+                          <div style={{ color: "#555", fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
+                          <div style={{ color: "#95a5a6", fontSize: "12px", marginTop: "10px" }}>
+                            {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
+                          </div>
+                        </div>
+                        <button
+                          style={{ padding: "6px 12px", background: "#fdecea", color: "#c0392b", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", flexShrink: 0 }}
+                          onClick={async () => {
+                            if (!window.confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
+                            try {
+                              await apiFetch(`${API_BASE}/messages/${m.id}`, { method: "DELETE" });
+                              setAdminMessages(prev => prev.filter(x => x.id !== m.id));
+                            } catch {}
+                          }}
+                        >{lang === "fr" ? "Supprimer" : "Delete"}</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        )}
+
         {/* ── NON RÉGLÉS ──────────────────────────────────────── */}
         {page === "nonRegle" && (
           <div>
@@ -3085,7 +4206,7 @@ function App() {
                       <input
                         type={showOldPwd ? "text" : "password"}
                         value={changePwdForm.ancien}
-                        onChange={(e) => setChangePwdForm(f => ({ ...f, ancien: e.target.value }))}
+                        onChange={(e) => setChangePwdForm(f => ({ ...f, ancien: e.target.value.trimStart() }))}
                         style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
                         placeholder="••••••••"
                         autoFocus
@@ -3103,7 +4224,7 @@ function App() {
                         <input
                           type={showNewPwd2 ? "text" : "password"}
                           value={changePwdForm.nouveau}
-                          onChange={(e) => setChangePwdForm(f => ({ ...f, nouveau: e.target.value }))}
+                          onChange={(e) => setChangePwdForm(f => ({ ...f, nouveau: e.target.value.trimStart() }))}
                           style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
                           placeholder={t("minChars")}
                           autoFocus
@@ -3119,7 +4240,7 @@ function App() {
                         <input
                           type={showConfirmPwd2 ? "text" : "password"}
                           value={changePwdForm.confirmer}
-                          onChange={(e) => setChangePwdForm(f => ({ ...f, confirmer: e.target.value }))}
+                          onChange={(e) => setChangePwdForm(f => ({ ...f, confirmer: e.target.value.trimStart() }))}
                           style={{ width: "100%", padding: "10px 44px 10px 12px", border: "1.5px solid #bdc3c7", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
                           placeholder={t("repeatPassword")}
                         />
@@ -3264,23 +4385,23 @@ function App() {
       {/* ── BARRE DE NAVIGATION BAS — MOBILE ────────────────── */}
       <nav className="bottom-nav">
         <button className={`bnav-item${page === "accueil" ? " bnav-active" : ""}`} onClick={() => setPage("accueil")}>
-          <span className="bnav-icon">🏠</span>
           <span className="bnav-label">{t("home")}</span>
         </button>
         <button className={`bnav-item${page === "adherents" ? " bnav-active" : ""}`} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>
-          <span className="bnav-icon">👥</span>
           <span className="bnav-label">{t("members")}</span>
         </button>
         <button className={`bnav-item${page === "cotisations" ? " bnav-active" : ""}`} onClick={() => setPage("cotisations")}>
-          <span className="bnav-icon">💰</span>
           <span className="bnav-label">{t("contributions")}</span>
         </button>
         <button className={`bnav-item${page === "historique" ? " bnav-active" : ""}`} onClick={() => setPage("historique")}>
-          <span className="bnav-icon">📋</span>
           <span className="bnav-label">{t("history")}</span>
         </button>
+
+        <button className={`bnav-item${page === "messages" ? " bnav-active" : ""}`} style={{ position: "relative" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
+          <span className="bnav-label">{lang === "fr" ? "Messages" : "Messages"}</span>
+          {adminMsgUnread > 0 && <span style={{ position: "absolute", top: "4px", right: "8px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "14px", height: "14px", fontSize: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{adminMsgUnread}</span>}
+        </button>
         <button className={`bnav-item${mobileAccountOpen ? " bnav-active" : ""}`} onClick={() => setMobileAccountOpen(v => !v)}>
-          <span className="bnav-icon">👤</span>
           <span className="bnav-label">{t("accountMenu")}</span>
         </button>
       </nav>

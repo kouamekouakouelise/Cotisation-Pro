@@ -483,15 +483,16 @@ button:disabled {
   }
 }
 
-/* ── Modaux : toujours centrés sur mobile ET tablette (≤ 1024px) ─ */
-@media (max-width: 1024px) {
+/* ── Modaux : toujours centrés sur mobile, tablette ET mode bureau sur téléphone ─ */
+/* (max-width 1024px) OU (appareil tactile, quelle que soit la taille du viewport) */
+@media (max-width: 1024px), (pointer: coarse) {
   .modal-box {
     position: fixed !important;
     left: 50% !important;
     top: 50% !important;
     transform: translate(-50%, -50%) !important;
-    width: 92vw !important;
-    max-width: 92vw !important;
+    width: min(92vw, 460px) !important;
+    max-width: min(92vw, 460px) !important;
     min-width: unset !important;
     max-height: 88vh !important;
     overflow-y: auto !important;
