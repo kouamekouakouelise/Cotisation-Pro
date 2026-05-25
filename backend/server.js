@@ -105,6 +105,9 @@ async function sendEmail({ to, subject, html }) {
   });
 }
 
+const PWD_ERROR = "Le mot de passe doit contenir au moins 8 caractères, une minuscule, une majuscule, un chiffre et un caractère spécial (ex: @, #, !, %).";
+const pwdOk = (p) => p && p.length >= 8 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /[0-9]/.test(p) && /[^a-zA-Z0-9]/.test(p);
+
 function generatePassword(length = 8) {
   const { randomBytes } = require("crypto");
   const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -204,6 +207,18 @@ async function initDB() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Table likes messages
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS message_likes (
+      id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      message_id INT UNSIGNED NOT NULL,
+      liker_key  VARCHAR(50)  NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_like (message_id, liker_key),
+      INDEX idx_msg (message_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   // Migrations silencieuses pour les tables existantes
   await pool.query(`DROP TRIGGER IF EXISTS trg_before_transaction_insert`);
   await pool.query(`DROP TRIGGER IF EXISTS trg_after_transaction_insert`);
@@ -211,6 +226,14 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE adherents ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
   try { await pool.query(`ALTER TABLE adherents ADD COLUMN photo MEDIUMTEXT DEFAULT NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE cotisations ADD COLUMN compte_id INT UNSIGNED NOT NULL DEFAULT 0`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE messages ADD COLUMN auteur_nom VARCHAR(100) DEFAULT NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE messages ADD COLUMN auteur_prenom VARCHAR(100) DEFAULT NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE messages ADD COLUMN auteur_poste VARCHAR(150) DEFAULT NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE message_likes ADD COLUMN emoji VARCHAR(10) NOT NULL DEFAULT '👍'`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE message_likes ADD COLUMN liker_nom VARCHAR(100) DEFAULT NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE message_likes DROP INDEX uniq_like`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE message_likes ADD UNIQUE KEY uniq_like_emoji (message_id, liker_key, emoji)`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE messages ADD COLUMN sender_key VARCHAR(50) DEFAULT NULL`); } catch (_) {}
 
   const [badIndexes] = await pool.query(`
     SELECT DISTINCT s.INDEX_NAME
@@ -248,6 +271,7 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN admin_compte_id INT UNSIGNED NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN adherent_id INT UNSIGNED NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN invite_token VARCHAR(64) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE adherents ADD COLUMN poste VARCHAR(100) DEFAULT NULL`); } catch (_) {}
 
   console.log("Base de données initialisée ✅");
 }
@@ -266,17 +290,31 @@ function authMiddleware(req, res, next) {
     req.userId = decoded.userId;           // user's own compte id (role='user' only)
     req.adherentId = decoded.adherentId;   // user's adherent id (role='user' only)
     req.nomAssociation = decoded.nom_association;
+    req.poste = decoded.poste || null;     // poste de l'adhérent (role='user' only)
     next();
   } catch {
     return res.status(401).json({ error: "Session expirée. Veuillez vous reconnecter." });
   }
 }
 
+// Président (admin) uniquement
 function adminMiddleware(req, res, next) {
   if (req.role !== "admin") {
-    return res.status(403).json({ error: "Accès réservé aux administrateurs." });
+    return res.status(403).json({ error: "Accès réservé au président (administrateur)." });
   }
   next();
+}
+
+// Trésorier uniquement (user dont le poste contient "trésorier")
+function trésorierMiddleware(req, res, next) {
+  if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("trésorier")) return next();
+  return res.status(403).json({ error: "Accès réservé au trésorier." });
+}
+
+// Admin OU membre avec un poste (haut membre)
+function hautMembreMiddleware(req, res, next) {
+  if (req.role === "admin" || (req.role === "user" && req.poste)) return next();
+  return res.status(403).json({ error: "Accès réservé aux membres ayant un poste." });
 }
 
 // ── Génération unique du matricule ─────────────────────────────
@@ -367,8 +405,8 @@ app.post("/api/auth/register", async (req, res) => {
     if (!nom_association || !email || !mot_de_passe) {
       return res.status(400).json({ error: "Tous les champs sont obligatoires." });
     }
-    if (mot_de_passe.length < 6) {
-      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    if (!pwdOk(mot_de_passe)) {
+      return res.status(400).json({ error: PWD_ERROR });
     }
 
     const emailKey = email.trim().toLowerCase();
@@ -454,6 +492,12 @@ app.post("/api/auth/login", async (req, res) => {
             "SELECT nom_association FROM comptes WHERE id = ?",
             [account.admin_compte_id]
           );
+          // Récupérer le poste de l'adhérent lié
+          const [[adherentInfo]] = await pool.query(
+            "SELECT poste FROM adherents WHERE id = ?",
+            [account.adherent_id]
+          );
+          const poste = adherentInfo?.poste || null;
           tokenPayload = {
             compteId: account.admin_compte_id,
             userId: account.id,
@@ -461,12 +505,14 @@ app.post("/api/auth/login", async (req, res) => {
             nom_association: adminCompte?.nom_association || "",
             role: "user",
             adherentId: account.adherent_id,
+            poste,
           };
           responseData = {
             token: jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "7d" }),
             nom_association: adminCompte?.nom_association || "",
             email: account.email || account.telephone,
             role: "user",
+            poste,
           };
         } else {
           tokenPayload = {
@@ -526,8 +572,8 @@ app.post("/api/auth/reset-password", async (req, res) => {
     if (!email || !nom_association || !nouveau_mot_de_passe) {
       return res.status(400).json({ error: "Tous les champs sont requis." });
     }
-    if (nouveau_mot_de_passe.length < 6) {
-      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    if (!pwdOk(nouveau_mot_de_passe)) {
+      return res.status(400).json({ error: PWD_ERROR });
     }
     const emailKey = email.trim().toLowerCase();
     const [rows] = await pool.query(
@@ -570,8 +616,8 @@ app.post("/api/auth/change-password", authMiddleware, async (req, res) => {
     const { ancien_mot_de_passe, nouveau_mot_de_passe } = req.body;
     if (!ancien_mot_de_passe || !nouveau_mot_de_passe)
       return res.status(400).json({ error: "Tous les champs sont requis." });
-    if (nouveau_mot_de_passe.length < 6)
-      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    if (!pwdOk(nouveau_mot_de_passe))
+      return res.status(400).json({ error: PWD_ERROR });
     const accountId = req.role === "user" ? req.userId : req.compteId;
     const [[compte]] = await pool.query("SELECT id, mot_de_passe FROM comptes WHERE id = ?", [accountId]);
     if (!compte) return res.status(404).json({ error: "Compte introuvable." });
@@ -700,8 +746,8 @@ app.post("/api/auth/register-member", async (req, res) => {
     const { invite_token, nom, prenom, email, telephone, mot_de_passe } = req.body;
     if (!invite_token) return res.status(400).json({ error: "Code d'invitation requis." });
     if (!nom || !prenom) return res.status(400).json({ error: "Nom et prénom obligatoires." });
-    if (!mot_de_passe || mot_de_passe.length < 6)
-      return res.status(400).json({ error: "Mot de passe requis (min. 6 caractères)." });
+    if (!pwdOk(mot_de_passe))
+      return res.status(400).json({ error: PWD_ERROR });
     if (!email && !telephone)
       return res.status(400).json({ error: "Email ou numéro de téléphone requis." });
 
@@ -814,8 +860,8 @@ app.post("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) =
   try {
     const { nom, prenom, email, telephone, mot_de_passe, photo, date_inscription } = req.body;
     if (!nom || !prenom) return res.status(400).json({ error: "Nom et prénom obligatoires." });
-    if (!mot_de_passe || mot_de_passe.length < 6)
-      return res.status(400).json({ error: "Mot de passe requis (min. 6 caractères)." });
+    if (!pwdOk(mot_de_passe))
+      return res.status(400).json({ error: PWD_ERROR });
     if (!email && !telephone)
       return res.status(400).json({ error: "Email ou numéro de téléphone requis." });
 
@@ -924,10 +970,14 @@ app.get("/api/me", authMiddleware, async (req, res) => {
         "SELECT id, nom_association, email, telephone, created_at FROM comptes WHERE id = ?",
         [req.compteId]
       );
-      return res.json({ type: "admin", ...compte });
+      const [[adherent]] = await pool.query(
+        "SELECT id, matricule, nom, prenom, photo, poste, date_inscription FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1",
+        [req.compteId]
+      );
+      return res.json({ type: "admin", ...compte, adherent: adherent || null });
     }
     const [[adherent]] = await pool.query(
-      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, created_at
+      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, poste, created_at
        FROM adherents WHERE id = ? AND compte_id = ? AND est_supprime = 0`,
       [req.adherentId, req.compteId]
     );
@@ -938,11 +988,21 @@ app.get("/api/me", authMiddleware, async (req, res) => {
   }
 });
 
-// Mettre à jour son propre profil (utilisateur seulement)
+// Mettre à jour son propre profil
 app.put("/api/me", authMiddleware, async (req, res) => {
   try {
     if (req.role === "admin") {
-      return res.status(403).json({ error: "Utilisez les paramètres du compte administrateur." });
+      const { nom, prenom, telephone, photo } = req.body;
+      if (!nom || !prenom) return res.status(400).json({ error: "Nom et prénom obligatoires." });
+      const sets = ["nom=?", "prenom=?", "telephone=?"];
+      const vals = [nom, prenom, telephone || null];
+      if (photo !== undefined) { sets.push("photo=?"); vals.push(photo || null); }
+      vals.push(req.compteId);
+      await pool.query(
+        `UPDATE adherents SET ${sets.join(",")} WHERE compte_id=? AND est_supprime=0 ORDER BY id ASC LIMIT 1`,
+        vals
+      );
+      return res.json({ message: "Profil mis à jour ✅" });
     }
     const { nom, prenom, telephone, photo } = req.body;
     if (!nom || !prenom) return res.status(400).json({ error: "Nom et prénom obligatoires." });
@@ -973,8 +1033,14 @@ app.put("/api/me", authMiddleware, async (req, res) => {
 // Obtenir ses propres cotisations (utilisateur seulement)
 app.get("/api/me/cotisations", authMiddleware, async (req, res) => {
   try {
+    let adherentId = req.adherentId;
     if (req.role === "admin") {
-      return res.status(403).json({ error: "Route réservée aux membres." });
+      const [[adm]] = await pool.query(
+        "SELECT id FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1",
+        [req.compteId]
+      );
+      if (!adm) return res.json([]);
+      adherentId = adm.id;
     }
     const [rows] = await pool.query(
       `SELECT c.libelle as periode, c.montant_du,
@@ -984,7 +1050,7 @@ app.get("/api/me/cotisations", authMiddleware, async (req, res) => {
        LEFT JOIN paiements p ON p.cotisation_id = c.id AND p.adherent_id = ?
        WHERE c.compte_id = ?
        ORDER BY c.id ASC`,
-      [req.adherentId, req.compteId]
+      [adherentId, req.compteId]
     );
     res.json(rows.map((r) => ({
       periode: r.periode,
@@ -1004,7 +1070,7 @@ app.get("/api/me/membres", authMiddleware, async (req, res) => {
   try {
     if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
     const [rows] = await pool.query(
-      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo
+      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, poste
        FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY nom ASC, prenom ASC`,
       [req.compteId]
     );
@@ -1053,10 +1119,37 @@ app.get("/api/me/toutes-cotisations", authMiddleware, async (req, res) => {
 // ROUTES — ADHÉRENTS (protégées)
 // ═══════════════════════════════════════════════════════════════
 
-app.get("/api/adherents", authMiddleware, adminMiddleware, async (req, res) => {
+// Cotisations d'un adhérent spécifique (admin uniquement)
+app.get("/api/adherents/:id/cotisations", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query(
+      `SELECT c.libelle as periode, c.montant_du,
+              p.solde_paye, p.reste, p.statut,
+              (SELECT MAX(t.date_paiement) FROM transactions t WHERE t.paiement_id = p.id) as dernier_paiement
+       FROM cotisations c
+       LEFT JOIN paiements p ON p.cotisation_id = c.id AND p.adherent_id = ?
+       WHERE c.compte_id = ?
+       ORDER BY c.id ASC`,
+      [id, req.compteId]
+    );
+    res.json(rows.map((r) => ({
+      periode: r.periode,
+      montantDu: Number(r.montant_du).toLocaleString("fr-FR") + " F",
+      soldePaye: r.solde_paye != null ? Number(r.solde_paye).toLocaleString("fr-FR") + " F" : "0 F",
+      reste: r.reste != null ? Number(r.reste).toLocaleString("fr-FR") + " F" : Number(r.montant_du).toLocaleString("fr-FR") + " F",
+      statut: r.statut || "Impayé",
+      dernierPaiement: r.dernier_paiement ? new Date(r.dernier_paiement).toLocaleDateString("fr-FR") : null,
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/adherents", authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, created_at
+      `SELECT id, matricule, nom, prenom, telephone, email, date_inscription, photo, poste, created_at
        FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC`,
       [req.compteId]
     );
@@ -1151,19 +1244,19 @@ app.post("/api/adherents", authMiddleware, adminMiddleware, async (req, res) => 
 
 app.put("/api/adherents/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nom, prenom, telephone, email, photo } = req.body;
+    const { nom, prenom, telephone, email, photo, poste } = req.body;
     if (!nom || !prenom)
       return res.status(400).json({ error: "Nom et prénom obligatoires." });
 
     if (photo !== undefined) {
       await pool.query(
-        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=?, photo=? WHERE id=? AND compte_id=?",
-        [nom, prenom, telephone || null, email || null, photo || null, req.params.id, req.compteId]
+        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=?, photo=?, poste=? WHERE id=? AND compte_id=?",
+        [nom, prenom, telephone || null, email || null, photo || null, poste || null, req.params.id, req.compteId]
       );
     } else {
       await pool.query(
-        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=? WHERE id=? AND compte_id=?",
-        [nom, prenom, telephone || null, email || null, req.params.id, req.compteId]
+        "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=?, poste=? WHERE id=? AND compte_id=?",
+        [nom, prenom, telephone || null, email || null, poste || null, req.params.id, req.compteId]
       );
     }
     res.json({ message: "Adhérent modifié ✅" });
@@ -1188,7 +1281,7 @@ app.delete("/api/adherents/:id", authMiddleware, adminMiddleware, async (req, re
 // ROUTES — PÉRIODES (protégées)
 // ═══════════════════════════════════════════════════════════════
 
-app.get("/api/periodes", authMiddleware, adminMiddleware, async (req, res) => {
+app.get("/api/periodes", authMiddleware, async (req, res) => {
   try {
     const [cotisations] = await pool.query(
       "SELECT id, libelle, montant_du, created_at FROM cotisations WHERE compte_id = ? ORDER BY id ASC",
@@ -1255,7 +1348,7 @@ app.get("/api/periodes", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/periodes", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/periodes", authMiddleware, trésorierMiddleware, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { libelle, montantDu } = req.body;
@@ -1315,7 +1408,7 @@ app.post("/api/periodes", authMiddleware, adminMiddleware, async (req, res) => {
 // ROUTES — PAIEMENTS (protégées)
 // ═══════════════════════════════════════════════════════════════
 
-app.post("/api/periodes/:periodeId/paiements", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/periodes/:periodeId/paiements", authMiddleware, trésorierMiddleware, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { adherent_id, montantPaye, modePaiement, numeroRecu, datePaiement } = req.body;
@@ -1418,11 +1511,43 @@ app.post("/api/periodes/:periodeId/paiements", authMiddleware, adminMiddleware, 
   }
 });
 
+// Historique des transactions du membre connecté uniquement
+app.get("/api/me/historique", authMiddleware, async (req, res) => {
+  try {
+    if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
+    const [rows] = await pool.query(
+      `SELECT t.id, t.numero_recu, t.montant_paye, t.mode_paiement, t.date_paiement,
+              p.solde_paye, p.reste, p.statut,
+              c.libelle AS periode, c.montant_du
+       FROM transactions t
+       JOIN paiements p   ON p.id = t.paiement_id
+       JOIN adherents a   ON a.id = p.adherent_id
+       JOIN cotisations c ON c.id = p.cotisation_id
+       WHERE a.id = ? AND a.compte_id = ?
+       ORDER BY t.date_paiement DESC, t.id DESC`,
+      [req.adherentId, req.compteId]
+    );
+    res.json(rows.map((r) => ({
+      numeroRecu:   r.numero_recu,
+      datePaiement: r.date_paiement ? new Date(r.date_paiement).toLocaleDateString("fr-FR") : "-",
+      periode:      r.periode,
+      montantDu:    Number(r.montant_du).toLocaleString("fr-FR") + " F",
+      montantPaye:  Number(r.montant_paye).toLocaleString("fr-FR") + " F",
+      totalPaye:    Number(r.solde_paye).toLocaleString("fr-FR") + " F",
+      reste:        Number(r.reste).toLocaleString("fr-FR") + " F",
+      statut:       r.statut,
+      modePaiement: r.mode_paiement || "-",
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // ROUTES — HISTORIQUE (protégée)
 // ═══════════════════════════════════════════════════════════════
 
-app.get("/api/historique", authMiddleware, adminMiddleware, async (req, res) => {
+app.get("/api/historique", authMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT t.id, t.numero_recu, t.montant_paye, t.mode_paiement, t.date_paiement,
@@ -1474,30 +1599,115 @@ app.get("/api/historique", authMiddleware, adminMiddleware, async (req, res) => 
 
 app.get("/api/messages", authMiddleware, async (req, res) => {
   try {
+    const myKey = req.role === "admin" ? `a${req.compteId}` : `u${req.adherentId}`;
     const [msgs] = await pool.query(
-      "SELECT id, titre, contenu, created_at FROM messages WHERE compte_id = ? ORDER BY created_at DESC",
+      `SELECT m.id, m.titre, m.contenu, m.created_at, m.auteur_nom, m.auteur_prenom, m.auteur_poste, m.sender_key
+       FROM messages m WHERE m.compte_id = ? ORDER BY m.created_at DESC`,
       [req.compteId]
     );
-    res.json(msgs);
+    if (!msgs.length) return res.json([]);
+    const msgIds = msgs.map(m => m.id);
+    const [rxns] = await pool.query(
+      `SELECT message_id, emoji, liker_key, liker_nom FROM message_likes WHERE message_id IN (?)`,
+      [msgIds]
+    );
+    const reactionsByMsg = {};
+    for (const r of rxns) {
+      if (!reactionsByMsg[r.message_id]) reactionsByMsg[r.message_id] = {};
+      if (!reactionsByMsg[r.message_id][r.emoji])
+        reactionsByMsg[r.message_id][r.emoji] = { count: 0, reactors: [], my_reaction: false };
+      reactionsByMsg[r.message_id][r.emoji].count++;
+      if (r.liker_nom) reactionsByMsg[r.message_id][r.emoji].reactors.push(r.liker_nom);
+      if (r.liker_key === myKey) reactionsByMsg[r.message_id][r.emoji].my_reaction = true;
+    }
+    res.json(msgs.map(m => ({ ...m, is_mine: m.sender_key === myKey, reactions: reactionsByMsg[m.id] || {} })));
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
-app.post("/api/messages", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/messages", authMiddleware, hautMembreMiddleware, async (req, res) => {
   const { titre, contenu } = req.body;
   if (!titre?.trim() || !contenu?.trim())
     return res.status(400).json({ error: "Titre et contenu requis." });
   try {
+    let auteurNom = null, auteurPrenom = null, auteurPoste = null;
+    if (req.role === "admin") {
+      const [[adh]] = await pool.query(
+        "SELECT nom, prenom, poste FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1",
+        [req.compteId]
+      );
+      auteurNom = adh?.nom || null;
+      auteurPrenom = adh?.prenom || null;
+      auteurPoste = adh?.poste || "Président";
+    } else {
+      const [[adh]] = await pool.query(
+        "SELECT nom, prenom FROM adherents WHERE id = ? AND compte_id = ?",
+        [req.adherentId, req.compteId]
+      );
+      auteurNom = adh?.nom || null;
+      auteurPrenom = adh?.prenom || null;
+      auteurPoste = req.poste || null;
+    }
+    const senderKey = req.role === "admin" ? `a${req.compteId}` : `u${req.adherentId}`;
     const [result] = await pool.query(
-      "INSERT INTO messages (compte_id, titre, contenu) VALUES (?, ?, ?)",
-      [req.compteId, titre.trim(), contenu.trim()]
+      "INSERT INTO messages (compte_id, titre, contenu, auteur_nom, auteur_prenom, auteur_poste, sender_key) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [req.compteId, titre.trim(), contenu.trim(), auteurNom, auteurPrenom, auteurPoste, senderKey]
     );
-    const [[msg]] = await pool.query("SELECT id, titre, contenu, created_at FROM messages WHERE id = ?", [result.insertId]);
-    res.status(201).json(msg);
+    const [[msg]] = await pool.query(
+      "SELECT id, titre, contenu, created_at, auteur_nom, auteur_prenom, auteur_poste, sender_key FROM messages WHERE id = ?",
+      [result.insertId]
+    );
+    res.status(201).json({ ...msg, is_mine: true, reactions: {} });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+app.post("/api/messages/:id/react", authMiddleware, async (req, res) => {
+  try {
+    const likerKey = req.role === "admin" ? `a${req.compteId}` : `u${req.adherentId}`;
+    const { id } = req.params;
+    const emoji = (req.body.emoji || "👍").slice(0, 10);
+    let likerNom = null;
+    if (req.role === "admin") {
+      const [[adh]] = await pool.query(
+        "SELECT nom, prenom FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1",
+        [req.compteId]
+      );
+      if (adh) likerNom = `${adh.prenom || ""} ${adh.nom || ""}`.trim();
+    } else {
+      const [[adh]] = await pool.query(
+        "SELECT nom, prenom FROM adherents WHERE id = ? AND compte_id = ?",
+        [req.adherentId, req.compteId]
+      );
+      if (adh) likerNom = `${adh.prenom || ""} ${adh.nom || ""}`.trim();
+    }
+    const [[msg]] = await pool.query("SELECT id FROM messages WHERE id = ? AND compte_id = ?", [id, req.compteId]);
+    if (!msg) return res.status(404).json({ error: "Message introuvable." });
+    const [[existing]] = await pool.query(
+      "SELECT id FROM message_likes WHERE message_id = ? AND liker_key = ? AND emoji = ?",
+      [id, likerKey, emoji]
+    );
+    if (existing) {
+      await pool.query("DELETE FROM message_likes WHERE message_id = ? AND liker_key = ? AND emoji = ?", [id, likerKey, emoji]);
+    } else {
+      await pool.query(
+        "INSERT INTO message_likes (message_id, liker_key, emoji, liker_nom) VALUES (?, ?, ?, ?)",
+        [id, likerKey, emoji, likerNom]
+      );
+    }
+    const [rxns] = await pool.query("SELECT emoji, liker_key, liker_nom FROM message_likes WHERE message_id = ?", [id]);
+    const grouped = {};
+    for (const r of rxns) {
+      if (!grouped[r.emoji]) grouped[r.emoji] = { count: 0, reactors: [], my_reaction: false };
+      grouped[r.emoji].count++;
+      if (r.liker_nom) grouped[r.emoji].reactors.push(r.liker_nom);
+      if (r.liker_key === likerKey) grouped[r.emoji].my_reaction = true;
+    }
+    res.json({ reactions: grouped });
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
 app.delete("/api/messages/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    await pool.query("DELETE FROM message_likes WHERE message_id = ?", [req.params.id]);
     await pool.query("DELETE FROM messages WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
