@@ -62,6 +62,17 @@ function buildMysqlPool() {
 }
 const pool = buildMysqlPool();
 
+// ── SSE clients : compteId → Set<Response> ────────────────────
+const sseClients = new Map();
+function broadcastToCompte(compteId, eventName, data) {
+  const clients = sseClients.get(String(compteId));
+  if (!clients || clients.size === 0) return;
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of clients) {
+    try { client.write(payload); } catch {}
+  }
+}
+
 // ── Store OTP en mémoire : email → { code, expires } ──────────
 const otpStore = new Map();
 
@@ -357,6 +368,36 @@ async function genererMatricule(conn, compteId) {
   const [[{ num }]] = await conn.query("SELECT LAST_INSERT_ID() AS num");
   return `ADH-${annee}-${String(num).padStart(3, "0")}`;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ROUTE — SSE (événements temps réel)
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/events", (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).end();
+  let compteId;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    compteId = String(decoded.compteId);
+  } catch {
+    return res.status(401).end();
+  }
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+  if (!sseClients.has(compteId)) sseClients.set(compteId, new Set());
+  sseClients.get(compteId).add(res);
+  res.write("event: ping\ndata: connected\n\n");
+  const keepAlive = setInterval(() => {
+    try { res.write("event: ping\ndata: ping\n\n"); } catch {}
+  }, 25000);
+  req.on("close", () => {
+    clearInterval(keepAlive);
+    sseClients.get(compteId)?.delete(res);
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ROUTE — SANTÉ (publique)
@@ -1029,6 +1070,7 @@ app.put("/api/me", authMiddleware, async (req, res) => {
         `UPDATE adherents SET ${sets.join(",")} WHERE compte_id=? AND est_supprime=0 ORDER BY id ASC LIMIT 1`,
         vals
       );
+      if (poste !== undefined) broadcastToCompte(req.compteId, "adherents_updated", {});
       return res.json({ message: "Profil mis à jour ✅" });
     }
     const { nom, prenom, telephone, photo } = req.body;
@@ -1299,6 +1341,7 @@ app.put("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, 
         [nom, prenom, telephone || null, email || null, poste || null, req.params.id, req.compteId]
       );
     }
+    broadcastToCompte(req.compteId, "adherents_updated", { updatedId: String(req.params.id) });
     res.json({ message: "Adhérent modifié ✅", myPosteWasCleared });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -2282,6 +2282,54 @@ function App() {
 
   useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); } }, [compte]);
 
+  // ── SSE — rafraîchissement temps réel quand un rôle change ───
+  useEffect(() => {
+    if (!compte?.token) return;
+    const es = new EventSource(`${API_BASE}/events?token=${encodeURIComponent(compte.token)}`);
+    es.addEventListener("adherents_updated", () => {
+      loadAdherents();
+      // Resync le poste de l'utilisateur courant (si c'est lui qui a été affecté)
+      apiFetch(`${API_BASE}/me`).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d || !compte) return;
+        const newPoste = d.type === "admin" ? (d.adherent?.poste ?? null) : (d.poste ?? null);
+        if (newPoste !== compte.poste) {
+          const updated = { ...compte, poste: newPoste };
+          sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updated));
+          setCompte(updated);
+        }
+      }).catch(() => {});
+    });
+    return () => es.close();
+  }, [compte?.token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rafraîchir le poste du membre connecté depuis le serveur à chaque changement de page
+  // → si son poste a changé (ex : un autre l'a nommé trésorier), l'interface se met à jour sans reconnexion
+  useEffect(() => {
+    if (!compte || compte?.role !== "user") return;
+    const refresh = async () => {
+      try {
+        const res = await apiFetch(`${API_BASE}/me`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverPoste = data.poste || null;
+        if (serverPoste !== compte?.poste) {
+          const updatedCompte = { ...compte, poste: serverPoste };
+          sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
+          setCompte(updatedCompte);
+          // Nouveau haut-membre : ouvrir directement l'onglet "Reçus" pour voir les messages
+          if (serverPoste && !compte?.poste) {
+            setMsgTab("recus");
+          }
+          // Perte de poste : revenir sur l'onglet "Reçus" (onglet neutre, liste toujours visible)
+          if (!serverPoste && compte?.poste) {
+            setMsgTab("recus");
+          }
+        }
+      } catch {}
+    };
+    refresh();
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fermer le menu compte au clic en dehors
   useEffect(() => {
     if (!showAccountMenu) return;
@@ -3377,11 +3425,13 @@ function App() {
                           style={{ padding: "9px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
                           🔑 {lang === "fr" ? "Mot de passe" : "Password"}
                         </button>
-                        <button
-                          onClick={() => { setRoleTransferPoste("Trésorier(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
-                          style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                          🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer Role"}
-                        </button>
+                        {isTresorier && (
+                          <button
+                            onClick={() => { setRoleTransferPoste("Trésorier(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
+                            style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                            🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer Role"}
+                          </button>
+                        )}
                       </>
                     ) : (
                       <>
@@ -3739,7 +3789,7 @@ function App() {
 
                 <div style={styles.toolbarSection}>
                   <div style={styles.toolbarTop} className="toolbar-top">
-                    {isAdmin && (
+                    {(isAdmin || isTresorier) && (
                       <button style={styles.addBtn} className="toolbar-btn" onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>
                         {t("addMemberBtn")}
                       </button>
@@ -3880,8 +3930,8 @@ function App() {
                             <td style={styles.td}>{a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-"}</td>
                             <td style={styles.td}>
                               <button style={styles.detailsBtn} onClick={() => { setSelectedAdherentId(a.id); loadAdherentCotisations(a.id); }}><EyeOpen /></button>
-                              {isAdmin && <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>}
-                              {isAdmin && <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>}
+                              {(isAdmin || isTresorier || a.email === compte?.email) && <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>}
+                              {(isAdmin || isTresorier) && <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>}
                             </td>
                           </tr>
                         ))}
@@ -3932,17 +3982,19 @@ function App() {
                           </div>
                         </div>
 
-                        {/* Boutons d'action (admin) */}
-                        {isAdmin && (
+                        {/* Boutons d'action */}
+                        {(isAdmin || isTresorier || adherent.email === compte?.email) && (
                           <div style={{ background: "white", padding: "14px 28px", display: "flex", gap: "10px", flexWrap: "wrap", borderBottom: "1px solid #f0f4f8" }}>
                             <button style={{ padding: "9px 20px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                               onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); setSelectedAdherentId(null); }}>
                               {t("editBtn")}
                             </button>
-                            <button style={{ padding: "9px 20px", background: "#e74c3c", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
-                              onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>
-                              {t("deleteIconBtn")}
-                            </button>
+                            {(isAdmin || isTresorier) && (
+                              <button style={{ padding: "9px 20px", background: "#e74c3c", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                                onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>
+                                {t("deleteIconBtn")}
+                              </button>
+                            )}
                           </div>
                         )}
 
@@ -4636,7 +4688,7 @@ function App() {
                 ? adminMessages
                 : msgTab === "envoyes"
                   ? adminMessages.filter(m => m.is_mine)
-                  : adminMessages.filter(m => !m.is_mine);
+                  : adminMessages.filter(m => !m.is_mine);  // "recus" ou fallback
               const emptyLabel = msgTab === "envoyes"
                 ? (lang === "fr" ? "Aucun message envoyé pour le moment." : "No sent messages yet.")
                 : msgTab === "recus"
@@ -5342,13 +5394,18 @@ function App() {
               <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Attribuer à" : "Assign to"}</label>
               <select value={roleTransferTargetId} onChange={e => setRoleTransferTargetId(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
                 <option value="">{lang === "fr" ? "— Sélectionner un membre —" : "— Select a member —"}</option>
-                {adherents.map(a => <option key={a.id} value={a.id}>{a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}</option>)}
+                {adherents.filter(a => a.email !== compte?.email).map(a => <option key={a.id} value={a.id}>{a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}</option>)}
               </select>
             </div>
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
-              <input value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} placeholder={lang === "fr" ? "Ex : Membre fondateur, Conseiller…" : "Ex: Founding member, Advisor…"} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }} />
-            </div>
+            {roleTransferPoste.toLowerCase().includes("trésorier") && (
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
+                <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
+                  <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
+                  {["Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
               <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: "600" }}>{lang === "fr" ? "Annuler" : "Cancel"}</button>
               <button
@@ -5366,21 +5423,22 @@ function App() {
                       body: JSON.stringify({ nom: targetAdherent.nom, prenom: targetAdherent.prenom, telephone: targetAdherent.telephone || null, email: targetAdherent.email || null, poste: roleTransferPoste }),
                     });
                     if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
-                    if (roleTransferMyPoste !== undefined) {
+                    setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
+                    const isTresorierTransfer = roleTransferPoste.toLowerCase().includes("trésorier");
+                    if (isTresorierTransfer) {
+                      // Mettre à jour le poste du trésorier seulement lorsqu'il cède son rôle de trésorier
                       await apiFetch(`${API_BASE}/me`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ nom: profilData.nom, prenom: profilData.prenom, telephone: profilData.telephone || null, photo: profilData.photo || undefined, poste: roleTransferMyPoste || null }),
                       });
+                      const newPoste = roleTransferMyPoste?.trim() || null;
+                      setProfilData(prev => ({ ...prev, poste: newPoste }));
+                      const updatedCompte = { ...compte, poste: newPoste };
+                      sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
+                      setCompte(updatedCompte);
                     }
-                    setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
-                    const newPoste = roleTransferMyPoste?.trim() || null;
-                    setProfilData(prev => ({ ...prev, poste: newPoste }));
-                    // Mettre à jour compte en mémoire pour que isTresorier soit recalculé immédiatement
-                    const updatedCompte = { ...compte, poste: newPoste };
-                    sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
-                    setCompte(updatedCompte);
-                    const transfertTresorier = roleTransferPoste.toLowerCase().includes("trésorier") && !newPoste?.toLowerCase().includes("trésorier");
+                    const transfertTresorier = isTresorierTransfer;
                     if (transfertTresorier) {
                       setRoleTransferSuccess(lang === "fr"
                         ? `✅ Poste "${roleTransferPoste}" transféré à ${targetAdherent.prenom} ${targetAdherent.nom}. Déconnexion automatique dans 3 s…`
