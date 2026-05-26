@@ -1754,6 +1754,28 @@ app.delete("/api/messages/:id", authMiddleware, trésorierMiddleware, async (req
 });
 
 // ═══════════════════════════════════════════════════════════════
+// RESET BASE — endpoint temporaire protégé par RESET_SECRET
+// ═══════════════════════════════════════════════════════════════
+if (process.env.RESET_SECRET) {
+  app.post("/api/reset-all-data", async (req, res) => {
+    const secret = req.headers["x-reset-secret"];
+    if (!secret || secret !== process.env.RESET_SECRET) {
+      return res.status(403).json({ error: "Accès refusé." });
+    }
+    try {
+      await pool.query("SET FOREIGN_KEY_CHECKS = 0");
+      for (const t of ["transactions","paiements","cotisations","message_likes","messages","adherents","matricule_counter","comptes"]) {
+        await pool.query(`TRUNCATE TABLE \`${t}\``);
+      }
+      await pool.query("SET FOREIGN_KEY_CHECKS = 1");
+      res.json({ ok: true, message: "Base de données réinitialisée ✅" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // FRONTEND — servir le build React en production
 // ═══════════════════════════════════════════════════════════════
 const distPath = path.join(__dirname, "..", "dist");
