@@ -976,7 +976,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
               <div style={authSt.field}>
                 <label style={authSt.label}>{lang === "fr" ? "Code d'invitation" : "Invite code"}</label>
                 <div style={authSt.inputBox}>
-                  <input style={authSt.input} type="text" name="invite_token" value={joinForm.invite_token} onChange={handleJoinChange} placeholder={lang === "fr" ? "Entrez le code reçu de votre admin" : "Enter the code from your admin"} autoFocus />
+                  <input style={authSt.input} type="text" name="invite_token" value={joinForm.invite_token} onChange={handleJoinChange} placeholder={lang === "fr" ? "Code à 4 chiffres" : "4-digit code"} maxLength={4} inputMode="numeric" autoFocus />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>

@@ -784,7 +784,7 @@ app.get("/api/admin/invite-token", authMiddleware, adminMiddleware, async (req, 
     );
     if (!compte.invite_token) {
       const { randomBytes } = require("crypto");
-      const token = randomBytes(16).toString("hex");
+      const token = String(1000 + (randomBytes(4).readUInt32BE() % 9000));
       await pool.query("UPDATE comptes SET invite_token = ? WHERE id = ?", [token, req.compteId]);
       return res.json({ token, nom_association: compte.nom_association });
     }
@@ -798,7 +798,7 @@ app.get("/api/admin/invite-token", authMiddleware, adminMiddleware, async (req, 
 app.post("/api/admin/invite-token/reset", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { randomBytes } = require("crypto");
-    const token = randomBytes(16).toString("hex");
+    const token = String(1000 + (randomBytes(4).readUInt32BE() % 9000));
     await pool.query("UPDATE comptes SET invite_token = ? WHERE id = ?", [token, req.compteId]);
     res.json({ token });
   } catch (err) {
