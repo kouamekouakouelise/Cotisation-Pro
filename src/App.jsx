@@ -2126,7 +2126,7 @@ function App() {
   const [profilEditMode, setProfilEditMode] = useState(false);
   const [profilEditForm, setProfilEditForm] = useState({ nom: "", prenom: "", telephone: "", photo: "" });
   const [showRoleTransfer, setShowRoleTransfer] = useState(false);
-  const [roleTransferPoste, setRoleTransferPoste] = useState("Trésorier(e)");
+  const [roleTransferPoste, setRoleTransferPoste] = useState("Président(e)");
   const [roleTransferTargetId, setRoleTransferTargetId] = useState("");
   const [roleTransferMyPoste, setRoleTransferMyPoste] = useState("");
   const [roleTransferLoading, setRoleTransferLoading] = useState(false);
@@ -2298,6 +2298,9 @@ function App() {
           setCompte(updated);
         }
       }).catch(() => {});
+    });
+    es.addEventListener("messages_updated", () => {
+      loadMessages();
     });
     return () => es.close();
   }, [compte?.token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -3231,6 +3234,7 @@ function App() {
 
   const isAdmin = compte?.role === "admin";
   const isTresorier = compte?.role === "user" && !!compte?.poste?.toLowerCase().includes("trésorier");
+  const isPresident = compte?.role === "user" && !!compte?.poste?.toLowerCase().includes("président");
   const isHautMembre = isAdmin || (compte?.role === "user" && !!compte?.poste);
 
   // ── Guard : si non connecté → landing ou authentification ──
@@ -3425,11 +3429,11 @@ function App() {
                           style={{ padding: "9px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
                           🔑 {lang === "fr" ? "Mot de passe" : "Password"}
                         </button>
-                        {isTresorier && (
+                        {(isAdmin || isPresident) && (
                           <button
-                            onClick={() => { setRoleTransferPoste("Trésorier(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
+                            onClick={() => { setRoleTransferPoste("Président(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
                             style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer Role"}
+                            🔄 {lang === "fr" ? "Attribuer un rôle" : "Assign a Role"}
                           </button>
                         )}
                       </>
@@ -3719,7 +3723,7 @@ function App() {
                 <h1>{t("memberManagement")}</h1>
 
                 {/* ── Code d'invitation membres ── */}
-                {isAdmin && <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", color: "white" }}>
+                {isHautMembre && <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", color: "white" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                     <span style={{ fontSize: "18px" }}>🔗</span>
                     <div>
@@ -3830,20 +3834,22 @@ function App() {
                         )}
                       </div>
                       <div style={styles.formRow}><label style={styles.label}>{t("registrationDate")}</label><input type="date" name="date" value={formData.date} onChange={handleChange} style={styles.input} /></div>
+                      {isPresident && (
                       <div style={styles.formRow}>
                         <label style={styles.label}>{lang === "fr" ? "Poste / Rôle" : "Role / Position"}</label>
                         <select name="poste" value={formData.poste || ""} onChange={handleChange} style={styles.input}>
                           <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
                           <option value="Président(e)">{lang === "fr" ? "Président(e)" : "President"}</option>
                           <option value="Vice-Président(e)">{lang === "fr" ? "Vice-Président(e)" : "Vice-President"}</option>
-                          <option value="Trésorier(e)">{lang === "fr" ? "Trésorier(e)" : "Treasurer"}</option>
                           <option value="Secrétaire Général(e)">{lang === "fr" ? "Secrétaire Général(e)" : "General Secretary"}</option>
                           <option value="Secrétaire Adjoint(e)">{lang === "fr" ? "Secrétaire Adjoint(e)" : "Deputy Secretary"}</option>
+                          <option value="Trésorier(e)">{lang === "fr" ? "Trésorier(e)" : "Treasurer"}</option>
                           <option value="Trésorier(e) Adjoint(e)">{lang === "fr" ? "Trésorier(e) Adjoint(e)" : "Deputy Treasurer"}</option>
                           <option value="Commissaire aux comptes">{lang === "fr" ? "Commissaire aux comptes" : "Auditor"}</option>
                           <option value="Conseiller(e)">{lang === "fr" ? "Conseiller(e)" : "Adviser"}</option>
                         </select>
                       </div>
+                      )}
                       {editingIndex !== null && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "14px" }}>
                           <div
@@ -3930,7 +3936,7 @@ function App() {
                             <td style={styles.td}>{a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-"}</td>
                             <td style={styles.td}>
                               <button style={styles.detailsBtn} onClick={() => { setSelectedAdherentId(a.id); loadAdherentCotisations(a.id); }}><EyeOpen /></button>
-                              {(isAdmin || isTresorier || a.email === compte?.email) && <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>}
+                              {(isAdmin || isTresorier || isPresident || a.email === compte?.email) && <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>}
                               {(isAdmin || isTresorier) && <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>}
                             </td>
                           </tr>
@@ -3983,7 +3989,7 @@ function App() {
                         </div>
 
                         {/* Boutons d'action */}
-                        {(isAdmin || isTresorier || adherent.email === compte?.email) && (
+                        {(isAdmin || isTresorier || isPresident || adherent.email === compte?.email) && (
                           <div style={{ background: "white", padding: "14px 28px", display: "flex", gap: "10px", flexWrap: "wrap", borderBottom: "1px solid #f0f4f8" }}>
                             <button style={{ padding: "9px 20px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                               onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); setSelectedAdherentId(null); }}>
@@ -5387,7 +5393,7 @@ function App() {
             <div style={{ marginBottom: "14px" }}>
               <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Rôle à transférer" : "Role to transfer"}</label>
               <select value={roleTransferPoste} onChange={e => setRoleTransferPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                {["Trésorier(e)", "Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+                {["Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: "14px" }}>
@@ -5397,15 +5403,13 @@ function App() {
                 {adherents.filter(a => a.email !== compte?.email).map(a => <option key={a.id} value={a.id}>{a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}</option>)}
               </select>
             </div>
-            {roleTransferPoste.toLowerCase().includes("trésorier") && (
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
-                <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                  <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
-                  {["Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            )}
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
+              <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
+                <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
+                {["Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
               <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: "600" }}>{lang === "fr" ? "Annuler" : "Cancel"}</button>
               <button
@@ -5425,8 +5429,8 @@ function App() {
                     if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
                     setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
                     const isTresorierTransfer = roleTransferPoste.toLowerCase().includes("trésorier");
-                    if (isTresorierTransfer) {
-                      // Mettre à jour le poste du trésorier seulement lorsqu'il cède son rôle de trésorier
+                    // Mettre à jour le propre poste si un nouveau poste est choisi
+                    if (roleTransferMyPoste !== undefined) {
                       await apiFetch(`${API_BASE}/me`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -5438,8 +5442,7 @@ function App() {
                       sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
                       setCompte(updatedCompte);
                     }
-                    const transfertTresorier = isTresorierTransfer;
-                    if (transfertTresorier) {
+                    if (isTresorierTransfer) {
                       setRoleTransferSuccess(lang === "fr"
                         ? `✅ Poste "${roleTransferPoste}" transféré à ${targetAdherent.prenom} ${targetAdherent.nom}. Déconnexion automatique dans 3 s…`
                         : `✅ Role "${roleTransferPoste}" transferred to ${targetAdherent.prenom} ${targetAdherent.nom}. Logging out in 3 s…`);

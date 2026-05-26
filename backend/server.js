@@ -354,6 +354,13 @@ function hautMembreMiddleware(req, res, next) {
   return res.status(403).json({ error: "Accès réservé aux membres ayant un poste." });
 }
 
+// Président : admin OU membre avec poste Président
+function presidentMiddleware(req, res, next) {
+  if (req.role === "admin") return next();
+  if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("président")) return next();
+  return res.status(403).json({ error: "Accès réservé au président." });
+}
+
 // ── Génération unique du matricule ─────────────────────────────
 async function genererMatricule(conn, compteId) {
   const annee = new Date().getFullYear();
@@ -776,7 +783,7 @@ app.post("/api/auth/change-email", authMiddleware, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 // Obtenir (ou générer) le code d'invitation de l'association
-app.get("/api/admin/invite-token", authMiddleware, adminMiddleware, async (req, res) => {
+app.get("/api/admin/invite-token", authMiddleware, hautMembreMiddleware, async (req, res) => {
   try {
     const [[compte]] = await pool.query(
       "SELECT invite_token, nom_association FROM comptes WHERE id = ?",
@@ -795,7 +802,7 @@ app.get("/api/admin/invite-token", authMiddleware, adminMiddleware, async (req, 
 });
 
 // Réinitialiser le code d'invitation (génère un nouveau)
-app.post("/api/admin/invite-token/reset", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/admin/invite-token/reset", authMiddleware, hautMembreMiddleware, async (req, res) => {
   try {
     const { randomBytes } = require("crypto");
     const token = String(1000 + (randomBytes(4).readUInt32BE() % 9000));
@@ -1311,7 +1318,7 @@ app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res
   }
 });
 
-app.put("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
+app.put("/api/adherents/:id", authMiddleware, presidentMiddleware, async (req, res) => {
   try {
     const { nom, prenom, telephone, email, photo, poste } = req.body;
     if (!nom || !prenom)
@@ -1740,6 +1747,7 @@ app.post("/api/messages", authMiddleware, hautMembreMiddleware, async (req, res)
       [result.insertId]
     );
     res.status(201).json({ ...msg, is_mine: true, reactions: {} });
+    broadcastToCompte(req.compteId, "messages_updated", {});
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
