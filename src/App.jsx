@@ -2794,13 +2794,21 @@ function App() {
             poste: formData.poste || null,
           }),
         });
+        const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err?.error || err?.message || "Impossible de modifier");
+          throw new Error(result?.error || result?.message || "Impossible de modifier");
         }
         await loadAdherents();
         setEditingIndex(null);
         showToast(t("memberEdited"));
+        // Si notre propre poste de trésorier a été transféré → déconnexion immédiate
+        if (result.myPosteWasCleared) {
+          const updatedCompte = { ...compte, poste: null };
+          sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
+          setCompte(updatedCompte);
+          showToast(lang === "fr" ? "Votre poste de trésorier a été transféré. Déconnexion dans 3 s…" : "Your treasurer role was transferred. Logging out in 3 s…");
+          setTimeout(() => handleLogout(), 3000);
+        }
       } catch (error) {
         setApiError(error.message);
         return;

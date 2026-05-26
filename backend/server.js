@@ -289,7 +289,7 @@ async function initDB() {
 }
 
 // ── Middleware JWT ─────────────────────────────────────────────
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Authentification requise." });
@@ -297,12 +297,25 @@ function authMiddleware(req, res, next) {
   const token = auth.slice(7);
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.compteId = decoded.compteId;       // admin's compte_id (for data isolation)
+    req.compteId = decoded.compteId;
     req.role = decoded.role || "admin";
-    req.userId = decoded.userId;           // user's own compte id (role='user' only)
-    req.adherentId = decoded.adherentId;   // user's adherent id (role='user' only)
+    req.userId = decoded.userId;
+    req.adherentId = decoded.adherentId;
     req.nomAssociation = decoded.nom_association;
-    req.poste = decoded.poste || null;     // poste de l'adhérent (role='user' only)
+    // Lire le poste depuis la BDD pour refléter les changements en temps réel
+    if (decoded.role === "user" && decoded.adherentId) {
+      try {
+        const [[adh]] = await pool.query(
+          "SELECT poste FROM adherents WHERE id = ? AND compte_id = ?",
+          [decoded.adherentId, decoded.compteId]
+        );
+        req.poste = adh?.poste || null;
+      } catch {
+        req.poste = decoded.poste || null;
+      }
+    } else {
+      req.poste = decoded.poste || null;
+    }
     next();
   } catch {
     return res.status(401).json({ error: "Session expirée. Veuillez vous reconnecter." });
@@ -1262,6 +1275,19 @@ app.put("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, 
     if (!nom || !prenom)
       return res.status(400).json({ error: "Nom et prénom obligatoires." });
 
+    // Si on nomme un nouveau trésorier, retirer ce poste des autres adhérents
+    let myPosteWasCleared = false;
+    if (poste && poste.toLowerCase().includes("trésorier")) {
+      await pool.query(
+        "UPDATE adherents SET poste = NULL WHERE compte_id = ? AND id != ? AND poste LIKE '%résorier%'",
+        [req.compteId, req.params.id]
+      );
+      // Vérifier si l'adhérent connecté était l'ancien trésorier
+      if (req.adherentId && String(req.adherentId) !== String(req.params.id) && req.poste?.toLowerCase().includes("trésorier")) {
+        myPosteWasCleared = true;
+      }
+    }
+
     if (photo !== undefined) {
       await pool.query(
         "UPDATE adherents SET nom=?, prenom=?, telephone=?, email=?, photo=?, poste=? WHERE id=? AND compte_id=?",
@@ -1273,7 +1299,7 @@ app.put("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, 
         [nom, prenom, telephone || null, email || null, poste || null, req.params.id, req.compteId]
       );
     }
-    res.json({ message: "Adhérent modifié ✅" });
+    res.json({ message: "Adhérent modifié ✅", myPosteWasCleared });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
