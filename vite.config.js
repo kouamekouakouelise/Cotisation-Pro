@@ -12,7 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
-          proxy.on('error', (err) => console.error('[proxy error]', err.message));
+          proxy.on('error', (err) => {
+            console.error('\n[PROXY ERROR] Le backend n\'est pas accessible sur le port 3000.');
+            console.error('[PROXY ERROR] Lancez le backend avec : node backend/server.js');
+            console.error('[PROXY ERROR] Détail :', err.message);
+          });
         }
       }
     }

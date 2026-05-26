@@ -30,25 +30,37 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "10mb" }));
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error("JWT_SECRET manquant dans les variables d'environnement");
+const { randomBytes } = require("crypto");
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  JWT_SECRET = randomBytes(48).toString("hex");
+  console.error("⚠️  JWT_SECRET non défini — une clé aléatoire est utilisée pour cette session.");
+  console.error("⚠️  Ajoutez JWT_SECRET dans vos variables Railway pour que les sessions persistent.");
+}
 const SALT_ROUNDS = 10;
 
 // ── Connexion MySQL (local et Railway) ────────────────────────
 const mysql = require("mysql2/promise");
-const pool = process.env.MYSQL_URL
-  ? mysql.createPool(process.env.MYSQL_URL + "?waitForConnections=true&connectionLimit=10&queueLimit=0")
-  : mysql.createPool({
-      host:     process.env.DB_HOST     || process.env.MYSQLHOST     || "localhost",
-      port:     parseInt(process.env.DB_PORT || process.env.MYSQLPORT || "3306"),
-      user:     process.env.DB_USER     || process.env.MYSQLUSER     || "root",
-      password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || "KouameKouakouElise",
-      database: process.env.DB_NAME     || process.env.MYSQLDATABASE || "cotisation_pro",
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      timezone: "local",
-    });
+function buildMysqlPool() {
+  if (process.env.MYSQL_URL) {
+    const sep = process.env.MYSQL_URL.includes("?") ? "&" : "?";
+    return mysql.createPool(
+      process.env.MYSQL_URL + sep + "waitForConnections=true&connectionLimit=10&queueLimit=0&multipleStatements=false"
+    );
+  }
+  return mysql.createPool({
+    host:     process.env.DB_HOST     || process.env.MYSQLHOST     || "localhost",
+    port:     parseInt(process.env.DB_PORT || process.env.MYSQLPORT || "3306"),
+    user:     process.env.DB_USER     || process.env.MYSQLUSER     || "root",
+    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || "KouameKouakouElise",
+    database: process.env.DB_NAME     || process.env.MYSQLDATABASE || "cotisation_pro",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    timezone: "local",
+  });
+}
+const pool = buildMysqlPool();
 
 // ── Store OTP en mémoire : email → { code, expires } ──────────
 const otpStore = new Map();
@@ -297,16 +309,17 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// Président (admin) uniquement
+// Trésorier-admin uniquement (créateur du compte)
 function adminMiddleware(req, res, next) {
   if (req.role !== "admin") {
-    return res.status(403).json({ error: "Accès réservé au président (administrateur)." });
+    return res.status(403).json({ error: "Accès réservé au trésorier (administrateur)." });
   }
   next();
 }
 
-// Trésorier uniquement (user dont le poste contient "trésorier")
+// Trésorier : admin OU membre avec poste Trésorier
 function trésorierMiddleware(req, res, next) {
+  if (req.role === "admin") return next();
   if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("trésorier")) return next();
   return res.status(403).json({ error: "Accès réservé au trésorier." });
 }
@@ -400,10 +413,10 @@ app.post("/api/auth/send-otp", async (req, res) => {
 // Créer un compte
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { nom_association, email, mot_de_passe } = req.body;
+    const { nom_association, email, mot_de_passe, nom, prenom, telephone } = req.body;
 
-    if (!nom_association || !email || !mot_de_passe) {
-      return res.status(400).json({ error: "Tous les champs sont obligatoires." });
+    if (!nom_association || !email || !mot_de_passe || !nom || !prenom) {
+      return res.status(400).json({ error: "Tous les champs obligatoires sont requis (nom, prénom, association, email, mot de passe)." });
     }
     if (!pwdOk(mot_de_passe)) {
       return res.status(400).json({ error: PWD_ERROR });
@@ -411,7 +424,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     const emailKey = email.trim().toLowerCase();
 
-    // Vérifier unicité email + nom_association (une même association ne peut pas avoir deux admins)
+    // Vérifier unicité email + nom_association
     const [existingAccounts] = await pool.query(
       "SELECT id, nom_association, mot_de_passe, role FROM comptes WHERE email = ? AND role = 'admin'",
       [emailKey]
@@ -419,7 +432,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     for (const account of existingAccounts) {
       if (account.nom_association.toLowerCase() === nom_association.trim().toLowerCase()) {
-        return res.status(409).json({ error: "Un compte admin existe déjà pour cet email et cette association." });
+        return res.status(409).json({ error: "Un compte trésorier existe déjà pour cet email et cette association." });
       }
     }
 
@@ -428,17 +441,17 @@ app.post("/api/auth/register", async (req, res) => {
     try {
       await conn.beginTransaction();
       const [result] = await conn.query(
-        "INSERT INTO comptes (nom_association, email, mot_de_passe, role) VALUES (?, ?, ?, 'admin')",
-        [nom_association.trim(), emailKey, hash]
+        "INSERT INTO comptes (nom_association, email, mot_de_passe, role, telephone) VALUES (?, ?, ?, 'admin', ?)",
+        [nom_association.trim(), emailKey, hash, telephone ? telephone.trim() : null]
       );
       const adminId = result.insertId;
 
-      // Créer automatiquement l'adhérent du trésorier/admin
+      // Créer automatiquement l'adhérent du trésorier
       const matricule = await genererMatricule(conn, adminId);
       await conn.query(
-        `INSERT INTO adherents (compte_id, matricule, nom, prenom, email)
-         VALUES (?, ?, ?, ?, ?)`,
-        [adminId, matricule, nom_association.trim(), "Trésorier", emailKey]
+        `INSERT INTO adherents (compte_id, matricule, nom, prenom, email, telephone, poste)
+         VALUES (?, ?, ?, ?, ?, ?, 'Trésorier')`,
+        [adminId, matricule, nom.trim(), prenom.trim(), emailKey, telephone ? telephone.trim() : null]
       );
 
       await conn.commit();
@@ -992,11 +1005,12 @@ app.get("/api/me", authMiddleware, async (req, res) => {
 app.put("/api/me", authMiddleware, async (req, res) => {
   try {
     if (req.role === "admin") {
-      const { nom, prenom, telephone, photo } = req.body;
+      const { nom, prenom, telephone, photo, poste } = req.body;
       if (!nom || !prenom) return res.status(400).json({ error: "Nom et prénom obligatoires." });
       const sets = ["nom=?", "prenom=?", "telephone=?"];
       const vals = [nom, prenom, telephone || null];
       if (photo !== undefined) { sets.push("photo=?"); vals.push(photo || null); }
+      if (poste !== undefined) { sets.push("poste=?"); vals.push(poste || null); }
       vals.push(req.compteId);
       await pool.query(
         `UPDATE adherents SET ${sets.join(",")} WHERE compte_id=? AND est_supprime=0 ORDER BY id ASC LIMIT 1`,
@@ -1120,7 +1134,7 @@ app.get("/api/me/toutes-cotisations", authMiddleware, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 // Cotisations d'un adhérent spécifique (admin uniquement)
-app.get("/api/adherents/:id/cotisations", authMiddleware, adminMiddleware, async (req, res) => {
+app.get("/api/adherents/:id/cotisations", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query(
@@ -1159,7 +1173,7 @@ app.get("/api/adherents", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/adherents", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { nom, prenom, telephone, email, date_inscription } = req.body;
@@ -1242,7 +1256,7 @@ app.post("/api/adherents", authMiddleware, adminMiddleware, async (req, res) => 
   }
 });
 
-app.put("/api/adherents/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.put("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     const { nom, prenom, telephone, email, photo, poste } = req.body;
     if (!nom || !prenom)
@@ -1265,7 +1279,7 @@ app.put("/api/adherents/:id", authMiddleware, adminMiddleware, async (req, res) 
   }
 });
 
-app.delete("/api/adherents/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.delete("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     await pool.query(
       "UPDATE adherents SET est_supprime = 1 WHERE id = ? AND compte_id = ?",
@@ -1705,13 +1719,38 @@ app.post("/api/messages/:id/react", authMiddleware, async (req, res) => {
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
-app.delete("/api/messages/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.delete("/api/messages/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     await pool.query("DELETE FROM message_likes WHERE message_id = ?", [req.params.id]);
     await pool.query("DELETE FROM messages WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// RESET BASE — endpoint temporaire protégé par RESET_SECRET
+// Utilisation : POST /api/reset-all-data  Header: x-reset-secret: <RESET_SECRET>
+// Supprimer cet endpoint après usage !
+// ═══════════════════════════════════════════════════════════════
+if (process.env.RESET_SECRET) {
+  app.post("/api/reset-all-data", async (req, res) => {
+    const secret = req.headers["x-reset-secret"];
+    if (!secret || secret !== process.env.RESET_SECRET) {
+      return res.status(403).json({ error: "Accès refusé." });
+    }
+    try {
+      await pool.query("SET FOREIGN_KEY_CHECKS = 0");
+      for (const t of ["transactions","paiements","cotisations","message_likes","messages","adherents","matricule_counter","comptes"]) {
+        await pool.query(`TRUNCATE TABLE \`${t}\``);
+      }
+      await pool.query("SET FOREIGN_KEY_CHECKS = 1");
+      res.json({ ok: true, message: "Base de données réinitialisée ✅" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  console.log("🔧 Endpoint /api/reset-all-data activé (RESET_SECRET présent).");
+}
 
 // ═══════════════════════════════════════════════════════════════
 // FRONTEND — servir le build React en production

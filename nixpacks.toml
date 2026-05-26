@@ -1,8 +1,8 @@
 [phases.install]
-cmds = ["npm install", "npm install --prefix backend"]
+cmds = ["npm install --include=dev", "npm install --prefix backend"]
 
 [phases.build]
-cmds = ["npx vite build"]
+cmds = ["npm run build"]
 
 [start]
 cmd = "node backend/server.js"

@@ -84,11 +84,11 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister, onJoin }) {
   const audiences = [
     {
       icon: "🏛️",
-      role: fr ? "Administrateur" : "Administrator",
-      color: "#3498db",
+      role: fr ? "Trésorier" : "Treasurer",
+      color: "#8e44ad",
       items: fr
-        ? ["Créez et gérez votre association", "Ajoutez et modifiez les adhérents", "Créez les périodes de cotisation", "Enregistrez les paiements", "Générez les reçus PDF", "Exportez les données Excel/PDF", "Gérez les accès membres"]
-        : ["Create and manage your association", "Add and edit members", "Create contribution periods", "Record payments", "Generate PDF receipts", "Export Excel/PDF data", "Manage member access"],
+        ? ["Créez et gérez votre association", "Ajoutez et modifiez les adhérents", "Attribuez les postes (Président, Conseiller…)", "Créez les périodes de cotisation", "Enregistrez les paiements", "Générez les reçus PDF", "Exportez les données Excel/PDF", "Gérez les accès membres"]
+        : ["Create and manage your association", "Add and edit members", "Assign roles (President, Advisor…)", "Create contribution periods", "Record payments", "Generate PDF receipts", "Export Excel/PDF data", "Manage member access"],
     },
     {
       icon: "👤",
@@ -104,7 +104,7 @@ function LandingPage({ lang, setLang, t, onLogin, onRegister, onJoin }) {
     { q: "Est-ce gratuit ?", a: "Oui, Cotisation Pro est entièrement gratuit. Créez votre compte et commencez à gérer votre association sans frais cachés." },
     { q: "Comment mes membres rejoignent-ils l'association ?", a: "Dans votre espace admin, allez dans 'Accès membres', générez un code d'invitation et partagez-le. Vos membres cliquent sur 'Rejoindre' sur la page d'accueil et saisissent ce code." },
     { q: "Les données sont-elles sécurisées ?", a: "Vos données sont stockées sur votre propre serveur. Vous en êtes le seul propriétaire. Les mots de passe sont chiffrés avec bcrypt." },
-    { q: "Un administrateur peut-il gérer plusieurs associations ?", a: "Oui, chaque compte administrateur est lié à une association distincte. Vous pouvez créer autant de comptes que nécessaire." },
+    { q: "Un trésorier peut-il gérer plusieurs associations ?", a: "Oui, chaque compte trésorier est lié à une association distincte. Vous pouvez créer autant de comptes que nécessaire." },
     { q: "Les adhérents peuvent-ils modifier les données ?", a: "Non. Les adhérents ne peuvent modifier que leurs propres informations personnelles (nom, téléphone, photo, mot de passe). Toutes les données de l'association sont en lecture seule pour eux." },
   ] : [
     { q: "Is it free?", a: "Yes, Cotisation Pro is completely free. Create your account and start managing your association with no hidden fees." },
@@ -686,7 +686,7 @@ function TermsModal({ lang, t, onClose, onAccept }) {
 
 function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login", onBackToLanding }) {
   const [mode, setMode] = useState(initialMode); // "login" | "register" | "reset" | "join"
-  const [form, setForm] = useState({ email: "", mot_de_passe: "", confirmer_mot_de_passe: "", nom_association: "" });
+  const [form, setForm] = useState({ email: "", mot_de_passe: "", confirmer_mot_de_passe: "", nom_association: "", nom: "", prenom: "", telephone: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
@@ -752,6 +752,7 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
     e.preventDefault();
     setError("");
     if (!form.nom_association.trim() || !form.email.trim() || !form.mot_de_passe) { setError(t("allFieldsRequired")); return; }
+    if (!form.nom.trim() || !form.prenom.trim()) { setError(t("treasurerRequired")); return; }
     if (form.mot_de_passe !== form.confirmer_mot_de_passe) { setError(t("passwordsNoMatch")); return; }
     if (!pwdOk(form.mot_de_passe)) { setError(t("passwordMinLength")); return; }
     if (!termsAccepted) { setError(t("termsNotAccepted")); return; }
@@ -760,7 +761,14 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom_association: form.nom_association.trim(), email: form.email.trim(), mot_de_passe: form.mot_de_passe }),
+        body: JSON.stringify({
+          nom_association: form.nom_association.trim(),
+          email: form.email.trim(),
+          mot_de_passe: form.mot_de_passe,
+          nom: form.nom.trim(),
+          prenom: form.prenom.trim(),
+          telephone: form.telephone.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || t("networkErrorShort")); return; }
@@ -1077,6 +1085,30 @@ function AuthPage({ API_BASE, onSuccess, lang, t, setLang, initialMode = "login"
                 </div>
               </div>
             )}
+            {mode === "register" && (
+              <div style={{ marginBottom: "14px" }}>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                  <div style={authSt.field}>
+                    <label style={authSt.label}>{t("treasurerLastName")} *</label>
+                    <div style={authSt.inputBox}>
+                      <input style={authSt.input} type="text" name="nom" value={form.nom} onChange={handleChange} placeholder={t("treasurerLastNamePlaceholder")} />
+                    </div>
+                  </div>
+                  <div style={authSt.field}>
+                    <label style={authSt.label}>{t("treasurerFirstName")} *</label>
+                    <div style={authSt.inputBox}>
+                      <input style={authSt.input} type="text" name="prenom" value={form.prenom} onChange={handleChange} placeholder={t("treasurerFirstNamePlaceholder")} />
+                    </div>
+                  </div>
+                </div>
+                <div style={authSt.field}>
+                  <label style={authSt.label}>{t("treasurerPhone")}</label>
+                  <div style={authSt.inputBox}>
+                    <input style={authSt.input} type="tel" name="telephone" value={form.telephone} onChange={handleChange} placeholder={t("treasurerPhonePlaceholder")} />
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={authSt.field}>
               <label style={authSt.label}>{mode === "login" ? (lang === "fr" ? "Email ou Téléphone" : "Email or Phone") : t("emailAddress")}</label>
               <div style={authSt.inputBox}>
@@ -1208,6 +1240,11 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [userMsgUnread, setUserMsgUnread] = useState(0);
   const [userMsgEmojiOpen, setUserMsgEmojiOpen] = useState(null);
   const [userMsgTooltip, setUserMsgTooltip] = useState(null);
+  const [userMsgTab, setUserMsgTab] = useState("messages");
+  const [userMsgForm, setUserMsgForm] = useState({ titre: "", contenu: "" });
+  const [userMsgSending, setUserMsgSending] = useState(false);
+  const [userMsgSendError, setUserMsgSendError] = useState("");
+  const [userMsgSendSuccess, setUserMsgSendSuccess] = useState("");
   const [meHistorique, setMeHistorique] = useState([]);
 
   const t2 = (fr, en) => lang === "fr" ? fr : en;
@@ -1654,20 +1691,15 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           </div>
         )}
         {/* ── PAGE MESSAGES ── */}
-        {page === "messages" && (
-          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }} onClick={() => { setUserMsgEmojiOpen(null); setUserMsgTooltip(null); }}>
-            <h2 style={{ margin: "0 0 14px", color: "#2c3e50", fontSize: "20px" }}>📢 {t2("Messages de l'association", "Association Messages")}</h2>
-            <p style={{ color: "#7f8c8d", fontSize: "13px", marginBottom: "24px", marginTop: 0 }}>
-              {t2("Annonces et informations envoyées par votre association.", "Announcements and information sent by your association.")}
-            </p>
-            {userMessages.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "40px 0" }}>
-                <div style={{ fontSize: "40px", marginBottom: "10px" }}>📭</div>
-                <p style={{ margin: 0 }}>{t2("Aucun message pour le moment.", "No messages yet.")}</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {userMessages.map(m => {
+        {page === "messages" && (() => {
+          const isHautMembreUser = !!(compte?.poste);
+          const envoyesU = userMessages.filter(m => m.is_mine);
+          const recusU   = userMessages.filter(m => !m.is_mine);
+
+          const renderMsgList = (liste, emptyLabel) => liste.length === 0
+            ? (<div style={{ textAlign: "center", color: "#7f8c8d", padding: "40px 0" }}><div style={{ fontSize: "40px", marginBottom: "10px" }}>📭</div><p style={{ margin: 0 }}>{emptyLabel}</p></div>)
+            : (<div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {liste.map(m => {
                   const hasAuteur = m.auteur_nom || m.auteur_prenom;
                   const posteBg = m.auteur_poste && m.auteur_poste.toLowerCase().includes("président") ? "#8e44ad"
                     : m.auteur_poste && m.auteur_poste.toLowerCase().includes("trésorier") ? "#27ae60"
@@ -1706,59 +1738,111 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                       </div>
 
                       {/* Réactions existantes */}
-                      {(hasReactions || true) && (
-                        <div style={{ padding: "8px 18px 14px", borderTop: "1px solid #f0f4f8", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }} onClick={e => e.stopPropagation()}>
-                          {Object.entries(reactions).map(([emoji, info]) => (
-                            <div key={emoji} style={{ position: "relative" }}>
-                              <button
-                                title={info.reactors.join(", ")}
-                                style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db55" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: info.my_reaction ? "#2980b9" : "#7f8c8d" }}
-                                onClick={() => {
-                                  const key = `${m.id}-${emoji}`;
-                                  setUserMsgTooltip(prev => prev === key ? null : key);
-                                }}
-                              >
-                                <span style={{ fontSize: "15px" }}>{emoji}</span>
-                                <span>{info.count}</span>
-                              </button>
-                              {userMsgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
-                                <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
-                                  {info.reactors.join(", ")}
-                                  <div style={{ position: "absolute", top: "100%", left: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          {/* Bouton ajouter réaction */}
-                          <div style={{ position: "relative" }}>
+                      <div style={{ padding: "8px 18px 14px", borderTop: "1px solid #f0f4f8", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "44px" }} onClick={e => e.stopPropagation()}>
+                        {Object.entries(reactions).map(([emoji, info]) => (
+                          <div key={emoji} style={{ position: "relative", flexShrink: 0 }}>
                             <button
-                              style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d" }}
-                              onClick={e => { e.stopPropagation(); setUserMsgEmojiOpen(prev => prev === m.id ? null : m.id); setUserMsgTooltip(null); }}
+                              title={info.reactors.join(", ")}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2980b9" : "#636e72", whiteSpace: "nowrap", flexShrink: 0 }}
+                              onClick={() => {
+                                const key = `${m.id}-${emoji}`;
+                                setUserMsgTooltip(prev => prev === key ? null : key);
+                              }}
                             >
-                              <span style={{ fontSize: "16px" }}>😊</span>
-                              <span style={{ fontSize: "12px" }}>+</span>
+                              <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
+                              <span style={{ fontSize: "13px", minWidth: "12px", textAlign: "center" }}>{info.count}</span>
                             </button>
-                            {userMsgEmojiOpen === m.id && (
-                              <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", gap: "4px", zIndex: 100, border: "1px solid #e0e6ed" }} onClick={e => e.stopPropagation()}>
-                                {REACTION_EMOJIS.map(e => (
-                                  <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s" }}
-                                    onMouseEnter={ev => ev.currentTarget.style.background = "#f0f4f8"}
-                                    onMouseLeave={ev => ev.currentTarget.style.background = "none"}
-                                    onClick={() => handleUserReactMessage(m.id, e)}
-                                  >{e}</button>
-                                ))}
+                            {userMsgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
+                              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
+                                {info.reactors.join(", ")}
+                                <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
                               </div>
                             )}
                           </div>
+                        ))}
+                        {/* Bouton ajouter réaction */}
+                        <div style={{ position: "relative", flexShrink: 0 }}>
+                          <button
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d", whiteSpace: "nowrap" }}
+                            onClick={e => { e.stopPropagation(); setUserMsgEmojiOpen(prev => prev === m.id ? null : m.id); setUserMsgTooltip(null); }}
+                          >
+                            <span style={{ fontSize: "16px", lineHeight: 1 }}>😊</span>
+                            <span style={{ fontSize: "12px" }}>+</span>
+                          </button>
+                          {userMsgEmojiOpen === m.id && (
+                            <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "12px", padding: "8px 10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "2px", zIndex: 100, border: "1px solid #e0e6ed", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
+                              {REACTION_EMOJIS.map(e => (
+                                <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s", flexShrink: 0 }}
+                                  onMouseEnter={ev => ev.currentTarget.style.background = "#f0f4f8"}
+                                  onMouseLeave={ev => ev.currentTarget.style.background = "none"}
+                                  onClick={() => handleUserReactMessage(m.id, e)}
+                                >{e}</button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </div>
-        )}
+            )
+          return (
+            <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }} onClick={() => { setUserMsgEmojiOpen(null); setUserMsgTooltip(null); }}>
+              <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px" }}>{isHautMembreUser ? "✉️" : "📢"} {t2("Messages", "Messages")}</h2>
+              {isHautMembreUser ? (
+                <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", marginTop: "12px" }}>
+                  <button style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "nouveau" ? "700" : "500", background: userMsgTab === "nouveau" ? "#e67e22" : "transparent", color: userMsgTab === "nouveau" ? "white" : "#7f8c8d" }} onClick={() => { setUserMsgTab("nouveau"); setUserMsgSendError(""); setUserMsgSendSuccess(""); }}>✏️ {t2("Nouveau", "New")}</button>
+                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "envoyes" ? "700" : "500", background: userMsgTab === "envoyes" ? "#e67e22" : "transparent", color: userMsgTab === "envoyes" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("envoyes")}>📤 {t2("Envoyés", "Sent")}{envoyesU.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "envoyes" ? "rgba(255,255,255,0.3)" : "#e67e22", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{envoyesU.length}</span>}</button>
+                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "recus" ? "700" : "500", background: userMsgTab === "recus" ? "#3498db" : "transparent", color: userMsgTab === "recus" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("recus")}>📥 {t2("Reçus", "Received")}{recusU.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "recus" ? "rgba(255,255,255,0.3)" : "#3498db", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{recusU.length}</span>}</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", marginTop: "12px" }}>
+                  <button style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab !== "recus" ? "700" : "500", background: userMsgTab !== "recus" ? "#3498db" : "transparent", color: userMsgTab !== "recus" ? "white" : "#7f8c8d" }} onClick={() => setUserMsgTab("messages")}>📢 {t2("Messages", "Messages")}</button>
+                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "recus" ? "700" : "500", background: userMsgTab === "recus" ? "#3498db" : "transparent", color: userMsgTab === "recus" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("recus")}>📥 {t2("Reçus", "Received")}{userMessages.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "recus" ? "rgba(255,255,255,0.3)" : "#3498db", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{userMessages.length}</span>}</button>
+                </div>
+              )}
+              {isHautMembreUser && userMsgTab === "nouveau" && (
+                <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Titre", "Title")}</label>
+                    <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }} value={userMsgForm.titre} onChange={e => setUserMsgForm(f => ({ ...f, titre: e.target.value }))} placeholder={t2("Objet du message", "Message subject")} autoFocus />
+                  </div>
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Contenu", "Content")}</label>
+                    <textarea style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit" }} value={userMsgForm.contenu} onChange={e => setUserMsgForm(f => ({ ...f, contenu: e.target.value }))} placeholder={t2("Contenu du message…", "Message content…")} />
+                  </div>
+                  {userMsgSendError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>⚠️ {userMsgSendError}</div>}
+                  {userMsgSendSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>✅ {userMsgSendSuccess}</div>}
+                  <button style={{ padding: "11px 32px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: userMsgSending ? 0.7 : 1 }} disabled={userMsgSending} onClick={async () => {
+                    setUserMsgSendError(""); setUserMsgSendSuccess("");
+                    if (!userMsgForm.titre.trim() || !userMsgForm.contenu.trim()) { setUserMsgSendError(t2("Titre et contenu requis.", "Title and content required.")); return; }
+                    setUserMsgSending(true);
+                    try {
+                      const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(userMsgForm) });
+                      const data = await res.json();
+                      if (!res.ok) { setUserMsgSendError(data.error || t2("Erreur.", "Error.")); return; }
+                      setUserMessages(prev => [data, ...prev]);
+                      setUserMsgForm({ titre: "", contenu: "" });
+                      setUserMsgSendSuccess(t2("Message envoyé avec succès !", "Message sent successfully!"));
+                      setTimeout(() => { setUserMsgSendSuccess(""); setUserMsgTab("envoyes"); }, 2200);
+                    } catch { setUserMsgSendError(t2("Erreur réseau.", "Network error.")); }
+                    finally { setUserMsgSending(false); }
+                  }}>{userMsgSending ? t2("Envoi…", "Sending…") : t2("Envoyer à tous les membres", "Send to all members")}</button>
+                </div>
+              )}
+              {userMsgTab !== "nouveau" && (() => {
+                const liste = isHautMembreUser
+                  ? (userMsgTab === "envoyes" ? envoyesU : recusU)
+                  : userMessages;
+                const emptyLabel = userMsgTab === "envoyes"
+                  ? t2("Aucun message envoyé pour le moment.", "No sent messages yet.")
+                  : t2("Aucun message reçu pour le moment.", "No received messages yet.");
+                return renderMsgList(liste, emptyLabel);
+              })()}
+            </div>
+          );
+        })()}
 
       </div>
 
@@ -2041,6 +2125,13 @@ function App() {
   const [profilError, setProfilError] = useState("");
   const [profilEditMode, setProfilEditMode] = useState(false);
   const [profilEditForm, setProfilEditForm] = useState({ nom: "", prenom: "", telephone: "", photo: "" });
+  const [showRoleTransfer, setShowRoleTransfer] = useState(false);
+  const [roleTransferPoste, setRoleTransferPoste] = useState("Trésorier(e)");
+  const [roleTransferTargetId, setRoleTransferTargetId] = useState("");
+  const [roleTransferMyPoste, setRoleTransferMyPoste] = useState("");
+  const [roleTransferLoading, setRoleTransferLoading] = useState(false);
+  const [roleTransferError, setRoleTransferError] = useState("");
+  const [roleTransferSuccess, setRoleTransferSuccess] = useState("");
 
   const loadProfil = async () => {
     setProfilLoading(true);
@@ -3175,8 +3266,8 @@ function App() {
                 <div style={{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #ecf0f1" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                     <div style={{ fontSize: "11px", color: "#3498db", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("accountMenu")}</div>
-                    <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: isAdmin ? "#e8f5e9" : isTresorier ? "#e8f0fe" : "#e3f2fd", color: isAdmin ? "#2e7d32" : isTresorier ? "#6c3483" : "#1565c0" }}>
-                      {isAdmin ? (lang === "fr" ? "Président" : "President") : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
+                    <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: isAdmin ? "#f3e5f5" : isTresorier ? "#e8f0fe" : "#e3f2fd", color: isAdmin ? "#6a1b9a" : isTresorier ? "#6c3483" : "#1565c0" }}>
+                      {isAdmin ? (lang === "fr" ? "Trésorier" : "Treasurer") : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
                     </span>
                   </div>
                   <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
@@ -3251,7 +3342,7 @@ function App() {
                       </div>
                       {/* Badge rôle */}
                       {(() => {
-                        const roleLabel = isAdmin ? (lang === "fr" ? "PRÉSIDENT" : "PRESIDENT") : profilData.poste ? profilData.poste.toUpperCase() : "MEMBRE";
+                        const roleLabel = isAdmin ? (lang === "fr" ? "TRÉSORIER" : "TREASURER") : profilData.poste ? profilData.poste.toUpperCase() : "MEMBRE";
                         const roleBg = isAdmin ? "#8e44ad" : profilData.poste && profilData.poste.toLowerCase().includes("trésorier") ? "#27ae60" : profilData.poste && profilData.poste.toLowerCase().includes("secrétaire") ? "#e67e22" : "#3498db";
                         return <div style={{ background: roleBg, color: "white", padding: "5px 14px", borderRadius: "20px", fontSize: "11px", fontWeight: "800", letterSpacing: "1px", alignSelf: "flex-start", whiteSpace: "nowrap" }}>{roleLabel}</div>;
                       })()}
@@ -3277,6 +3368,11 @@ function App() {
                           onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); }}
                           style={{ padding: "9px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
                           🔑 {lang === "fr" ? "Mot de passe" : "Password"}
+                        </button>
+                        <button
+                          onClick={() => { setRoleTransferPoste("Trésorier(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
+                          style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer Role"}
                         </button>
                       </>
                     ) : (
@@ -3833,11 +3929,11 @@ function App() {
                           <div style={{ background: "white", padding: "14px 28px", display: "flex", gap: "10px", flexWrap: "wrap", borderBottom: "1px solid #f0f4f8" }}>
                             <button style={{ padding: "9px 20px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                               onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); setSelectedAdherentId(null); }}>
-                              ✏️ {t("editBtn")}
+                              {t("editBtn")}
                             </button>
                             <button style={{ padding: "9px 20px", background: "#e74c3c", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                               onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>
-                              🗑️ {t("deleteIconBtn")}
+                              {t("deleteIconBtn")}
                             </button>
                           </div>
                         )}
@@ -4441,7 +4537,7 @@ function App() {
             <p style={{ color: "#7f8c8d", marginBottom: "24px", marginTop: 0, fontSize: "14px" }}>
               {isHautMembre
                 ? (lang === "fr" ? "Envoyez une information ou annonce à tous vos membres. Ils la verront dans leur espace." : "Send information or an announcement to all your members. They will see it in their space.")
-                : (lang === "fr" ? "Consultez les messages envoyés par votre administrateur." : "View messages sent by your administrator.")}
+                : (lang === "fr" ? "Consultez les messages envoyés par le trésorier ou les membres avec un poste." : "View messages sent by the treasurer or members with a position.")}
             </p>
 
             {/* Sous-onglets — hauts membres uniquement */}
@@ -4582,41 +4678,42 @@ function App() {
                         {/* Réactions + supprimer */}
                         <div style={{ padding: "8px 20px 14px", borderTop: "1px solid #f0f4f8", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }} onClick={e => e.stopPropagation()}>
                           {/* Zone réactions */}
-                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "36px" }}>
                             {Object.entries(reactions).map(([emoji, info]) => (
-                              <div key={emoji} style={{ position: "relative" }}>
+                              <div key={emoji} style={{ position: "relative", flexShrink: 0 }}>
                                 <button
-                                  style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db55" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: info.my_reaction ? "#2980b9" : "#7f8c8d" }}
+                                  title={info.reactors.join(", ")}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2980b9" : "#636e72", whiteSpace: "nowrap", flexShrink: 0 }}
                                   onClick={() => {
                                     const key = `${m.id}-${emoji}`;
                                     setMsgTooltip(prev => prev === key ? null : key);
                                     setMsgEmojiOpen(null);
                                   }}
                                 >
-                                  <span style={{ fontSize: "15px" }}>{emoji}</span>
-                                  <span>{info.count}</span>
+                                  <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
+                                  <span style={{ fontSize: "13px", minWidth: "12px", textAlign: "center" }}>{info.count}</span>
                                 </button>
                                 {msgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
-                                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
+                                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
                                     {info.reactors.join(", ")}
-                                    <div style={{ position: "absolute", top: "100%", left: "12px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
+                                    <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
                                   </div>
                                 )}
                               </div>
                             ))}
                             {/* Bouton ajouter réaction */}
-                            <div style={{ position: "relative" }}>
+                            <div style={{ position: "relative", flexShrink: 0 }}>
                               <button
-                                style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d" }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d", whiteSpace: "nowrap" }}
                                 onClick={e => { e.stopPropagation(); setMsgEmojiOpen(prev => prev === m.id ? null : m.id); setMsgTooltip(null); }}
                               >
-                                <span style={{ fontSize: "16px" }}>😊</span>
+                                <span style={{ fontSize: "16px", lineHeight: 1 }}>😊</span>
                                 <span style={{ fontSize: "12px" }}>+</span>
                               </button>
                               {msgEmojiOpen === m.id && (
-                                <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", gap: "4px", zIndex: 100, border: "1px solid #e0e6ed" }} onClick={e => e.stopPropagation()}>
+                                <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "12px", padding: "8px 10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "2px", zIndex: 100, border: "1px solid #e0e6ed", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
                                   {REACTION_EMOJIS.map(e => (
-                                    <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s" }}
+                                    <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s", flexShrink: 0 }}
                                       onMouseEnter={ev => ev.currentTarget.style.background = "#f0f4f8"}
                                       onMouseLeave={ev => ev.currentTarget.style.background = "none"}
                                       onClick={() => handleReactMessage(m.id, e)}
@@ -5210,6 +5307,88 @@ function App() {
             <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}>ℹ️ {t("aboutMenu")}</button>
             <div className="mobile-sheet-divider" />
             <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}>🚪 {t("logout")}</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL TRANSFERT DE RÔLE ─────────────────────────── */}
+      {showRoleTransfer && (
+        <div style={styles.modalOverlay} onClick={() => setShowRoleTransfer(false)}>
+          <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "460px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h3 style={{ margin: 0, fontSize: "17px", color: "#2c3e50" }}>🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer a Role"}</h3>
+              <button onClick={() => setShowRoleTransfer(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#7f8c8d" }}>✕</button>
+            </div>
+            <p style={{ margin: "0 0 18px", fontSize: "13px", color: "#7f8c8d", lineHeight: "1.5" }}>
+              {lang === "fr" ? "Attribuez un poste à un membre. Ce membre aura les droits liés à ce rôle." : "Assign a role to a member. That member will receive the related permissions."}
+            </p>
+            {roleTransferError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>⚠️ {roleTransferError}</div>}
+            {roleTransferSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>✅ {roleTransferSuccess}</div>}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Rôle à transférer" : "Role to transfer"}</label>
+              <select value={roleTransferPoste} onChange={e => setRoleTransferPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
+                {["Trésorier(e)", "Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Attribuer à" : "Assign to"}</label>
+              <select value={roleTransferTargetId} onChange={e => setRoleTransferTargetId(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
+                <option value="">{lang === "fr" ? "— Sélectionner un membre —" : "— Select a member —"}</option>
+                {adherents.map(a => <option key={a.id} value={a.id}>{a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
+              <input value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} placeholder={lang === "fr" ? "Ex : Membre fondateur, Conseiller…" : "Ex: Founding member, Advisor…"} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }} />
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: "600" }}>{lang === "fr" ? "Annuler" : "Cancel"}</button>
+              <button
+                disabled={roleTransferLoading || !roleTransferTargetId}
+                style={{ padding: "10px 22px", background: roleTransferLoading || !roleTransferTargetId ? "#95a5a6" : "#e67e22", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", cursor: roleTransferLoading || !roleTransferTargetId ? "not-allowed" : "pointer", fontWeight: "700" }}
+                onClick={async () => {
+                  setRoleTransferError(""); setRoleTransferSuccess("");
+                  const targetAdherent = adherents.find(a => String(a.id) === String(roleTransferTargetId));
+                  if (!targetAdherent) { setRoleTransferError(lang === "fr" ? "Membre introuvable." : "Member not found."); return; }
+                  setRoleTransferLoading(true);
+                  try {
+                    const r1 = await apiFetch(`${API_BASE}/adherents/${targetAdherent.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ nom: targetAdherent.nom, prenom: targetAdherent.prenom, telephone: targetAdherent.telephone || null, email: targetAdherent.email || null, poste: roleTransferPoste }),
+                    });
+                    if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                    if (roleTransferMyPoste !== undefined) {
+                      await apiFetch(`${API_BASE}/me`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ nom: profilData.nom, prenom: profilData.prenom, telephone: profilData.telephone || null, photo: profilData.photo || undefined, poste: roleTransferMyPoste || null }),
+                      });
+                    }
+                    setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
+                    const newPoste = roleTransferMyPoste?.trim() || null;
+                    setProfilData(prev => ({ ...prev, poste: newPoste }));
+                    // Mettre à jour compte en mémoire pour que isTresorier soit recalculé immédiatement
+                    const updatedCompte = { ...compte, poste: newPoste };
+                    sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
+                    setCompte(updatedCompte);
+                    const transfertTresorier = roleTransferPoste.toLowerCase().includes("trésorier") && !newPoste?.toLowerCase().includes("trésorier");
+                    if (transfertTresorier) {
+                      setRoleTransferSuccess(lang === "fr"
+                        ? `✅ Poste "${roleTransferPoste}" transféré à ${targetAdherent.prenom} ${targetAdherent.nom}. Déconnexion automatique dans 3 s…`
+                        : `✅ Role "${roleTransferPoste}" transferred to ${targetAdherent.prenom} ${targetAdherent.nom}. Logging out in 3 s…`);
+                      setTimeout(() => { setShowRoleTransfer(false); handleLogout(); }, 3000);
+                    } else {
+                      setRoleTransferSuccess(lang === "fr" ? `Rôle "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
+                      setTimeout(() => setShowRoleTransfer(false), 2500);
+                    }
+                  } catch { setRoleTransferError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                  finally { setRoleTransferLoading(false); }
+                }}
+              >
+                {roleTransferLoading ? (lang === "fr" ? "Transfert…" : "Transferring…") : (lang === "fr" ? "Confirmer le transfert" : "Confirm Transfer")}
+              </button>
+            </div>
           </div>
         </div>
       )}
