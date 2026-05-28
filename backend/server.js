@@ -128,6 +128,44 @@ async function sendEmail({ to, subject, html }) {
   });
 }
 
+// ── Envoi SMS via Africa's Talking ─────────────────────────────
+const AT_USERNAME   = process.env.AT_USERNAME;
+const AT_API_KEY    = process.env.AT_API_KEY;
+const AT_SENDER_ID  = process.env.AT_SENDER_ID  || "CotisaPro";
+const AT_COUNTRY    = process.env.AT_COUNTRY     || "225"; // +225 = Côte d'Ivoire par défaut
+const smsReady      = !!(AT_USERNAME && AT_API_KEY);
+
+let atSMS = null;
+if (smsReady) {
+  try {
+    const AfricasTalking = require("africastalking");
+    const at = AfricasTalking({ username: AT_USERNAME, apiKey: AT_API_KEY });
+    atSMS = at.SMS;
+    console.log(`📱 SMS (Africa's Talking) prêt — expéditeur : ${AT_SENDER_ID}`);
+  } catch (e) {
+    console.warn("⚠️  Erreur initialisation Africa's Talking :", e.message);
+  }
+} else {
+  console.warn("⚠️  AT_USERNAME ou AT_API_KEY manquant — envoi de SMS désactivé.");
+}
+
+function normaliserTelephone(tel) {
+  if (!tel) return null;
+  let n = String(tel).replace(/[\s\-().]/g, "");
+  if (n.startsWith("+")) return n;
+  if (n.startsWith("00")) return "+" + n.slice(2);
+  // Numéro local sans indicatif → ajouter le pays par défaut
+  if (!n.startsWith(AT_COUNTRY)) n = AT_COUNTRY + n;
+  return "+" + n;
+}
+
+async function sendSMS(telephone, message) {
+  if (!atSMS) throw new Error("Service SMS non configuré.");
+  const to = normaliserTelephone(telephone);
+  if (!to) throw new Error("Numéro de téléphone invalide.");
+  await atSMS.send({ to: [to], message, from: AT_SENDER_ID });
+}
+
 const PWD_ERROR = "Le mot de passe doit contenir au moins 8 caractères, une minuscule, une majuscule, un chiffre et un caractère spécial (ex: @, #, !, %).";
 const pwdOk = (p) => p && p.length >= 8 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /[0-9]/.test(p) && /[^a-zA-Z0-9]/.test(p);
 
@@ -296,6 +334,57 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN invite_token VARCHAR(64) NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE adherents ADD COLUMN poste VARCHAR(100) DEFAULT NULL`); } catch (_) {}
 
+  // Migrations Mobile Money
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN om_numero VARCHAR(30) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN om_nom VARCHAR(100) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN wave_numero VARCHAR(30) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN wave_nom VARCHAR(100) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN mtn_numero VARCHAR(30) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE comptes ADD COLUMN mtn_nom VARCHAR(100) NULL`); } catch (_) {}
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      compte_id    INT UNSIGNED NOT NULL,
+      user_id      INT UNSIGNED NULL,
+      user_type    ENUM('admin','user') NOT NULL DEFAULT 'admin',
+      action       VARCHAR(100) NOT NULL,
+      details      TEXT NULL,
+      ip_address   VARCHAR(45) NULL,
+      created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_compte_audit (compte_id),
+      INDEX idx_created_audit (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS depenses (
+      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      compte_id     INT UNSIGNED NOT NULL,
+      libelle       VARCHAR(200) NOT NULL,
+      montant       DECIMAL(15,2) NOT NULL,
+      categorie     VARCHAR(100) NOT NULL DEFAULT 'Autre',
+      date_depense  DATE NOT NULL,
+      description   TEXT NULL,
+      created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_compte_depense (compte_id),
+      INDEX idx_date_depense (date_depense)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS budgets (
+      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      compte_id     INT UNSIGNED NOT NULL,
+      libelle       VARCHAR(200) NOT NULL,
+      montant_prevu DECIMAL(15,2) NOT NULL,
+      date_debut    DATE NULL,
+      date_fin      DATE NULL,
+      created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_compte_budget (compte_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   console.log("Base de données initialisée ✅");
 }
 
@@ -333,10 +422,10 @@ async function authMiddleware(req, res, next) {
   }
 }
 
-// Trésorier-admin uniquement (créateur du compte)
+// Créateur du compte uniquement
 function adminMiddleware(req, res, next) {
   if (req.role !== "admin") {
-    return res.status(403).json({ error: "Accès réservé au trésorier (administrateur)." });
+    return res.status(403).json({ error: "Accès réservé au créateur de l'association." });
   }
   next();
 }
@@ -361,6 +450,35 @@ function presidentMiddleware(req, res, next) {
   return res.status(403).json({ error: "Accès réservé au président." });
 }
 
+// Attribution de postes : créateur SI aucun président n'existe encore, sinon seulement le président
+async function canAssignPosteMiddleware(req, res, next) {
+  // Membre avec poste Président : toujours autorisé
+  if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("président")) return next();
+
+  if (req.role === "admin") {
+    try {
+      // Vérifier si le créateur lui-même est président (son propre adhérent)
+      const [[adminAdh]] = await pool.query(
+        "SELECT poste FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1",
+        [req.compteId]
+      );
+      if (adminAdh?.poste && adminAdh.poste.toLowerCase().includes("président")) return next();
+
+      // Vérifier si un président existe parmi les membres
+      const [[{ cnt }]] = await pool.query(
+        "SELECT COUNT(*) as cnt FROM adherents WHERE compte_id = ? AND est_supprime = 0 AND poste LIKE '%résident%'",
+        [req.compteId]
+      );
+      if (cnt === 0) return next(); // Pas encore de président → le créateur peut attribuer
+      return res.status(403).json({ error: "Un président est en place. Seul le président peut désormais attribuer des postes." });
+    } catch {
+      return res.status(500).json({ error: "Erreur serveur." });
+    }
+  }
+
+  return res.status(403).json({ error: "Accès réservé au président." });
+}
+
 // ── Génération unique du matricule ─────────────────────────────
 async function genererMatricule(conn, compteId) {
   const annee = new Date().getFullYear();
@@ -374,6 +492,23 @@ async function genererMatricule(conn, compteId) {
   );
   const [[{ num }]] = await conn.query("SELECT LAST_INSERT_ID() AS num");
   return `ADH-${annee}-${String(num).padStart(3, "0")}`;
+}
+
+// ── Adresse IP du client ───────────────────────────────────────
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || req.ip || null;
+}
+
+// ── Journal d'audit ────────────────────────────────────────────
+async function logAudit(compteId, userId, userType, action, details, ip) {
+  try {
+    await pool.query(
+      "INSERT INTO audit_logs (compte_id, user_id, user_type, action, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+      [compteId, userId || null, userType || "admin", action, details || null, ip || null]
+    );
+  } catch (_) {}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -412,9 +547,25 @@ app.get("/api/events", (req, res) => {
 app.get("/api/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok", db: "connected", time: new Date().toISOString() });
+    res.json({
+      status: "ok", db: "connected", time: new Date().toISOString(),
+      email: emailReady, sms: smsReady,
+    });
   } catch (err) {
     res.status(503).json({ status: "error", db: "disconnected", message: err.message });
+  }
+});
+
+// Test d'envoi SMS (admin uniquement)
+app.post("/api/admin/test-sms", authMiddleware, adminMiddleware, async (req, res) => {
+  if (!atSMS) return res.status(503).json({ error: "Service SMS non configuré. Ajoutez AT_USERNAME et AT_API_KEY dans les variables d'environnement." });
+  const { telephone } = req.body;
+  if (!telephone) return res.status(400).json({ error: "Numéro de téléphone requis." });
+  try {
+    await sendSMS(telephone, `Test SMS Cotisation Pro ✓\nLe service SMS est opérationnel.\n${new Date().toLocaleString("fr-FR")}`);
+    res.json({ ok: true, message: `SMS de test envoyé au ${telephone}.` });
+  } catch (err) {
+    res.status(500).json({ error: `Échec de l'envoi SMS : ${err.message}` });
   }
 });
 
@@ -493,7 +644,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     for (const account of existingAccounts) {
       if (account.nom_association.toLowerCase() === nom_association.trim().toLowerCase()) {
-        return res.status(409).json({ error: "Un compte trésorier existe déjà pour cet email et cette association." });
+        return res.status(409).json({ error: "Un compte existe déjà pour cet email et cette association." });
       }
     }
 
@@ -507,11 +658,11 @@ app.post("/api/auth/register", async (req, res) => {
       );
       const adminId = result.insertId;
 
-      // Créer automatiquement l'adhérent du trésorier
+      // Créer automatiquement l'adhérent du créateur (sans poste attribué)
       const matricule = await genererMatricule(conn, adminId);
       await conn.query(
-        `INSERT INTO adherents (compte_id, matricule, nom, prenom, email, telephone, poste)
-         VALUES (?, ?, ?, ?, ?, ?, 'Trésorier')`,
+        `INSERT INTO adherents (compte_id, matricule, nom, prenom, email, telephone)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [adminId, matricule, nom.trim(), prenom.trim(), emailKey, telephone ? telephone.trim() : null]
       );
 
@@ -588,6 +739,7 @@ app.post("/api/auth/login", async (req, res) => {
             role: "user",
             poste,
           };
+          await logAudit(account.admin_compte_id, account.id, "user", "CONNEXION", `Connexion membre (${account.email || account.telephone})`, getClientIp(req));
         } else {
           tokenPayload = {
             compteId: account.id,
@@ -601,6 +753,7 @@ app.post("/api/auth/login", async (req, res) => {
             email: account.email,
             role: "admin",
           };
+          await logAudit(account.id, account.id, "admin", "CONNEXION", `Connexion créateur (${account.email})`, getClientIp(req));
         }
 
         return res.json(responseData);
@@ -699,6 +852,7 @@ app.post("/api/auth/change-password", authMiddleware, async (req, res) => {
     if (!match) return res.status(400).json({ error: "Ancien mot de passe incorrect." });
     const hash = await bcrypt.hash(nouveau_mot_de_passe, SALT_ROUNDS);
     await pool.query("UPDATE comptes SET mot_de_passe = ? WHERE id = ?", [hash, accountId]);
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "CHANGEMENT_MOT_DE_PASSE", "Mot de passe modifié", getClientIp(req));
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -766,6 +920,7 @@ app.post("/api/auth/change-email", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Cette adresse email est déjà utilisée." });
     await pool.query("UPDATE comptes SET email = ? WHERE id = ?", [newEmailKey, req.compteId]);
     otpStore.delete(newEmailKey);
+    await logAudit(req.compteId, req.compteId, "admin", "CHANGEMENT_EMAIL", `Nouvel email : ${newEmailKey}`, getClientIp(req));
     const [[compte]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
     const newToken = jwt.sign(
       { compteId: req.compteId, email: newEmailKey, nom_association: compte.nom_association },
@@ -991,6 +1146,7 @@ app.post("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) =
     );
 
     await conn.commit();
+    await logAudit(req.compteId, req.compteId, "admin", "CREATION_UTILISATEUR", `Compte créé pour ${nom} ${prenom} (${emailKey || telKey})`, getClientIp(req));
     res.json({ id: compteResult.insertId, adherentId, matricule, message: "Utilisateur créé ✅" });
   } catch (err) {
     await conn.rollback();
@@ -1026,6 +1182,7 @@ app.delete("/api/admin/users/:userId", authMiddleware, adminMiddleware, async (r
       [req.params.userId, req.compteId]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: "Utilisateur introuvable." });
+    await logAudit(req.compteId, req.compteId, "admin", "SUPPRESSION_UTILISATEUR", `Compte supprimé (id=${req.params.userId})`, getClientIp(req));
     res.json({ message: "Accès supprimé ✅" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1308,8 +1465,25 @@ app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res
       }
     }
 
+    // SMS de bienvenue si téléphone disponible
+    let smsSent = false;
+    const telPourSms = telKey || (await pool.query("SELECT telephone FROM adherents WHERE id = ?", [adherentId]).then(([r]) => r[0]?.telephone).catch(() => null));
+    if (atSMS && telPourSms) {
+      try {
+        const nomOrg = req.nomAssociation || "votre association";
+        const ligneIdentifiants = emailKey
+          ? `\nEmail: ${emailKey}\nMDP: ${plainPwd || "(envoyé par email)"}`
+          : "";
+        await sendSMS(telPourSms,
+          `Cotisation Pro - ${nomOrg}\nBonjour ${prenom} ${nom} !\nVotre compte membre a ete cree.${ligneIdentifiants}\nConnectez-vous sur l'application.`
+        );
+        smsSent = true;
+      } catch (_) {}
+    }
+
     await conn.commit();
-    res.json({ id: adherentId, matricule, emailSent, message: "Adhérent ajouté ✅" });
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "AJOUT_ADHERENT", `Adhérent ajouté : ${nom} ${prenom} (${matricule})`, getClientIp(req));
+    res.json({ id: adherentId, matricule, emailSent, smsSent, message: "Adhérent ajouté ✅" });
   } catch (err) {
     await conn.rollback();
     res.status(500).json({ error: err.message });
@@ -1318,7 +1492,7 @@ app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res
   }
 });
 
-app.put("/api/adherents/:id", authMiddleware, presidentMiddleware, async (req, res) => {
+app.put("/api/adherents/:id", authMiddleware, canAssignPosteMiddleware, async (req, res) => {
   try {
     const { nom, prenom, telephone, email, photo, poste } = req.body;
     if (!nom || !prenom)
@@ -1349,6 +1523,7 @@ app.put("/api/adherents/:id", authMiddleware, presidentMiddleware, async (req, r
       );
     }
     broadcastToCompte(req.compteId, "adherents_updated", { updatedId: String(req.params.id) });
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "MODIFICATION_ADHERENT", `Adhérent modifié : ${nom} ${prenom}${poste ? ` — poste: ${poste}` : ""}`, getClientIp(req));
     res.json({ message: "Adhérent modifié ✅", myPosteWasCleared });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1361,6 +1536,7 @@ app.delete("/api/adherents/:id", authMiddleware, trésorierMiddleware, async (re
       "UPDATE adherents SET est_supprime = 1 WHERE id = ? AND compte_id = ?",
       [req.params.id, req.compteId]
     );
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "SUPPRESSION_ADHERENT", `Adhérent supprimé (id=${req.params.id})`, getClientIp(req));
     res.json({ message: "Adhérent supprimé ✅" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1485,6 +1661,7 @@ app.post("/api/periodes", authMiddleware, trésorierMiddleware, async (req, res)
     }
 
     await conn.commit();
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "CREATION_PERIODE", `Période créée : ${libelle} — ${montant} F`, getClientIp(req));
     res.json({ id: cotisationId, message: "Cotisation créée ✅" });
   } catch (err) {
     await conn.rollback();
@@ -1592,6 +1769,70 @@ app.post("/api/periodes/:periodeId/paiements", authMiddleware, trésorierMiddlew
     );
 
     await conn.commit();
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "ENREGISTREMENT_PAIEMENT", `Paiement ${montant} F — adhérent id=${adherent_id} — reçu ${recu}`, getClientIp(req));
+
+    // Email de confirmation à l'adhérent (si email disponible)
+    if (transporter) {
+      try {
+        const [[adh]] = await pool.query(
+          "SELECT nom, prenom, email FROM adherents WHERE id = ? AND email IS NOT NULL AND email != ''",
+          [adherent_id]
+        );
+        const [[cot]] = await pool.query("SELECT libelle FROM cotisations WHERE id = ?", [periodeId]);
+        if (adh?.email) {
+          const [[nomAssoc]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
+          const nomOrg = nomAssoc?.nom_association || "votre association";
+          const formatMontant = (v) => Number(v).toLocaleString("fr-FR");
+          await sendEmail({
+            to: adh.email,
+            subject: `Confirmation de paiement — ${cot?.libelle || "Cotisation"}`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#f9f9f9;border-radius:10px;overflow:hidden;border:1px solid #e0e0e0">
+                <div style="background:#27ae60;padding:24px 28px;text-align:center">
+                  <h1 style="color:white;margin:0;font-size:22px">✅ Paiement confirmé</h1>
+                  <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px">${nomOrg}</p>
+                </div>
+                <div style="padding:28px">
+                  <p style="font-size:15px;color:#2c3e50">Bonjour <strong>${adh.prenom} ${adh.nom}</strong>,</p>
+                  <p style="color:#555;font-size:14px;line-height:1.6">
+                    Votre paiement pour la période <strong>${cot?.libelle || "cotisation"}</strong> a bien été enregistré.
+                  </p>
+                  <div style="background:#f0faf4;border:1px solid #b2dfdb;border-radius:8px;padding:18px 20px;margin:20px 0">
+                    <table style="width:100%;border-collapse:collapse;font-size:14px">
+                      <tr><td style="color:#777;padding:4px 0">Montant payé</td><td style="text-align:right;font-weight:700;color:#27ae60">${formatMontant(montant)} FCFA</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Reste à payer</td><td style="text-align:right;font-weight:700;color:${nouveauReste > 0 ? "#e67e22" : "#27ae60"}">${formatMontant(nouveauReste)} FCFA</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Statut</td><td style="text-align:right"><span style="background:${statut === "Payé" ? "#e8f5e9" : "#fff3e0"};color:${statut === "Payé" ? "#27ae60" : "#e67e22"};padding:3px 12px;border-radius:20px;font-weight:700;font-size:13px">${statut}</span></td></tr>
+                      <tr><td style="color:#777;padding:4px 0">N° reçu</td><td style="text-align:right;font-family:monospace;font-size:12px;color:#555">${recu}</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Date</td><td style="text-align:right;color:#555">${new Date(dateP).toLocaleDateString("fr-FR")}</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Mode</td><td style="text-align:right;color:#555">${modePaiement || "Espèces"}</td></tr>
+                    </table>
+                  </div>
+                  <p style="color:#888;font-size:12px;margin-top:24px">Ce message est envoyé automatiquement par Cotisation Pro. Merci de ne pas y répondre.</p>
+                </div>
+              </div>`,
+          });
+        }
+      } catch (_) {}
+    }
+
+    // SMS de confirmation de paiement (si téléphone disponible)
+    if (atSMS) {
+      try {
+        const [[adhSms]] = await pool.query(
+          "SELECT nom, prenom, telephone FROM adherents WHERE id = ? AND telephone IS NOT NULL AND telephone != ''",
+          [adherent_id]
+        );
+        if (adhSms?.telephone) {
+          const [[cotSms]] = await pool.query("SELECT libelle FROM cotisations WHERE id = ?", [periodeId]);
+          const [[assocSms]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
+          const fm = (v) => Number(v).toLocaleString("fr-FR");
+          await sendSMS(adhSms.telephone,
+            `Cotisation Pro - ${assocSms?.nom_association || "Association"}\nPaiement recu : ${fm(montant)} FCFA\nPeriode: ${cotSms?.libelle || ""}\nReste: ${fm(nouveauReste)} FCFA\nStatut: ${statut}\nRecu: ${recu}`
+          );
+        }
+      } catch (_) {}
+    }
+
     res.json({ message: "Paiement enregistré ✅" });
   } catch (err) {
     await conn.rollback();
@@ -1684,6 +1925,44 @@ app.get("/api/historique", authMiddleware, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// ROUTES — JOURNAL D'AUDIT (admin uniquement)
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/audit-logs", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const limit  = Math.min(parseInt(req.query.limit)  || 100, 500);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const action = req.query.action || null;
+
+    const whereClauses = ["al.compte_id = ?"];
+    const params = [req.compteId];
+    if (action) { whereClauses.push("al.action = ?"); params.push(action); }
+    const whereSQL = whereClauses.join(" AND ");
+
+    const [rows] = await pool.query(
+      `SELECT al.id, al.user_type, al.action, al.details, al.ip_address, al.created_at,
+              a.nom, a.prenom, a.poste
+       FROM audit_logs al
+       LEFT JOIN comptes c  ON c.id = al.user_id
+       LEFT JOIN adherents a ON a.id = c.adherent_id
+       WHERE ${whereSQL}
+       ORDER BY al.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM audit_logs al WHERE ${whereSQL}`,
+      params
+    );
+
+    res.json({ rows, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // MESSAGES
 // ═══════════════════════════════════════════════════════════════
 
@@ -1727,7 +2006,7 @@ app.post("/api/messages", authMiddleware, hautMembreMiddleware, async (req, res)
       );
       auteurNom = adh?.nom || null;
       auteurPrenom = adh?.prenom || null;
-      auteurPoste = adh?.poste || "Président";
+      auteurPoste = adh?.poste || "Créateur";
     } else {
       const [[adh]] = await pool.query(
         "SELECT nom, prenom FROM adherents WHERE id = ? AND compte_id = ?",
@@ -1801,6 +2080,413 @@ app.delete("/api/messages/:id", authMiddleware, trésorierMiddleware, async (req
     await pool.query("DELETE FROM message_likes WHERE message_id = ?", [req.params.id]);
     await pool.query("DELETE FROM messages WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
     res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// RAPPELS EMAIL — Cotisations impayées / partielles
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/cotisations/:id/rappels", authMiddleware, trésorierMiddleware, async (req, res) => {
+  if (!transporter && !atSMS) return res.status(503).json({ error: "Aucun service de notification configuré (email ou SMS)." });
+  try {
+    const cotisationId = Number(req.params.id);
+    const [[cot]] = await pool.query(
+      "SELECT id, libelle, montant_du FROM cotisations WHERE id = ? AND compte_id = ?",
+      [cotisationId, req.compteId]
+    );
+    if (!cot) return res.status(404).json({ error: "Période introuvable." });
+
+    const [[nomAssoc]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
+    const nomOrg = nomAssoc?.nom_association || "votre association";
+
+    // Tous les adhérents impayés/partiels (email OU téléphone)
+    const [nonPayes] = await pool.query(`
+      SELECT a.id, a.nom, a.prenom, a.email, a.telephone,
+             COALESCE(p.solde_paye, 0)  AS solde_paye,
+             COALESCE(p.reste, ?)       AS reste,
+             COALESCE(p.statut, 'Impayé') AS statut
+      FROM adherents a
+      LEFT JOIN paiements p ON p.adherent_id = a.id AND p.cotisation_id = ?
+      WHERE a.compte_id = ? AND a.est_supprime = 0
+        AND (a.email IS NOT NULL AND a.email != '' OR a.telephone IS NOT NULL AND a.telephone != '')
+        AND (p.statut IS NULL OR p.statut IN ('Impayé', 'Partiel'))
+    `, [cot.montant_du, cotisationId, req.compteId]);
+
+    if (nonPayes.length === 0) {
+      return res.json({ emails: 0, sms: 0, ignores: 0, message: "Aucun adhérent impayé avec contact disponible." });
+    }
+
+    const fm = (v) => Number(v).toLocaleString("fr-FR");
+    let emailsEnvoyes = 0, smsEnvoyes = 0, ignores = 0;
+
+    for (const adh of nonPayes) {
+      // ── Email ──
+      if (transporter && adh.email) {
+        try {
+          await sendEmail({
+            to: adh.email,
+            subject: `Rappel de cotisation — ${cot.libelle}`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#f9f9f9;border-radius:10px;overflow:hidden;border:1px solid #e0e0e0">
+                <div style="background:#e67e22;padding:24px 28px;text-align:center">
+                  <h1 style="color:white;margin:0;font-size:22px">🔔 Rappel de cotisation</h1>
+                  <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px">${nomOrg}</p>
+                </div>
+                <div style="padding:28px">
+                  <p style="font-size:15px;color:#2c3e50">Bonjour <strong>${adh.prenom} ${adh.nom}</strong>,</p>
+                  <p style="color:#555;font-size:14px;line-height:1.6">
+                    Nous vous rappelons que votre cotisation pour la période <strong>${cot.libelle}</strong> n'a pas encore été réglée ou est en cours de règlement.
+                  </p>
+                  <div style="background:#fff8f0;border:1px solid #f0c27f;border-radius:8px;padding:18px 20px;margin:20px 0">
+                    <table style="width:100%;border-collapse:collapse;font-size:14px">
+                      <tr><td style="color:#777;padding:4px 0">Période</td><td style="text-align:right;font-weight:700;color:#2c3e50">${cot.libelle}</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Montant total dû</td><td style="text-align:right;font-weight:700;color:#e74c3c">${fm(cot.montant_du)} FCFA</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Déjà payé</td><td style="text-align:right;color:#27ae60;font-weight:700">${fm(adh.solde_paye)} FCFA</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Reste à payer</td><td style="text-align:right;font-weight:800;color:#e74c3c;font-size:16px">${fm(adh.reste)} FCFA</td></tr>
+                      <tr><td style="color:#777;padding:4px 0">Statut</td><td style="text-align:right"><span style="background:#fff3e0;color:#e67e22;padding:3px 12px;border-radius:20px;font-weight:700;font-size:13px">${adh.statut}</span></td></tr>
+                    </table>
+                  </div>
+                  <p style="color:#555;font-size:14px">Merci de régulariser votre situation dans les meilleurs délais auprès de votre trésorier(e).</p>
+                  <p style="color:#888;font-size:12px;margin-top:24px">Ce message est envoyé automatiquement par Cotisation Pro.</p>
+                </div>
+              </div>`,
+          });
+          emailsEnvoyes++;
+        } catch (_) { ignores++; }
+      }
+
+      // ── SMS ──
+      if (atSMS && adh.telephone) {
+        try {
+          await sendSMS(adh.telephone,
+            `Rappel Cotisation Pro - ${nomOrg}\nBonjour ${adh.prenom} ${adh.nom} !\nCotisation: ${cot.libelle}\nReste a payer: ${fm(adh.reste)} FCFA\nStatut: ${adh.statut}\nContactez votre tresorier(e).`
+          );
+          smsEnvoyes++;
+        } catch (_) { ignores++; }
+      }
+    }
+
+    await logAudit(req.compteId, req.userId || req.compteId, req.role, "RAPPELS_NOTIFICATION",
+      `Période ${cot.libelle} — ${emailsEnvoyes} email(s), ${smsEnvoyes} SMS envoyé(s)`, getClientIp(req));
+    res.json({ emails: emailsEnvoyes, sms: smsEnvoyes, ignores, message: `${emailsEnvoyes} email(s) et ${smsEnvoyes} SMS envoyé(s).` });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// MOBILE MONEY — Configuration
+// ═══════════════════════════════════════════════════════════════
+
+// Obtenir la config Mobile Money de l'association (tous membres authentifiés)
+app.get("/api/mobile-money/config", authMiddleware, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT om_numero, om_nom, wave_numero, wave_nom, mtn_numero, mtn_nom FROM comptes WHERE id = ?",
+      [req.compteId]
+    );
+    res.json(row || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mettre à jour la config Mobile Money (admin uniquement)
+app.put("/api/mobile-money/config", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { om_numero, om_nom, wave_numero, wave_nom, mtn_numero, mtn_nom } = req.body;
+    await pool.query(
+      `UPDATE comptes SET
+        om_numero   = ?, om_nom   = ?,
+        wave_numero = ?, wave_nom = ?,
+        mtn_numero  = ?, mtn_nom  = ?
+       WHERE id = ?`,
+      [
+        om_numero   || null, om_nom   || null,
+        wave_numero || null, wave_nom || null,
+        mtn_numero  || null, mtn_nom  || null,
+        req.compteId,
+      ]
+    );
+    await logAudit(req.compteId, req.compteId, "admin", "CONFIG_MOBILE_MONEY", "Configuration Mobile Money mise à jour", getClientIp(req));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COMPTABILITÉ — Dépenses & Budgets
+// ═══════════════════════════════════════════════════════════════
+
+// Résumé financier : recettes collectées, dépenses, solde
+app.get("/api/comptabilite/resume", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { dateDebut, dateFin } = req.query;
+    let recettesCond = "p.compte_id = ?";
+    let recettesParams = [req.compteId];
+    let depensesCond = "d.compte_id = ?";
+    let depensesParams = [req.compteId];
+    if (dateDebut) {
+      recettesCond += " AND t.date_paiement >= ?";
+      recettesParams.push(dateDebut);
+      depensesCond += " AND d.date_depense >= ?";
+      depensesParams.push(dateDebut);
+    }
+    if (dateFin) {
+      recettesCond += " AND t.date_paiement <= ?";
+      recettesParams.push(dateFin);
+      depensesCond += " AND d.date_depense <= ?";
+      depensesParams.push(dateFin);
+    }
+    const [[{ recettes }]] = await pool.query(
+      `SELECT COALESCE(SUM(t.montant_paye), 0) AS recettes
+       FROM transactions t
+       JOIN paiements p ON p.id = t.paiement_id
+       JOIN adherents a ON a.id = p.adherent_id
+       WHERE ${recettesCond} AND a.est_supprime = 0`,
+      recettesParams
+    );
+    const [[{ depenses }]] = await pool.query(
+      `SELECT COALESCE(SUM(d.montant), 0) AS depenses FROM depenses d WHERE ${depensesCond}`,
+      depensesParams
+    );
+    res.json({ recettes: Number(recettes), depenses: Number(depenses), solde: Number(recettes) - Number(depenses) });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Liste des dépenses
+app.get("/api/depenses", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { dateDebut, dateFin, categorie } = req.query;
+    let where = "WHERE compte_id = ?";
+    const params = [req.compteId];
+    if (dateDebut) { where += " AND date_depense >= ?"; params.push(dateDebut); }
+    if (dateFin)   { where += " AND date_depense <= ?"; params.push(dateFin); }
+    if (categorie) { where += " AND categorie = ?"; params.push(categorie); }
+    const [rows] = await pool.query(
+      `SELECT id, libelle, montant, categorie, date_depense, description, created_at FROM depenses ${where} ORDER BY date_depense DESC, id DESC`,
+      params
+    );
+    res.json(rows);
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Créer une dépense
+app.post("/api/depenses", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { libelle, montant, categorie, date_depense, description } = req.body;
+    if (!libelle?.trim() || !montant || !date_depense) return res.status(400).json({ error: "Libellé, montant et date requis." });
+    const m = parseFloat(montant);
+    if (isNaN(m) || m <= 0) return res.status(400).json({ error: "Montant invalide." });
+    const [result] = await pool.query(
+      "INSERT INTO depenses (compte_id, libelle, montant, categorie, date_depense, description) VALUES (?, ?, ?, ?, ?, ?)",
+      [req.compteId, libelle.trim(), m, (categorie || "Autre").trim(), date_depense, description?.trim() || null]
+    );
+    await logAudit(req.compteId, req.userId, req.role, "AJOUT_DEPENSE", `${libelle.trim()} — ${m} FCFA`, getClientIp(req));
+    res.json({ id: result.insertId, libelle: libelle.trim(), montant: m, categorie: (categorie || "Autre").trim(), date_depense, description: description?.trim() || null });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Modifier une dépense
+app.put("/api/depenses/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { libelle, montant, categorie, date_depense, description } = req.body;
+    if (!libelle?.trim() || !montant || !date_depense) return res.status(400).json({ error: "Libellé, montant et date requis." });
+    const m = parseFloat(montant);
+    if (isNaN(m) || m <= 0) return res.status(400).json({ error: "Montant invalide." });
+    const [[dep]] = await pool.query("SELECT id FROM depenses WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    if (!dep) return res.status(404).json({ error: "Dépense introuvable." });
+    await pool.query(
+      "UPDATE depenses SET libelle = ?, montant = ?, categorie = ?, date_depense = ?, description = ? WHERE id = ? AND compte_id = ?",
+      [libelle.trim(), m, (categorie || "Autre").trim(), date_depense, description?.trim() || null, req.params.id, req.compteId]
+    );
+    await logAudit(req.compteId, req.userId, req.role, "MODIF_DEPENSE", `${libelle.trim()} — ${m} FCFA`, getClientIp(req));
+    res.json({ id: Number(req.params.id), libelle: libelle.trim(), montant: m, categorie: (categorie || "Autre").trim(), date_depense, description: description?.trim() || null });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Supprimer une dépense
+app.delete("/api/depenses/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [[dep]] = await pool.query("SELECT id, libelle FROM depenses WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    if (!dep) return res.status(404).json({ error: "Dépense introuvable." });
+    await pool.query("DELETE FROM depenses WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    await logAudit(req.compteId, req.userId, req.role, "SUPPRESSION_DEPENSE", dep.libelle, getClientIp(req));
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Liste des budgets
+app.get("/api/budgets", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, libelle, montant_prevu, date_debut, date_fin, created_at FROM budgets WHERE compte_id = ? ORDER BY created_at DESC",
+      [req.compteId]
+    );
+    // Pour chaque budget, calculer les dépenses de la période
+    const enriched = await Promise.all(rows.map(async (b) => {
+      let where = "WHERE compte_id = ?";
+      const params = [req.compteId];
+      if (b.date_debut) { where += " AND date_depense >= ?"; params.push(b.date_debut); }
+      if (b.date_fin)   { where += " AND date_depense <= ?"; params.push(b.date_fin); }
+      const [[{ total }]] = await pool.query(`SELECT COALESCE(SUM(montant), 0) AS total FROM depenses ${where}`, params);
+      return { ...b, depenses_reelles: Number(total) };
+    }));
+    res.json(enriched);
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Créer un budget
+app.post("/api/budgets", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { libelle, montant_prevu, date_debut, date_fin } = req.body;
+    if (!libelle?.trim() || !montant_prevu) return res.status(400).json({ error: "Libellé et montant prévisionnel requis." });
+    const m = parseFloat(montant_prevu);
+    if (isNaN(m) || m <= 0) return res.status(400).json({ error: "Montant invalide." });
+    const [result] = await pool.query(
+      "INSERT INTO budgets (compte_id, libelle, montant_prevu, date_debut, date_fin) VALUES (?, ?, ?, ?, ?)",
+      [req.compteId, libelle.trim(), m, date_debut || null, date_fin || null]
+    );
+    res.json({ id: result.insertId, libelle: libelle.trim(), montant_prevu: m, date_debut: date_debut || null, date_fin: date_fin || null, depenses_reelles: 0 });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Modifier un budget
+app.put("/api/budgets/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { libelle, montant_prevu, date_debut, date_fin } = req.body;
+    if (!libelle?.trim() || !montant_prevu) return res.status(400).json({ error: "Libellé et montant prévisionnel requis." });
+    const m = parseFloat(montant_prevu);
+    if (isNaN(m) || m <= 0) return res.status(400).json({ error: "Montant invalide." });
+    const [[b]] = await pool.query("SELECT id FROM budgets WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    if (!b) return res.status(404).json({ error: "Budget introuvable." });
+    await pool.query(
+      "UPDATE budgets SET libelle = ?, montant_prevu = ?, date_debut = ?, date_fin = ? WHERE id = ? AND compte_id = ?",
+      [libelle.trim(), m, date_debut || null, date_fin || null, req.params.id, req.compteId]
+    );
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Supprimer un budget
+app.delete("/api/budgets/:id", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [[b]] = await pool.query("SELECT id FROM budgets WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    if (!b) return res.status(404).json({ error: "Budget introuvable." });
+    await pool.query("DELETE FROM budgets WHERE id = ? AND compte_id = ?", [req.params.id, req.compteId]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Évolution mensuelle recettes vs dépenses (12 derniers mois)
+app.get("/api/comptabilite/evolution", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [recRows] = await pool.query(
+      `SELECT DATE_FORMAT(t.date_paiement,'%Y-%m') AS mois, SUM(t.montant_paye) AS total
+       FROM transactions t
+       JOIN paiements p ON p.id = t.paiement_id
+       JOIN cotisations c ON c.id = p.cotisation_id
+       JOIN adherents a ON a.id = p.adherent_id
+       WHERE c.compte_id = ? AND a.est_supprime = 0
+         AND t.date_paiement >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+       GROUP BY mois ORDER BY mois`,
+      [req.compteId]
+    );
+    const [depRows] = await pool.query(
+      `SELECT DATE_FORMAT(date_depense,'%Y-%m') AS mois, SUM(montant) AS total
+       FROM depenses WHERE compte_id = ?
+         AND date_depense >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+       GROUP BY mois ORDER BY mois`,
+      [req.compteId]
+    );
+    const moisSet = new Set([...recRows.map(r => r.mois), ...depRows.map(r => r.mois)]);
+    const sorted = [...moisSet].sort();
+    const result = sorted.map(m => ({
+      mois: m,
+      recettes: Number(recRows.find(r => r.mois === m)?.total || 0),
+      depenses: Number(depRows.find(r => r.mois === m)?.total || 0),
+    }));
+    res.json(result);
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Livre de caisse : toutes les entrées et sorties chronologiques avec solde cumulatif
+app.get("/api/comptabilite/livre-de-caisse", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { dateDebut, dateFin } = req.query;
+    let recCond = "a.compte_id = ?";
+    let depCond = "d.compte_id = ?";
+    const recParams = [req.compteId];
+    const depParams = [req.compteId];
+    if (dateDebut) {
+      recCond += " AND t.date_paiement >= ?"; recParams.push(dateDebut);
+      depCond += " AND d.date_depense >= ?";  depParams.push(dateDebut);
+    }
+    if (dateFin) {
+      recCond += " AND t.date_paiement <= ?"; recParams.push(dateFin);
+      depCond += " AND d.date_depense <= ?";  depParams.push(dateFin);
+    }
+    const [rows] = await pool.query(`
+      (SELECT t.date_paiement AS date,
+              CONCAT(a.nom, ' ', a.prenom, ' — ', c.libelle) AS libelle,
+              'Recette' AS type,
+              t.montant_paye AS entree,
+              0 AS sortie,
+              COALESCE(t.numero_recu, '') AS ref
+       FROM transactions t
+       JOIN paiements p   ON p.id = t.paiement_id
+       JOIN adherents a   ON a.id = p.adherent_id
+       JOIN cotisations c ON c.id = p.cotisation_id
+       WHERE ${recCond})
+      UNION ALL
+      (SELECT d.date_depense AS date,
+              d.libelle,
+              'Dépense' AS type,
+              0 AS entree,
+              d.montant AS sortie,
+              d.categorie AS ref
+       FROM depenses d
+       WHERE ${depCond})
+      ORDER BY date ASC, type ASC
+    `, [...recParams, ...depParams]);
+    let solde = 0;
+    const lignes = rows.map(r => {
+      solde += Number(r.entree) - Number(r.sortie);
+      return { date: r.date, libelle: r.libelle, type: r.type, entree: Number(r.entree), sortie: Number(r.sortie), ref: r.ref, solde: Math.round(solde * 100) / 100 };
+    });
+    res.json(lignes);
+  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+});
+
+// Taux de recouvrement par période de cotisation
+app.get("/api/comptabilite/recouvrement", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [[{ total_adherents }]] = await pool.query(
+      "SELECT COUNT(*) AS total_adherents FROM adherents WHERE compte_id = ? AND est_supprime = 0",
+      [req.compteId]
+    );
+    const [rows] = await pool.query(`
+      SELECT c.id, c.libelle, c.montant_du, c.created_at,
+             COALESCE(SUM(CASE WHEN p.statut = 'Payé' THEN 1 ELSE 0 END), 0) AS payes_complets,
+             COALESCE(SUM(CASE WHEN p.statut IN ('Payé','Partiel') THEN 1 ELSE 0 END), 0) AS ont_paye,
+             COALESCE(SUM(p.solde_paye), 0) AS montant_collecte
+      FROM cotisations c
+      LEFT JOIN paiements p ON p.cotisation_id = c.id
+      WHERE c.compte_id = ?
+      GROUP BY c.id, c.libelle, c.montant_du, c.created_at
+      ORDER BY c.created_at DESC
+    `, [req.compteId]);
+    const attendus = Number(total_adherents);
+    res.json(rows.map(r => ({
+      id: r.id,
+      libelle: r.libelle,
+      montant_du: Number(r.montant_du),
+      attendus,
+      ont_paye: Number(r.ont_paye),
+      payes_complets: Number(r.payes_complets),
+      montant_collecte: Number(r.montant_collecte),
+      taux: attendus > 0 ? Math.round((Number(r.payes_complets) / attendus) * 100) : 0,
+    })));
   } catch { res.status(500).json({ error: "Erreur serveur." }); }
 });
 

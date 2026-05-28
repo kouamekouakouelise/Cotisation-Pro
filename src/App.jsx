@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 import logo from "./assets/cota.png";
+import imgOrange from "./assets/ORANGE.png";
+import imgWave from "./assets/WAVE.png";
+import imgMTN from "./assets/MTN.png";
 import { translations } from "./i18n";
 
 const FlagFR = () => (
@@ -20,6 +24,44 @@ const FlagEN = () => (
   </svg>
 );
 
+
+const ICON_PATHS = {
+  home:        <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+  users:       <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  list:        <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>,
+  clock:       <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+  mail:        <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></>,
+  'bar-chart': <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+  shield:      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+  user:        <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+  'arrow-up':  <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+  'arrow-down':<><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></>,
+  dollar:      <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>,
+  target:      <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+  receipt:     <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></>,
+  lock:        <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+  logout:      <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+  key:         <><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></>,
+  edit:        <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
+  link:        <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>,
+  building:    <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/><rect x="9" y="3" width="6" height="4"/></>,
+  card:        <><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+  phone:       <><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.54 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.18 6.18l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></>,
+  check:       <polyline points="20 6 9 17 4 12"/>,
+  'check-circle': <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+  'x-circle':  <><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>,
+  hourglass:   <><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></>,
+  'rotate-cw': <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></>,
+  badge:       <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>,
+  info:        <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
+  save:        <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>,
+};
+
+const Icon = ({ name, size = 15, style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, display: "inline-block", verticalAlign: "middle", ...style }}>
+    {ICON_PATHS[name]}
+  </svg>
+);
 
 function InView({ children, delay = 0, style: extra = {}, className = "", ...rest }) {
   const ref = useRef(null);
@@ -1246,6 +1288,10 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [userMsgSendError, setUserMsgSendError] = useState("");
   const [userMsgSendSuccess, setUserMsgSendSuccess] = useState("");
   const [meHistorique, setMeHistorique] = useState([]);
+  const [carteQRUrl, setCarteQRUrl] = useState("");
+  const [carteDownloading, setCarteDownloading] = useState(false);
+  const [userMMConfig, setUserMMConfig] = useState({ om_numero: "", om_nom: "", wave_numero: "", wave_nom: "", mtn_numero: "", mtn_nom: "" });
+  const [payQRUrls, setPayQRUrls] = useState({});
 
   const t2 = (fr, en) => lang === "fr" ? fr : en;
 
@@ -1259,6 +1305,9 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       apiFetch(`${API_BASE}/me/membres`).then((r) => r.json()).then((d) => setMembres(Array.isArray(d) ? d : [])),
       apiFetch(`${API_BASE}/me/toutes-cotisations`).then((r) => r.json()).then((d) => setToutesCotisations(Array.isArray(d) ? d : [])),
       apiFetch(`${API_BASE}/me/historique`).then((r) => r.json()).then((d) => setMeHistorique(Array.isArray(d) ? d : [])).catch(() => {}),
+      apiFetch(`${API_BASE}/mobile-money/config`).then(r => r.json()).then(d => {
+        if (d && !d.error) setUserMMConfig({ om_numero: d.om_numero || "", om_nom: d.om_nom || "", wave_numero: d.wave_numero || "", wave_nom: d.wave_nom || "", mtn_numero: d.mtn_numero || "", mtn_nom: d.mtn_nom || "" });
+      }).catch(() => {}),
       apiFetch(`${API_BASE}/messages`).then((r) => r.json()).then((d) => {
         if (!Array.isArray(d)) return;
         setUserMessages(d);
@@ -1268,6 +1317,28 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       }).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (page === "carte" && profile && !carteQRUrl) generateCarteQR(profile);
+  }, [page, profile]);
+
+  useEffect(() => {
+    if (page === "payer" && Object.values(payQRUrls).length === 0) {
+      const providers = [
+        { key: "om",   numero: userMMConfig.om_numero,   nom: userMMConfig.om_nom,   label: "Orange Money" },
+        { key: "wave", numero: userMMConfig.wave_numero, nom: userMMConfig.wave_nom, label: "Wave" },
+        { key: "mtn",  numero: userMMConfig.mtn_numero,  nom: userMMConfig.mtn_nom,  label: "MTN MoMo" },
+      ];
+      providers.forEach(async ({ key, numero, nom, label }) => {
+        if (!numero) return;
+        try {
+          const text = `${label}\nBénéficiaire: ${nom || ""}\nNuméro: ${numero}\nAssociation: ${compte.nom_association}`;
+          const url = await QRCode.toDataURL(text, { width: 160, margin: 1, color: { dark: "#1a2a3a", light: "#ffffff" } });
+          setPayQRUrls(prev => ({ ...prev, [key]: url }));
+        } catch {}
+      });
+    }
+  }, [page, userMMConfig]);
 
   const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
@@ -1301,6 +1372,121 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       setEditSuccess(t2("Profil mis à jour !", "Profile updated!"));
       setTimeout(() => setEditSuccess(""), 3000);
     } catch { setEditError(t2("Erreur réseau.", "Network error.")); }
+  };
+
+  const generateCarteQR = async (prof) => {
+    const p = prof || profile;
+    if (!p) return;
+    try {
+      const data = [
+        `COTISATION PRO`,
+        `Association: ${compte.nom_association}`,
+        `Membre: ${p.nom} ${p.prenom}`,
+        `Matricule: ${p.matricule || "N/A"}`,
+        p.poste ? `Poste: ${p.poste}` : "",
+      ].filter(Boolean).join("\n");
+      const url = await QRCode.toDataURL(data, { width: 200, margin: 1, color: { dark: "#1a2a3a", light: "#ffffff" } });
+      setCarteQRUrl(url);
+    } catch {}
+  };
+
+  const downloadCarte = async () => {
+    if (!profile) return;
+    setCarteDownloading(true);
+    try {
+      const doc = new jsPDF({ unit: "mm", orientation: "landscape", format: [54, 85.6] });
+      const W = 85.6, H = 54;
+      // Fond principal
+      doc.setFillColor(26, 42, 58);
+      doc.rect(0, 0, W, H, "F");
+      // Bande décorative gauche
+      doc.setFillColor(22, 160, 133);
+      doc.rect(0, 0, 3, H, "F");
+      // Bande du haut
+      doc.setFillColor(52, 73, 94);
+      doc.rect(3, 0, W - 3, 10, "F");
+      // Nom de l'association
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7.5);
+      doc.setFont(undefined, "bold");
+      const assoc = (compte.nom_association || "").substring(0, 32);
+      doc.text(assoc, 7, 6.5);
+      // Badge CARTE MEMBRE
+      doc.setFontSize(5);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(200, 230, 240);
+      doc.text("CARTE MEMBRE", W - 4, 6.5, { align: "right" });
+      // Cercle photo
+      const pX = 16, pY = 30, pR = 10;
+      doc.setFillColor(44, 62, 80);
+      doc.circle(pX, pY, pR, "F");
+      if (profile.photo) {
+        try {
+          doc.addImage(profile.photo, "JPEG", pX - pR, pY - pR, pR * 2, pR * 2);
+        } catch {}
+      } else {
+        const initials = ((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase();
+        doc.setFontSize(12);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(150, 190, 220);
+        doc.text(initials, pX, pY + 1.5, { align: "center" });
+      }
+      doc.setDrawColor(22, 160, 133);
+      doc.setLineWidth(0.5);
+      doc.circle(pX, pY, pR, "S");
+      // Nom du membre
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${profile.nom} ${profile.prenom}`, 30, 20);
+      // Matricule
+      doc.setFontSize(7);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(150, 200, 220);
+      doc.text(`N° ${profile.matricule || "N/A"}`, 30, 26);
+      // Poste
+      if (profile.poste) {
+        doc.setFillColor(22, 160, 133);
+        doc.roundedRect(29, 28, Math.min(profile.poste.length * 1.7 + 5, 34), 5.5, 1, 1, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(5.5);
+        doc.setFont(undefined, "bold");
+        doc.text(profile.poste, 31.5, 31.5);
+      }
+      // Date inscription
+      if (profile.date_inscription) {
+        doc.setFontSize(6);
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(120, 170, 210);
+        doc.text(`Membre depuis : ${new Date(profile.date_inscription).toLocaleDateString("fr-FR")}`, 30, 38);
+      }
+      // QR code
+      if (carteQRUrl) {
+        const qS = 26, qX = W - qS - 4, qY = (H - qS) / 2 + 2;
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(qX - 1, qY - 1, qS + 2, qS + 2, 1.5, 1.5, "F");
+        doc.addImage(carteQRUrl, "PNG", qX, qY, qS, qS);
+        doc.setFontSize(4.5);
+        doc.setTextColor(200, 220, 240);
+        doc.text("Scannez pour vérifier", qX + qS / 2, qY + qS + 2.5, { align: "center" });
+      }
+      // Barre du bas
+      doc.setFillColor(22, 160, 133);
+      doc.rect(3, H - 8, W - 3, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(5.5);
+      doc.setFont(undefined, "bold");
+      doc.text("COTISATION PRO", 7, H - 3.5);
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(5);
+      doc.text(compte.nom_association || "", W - 4, H - 3.5, { align: "right" });
+
+      doc.save(`carte-membre-${profile.matricule || profile.nom}.pdf`);
+    } catch (e) {
+      console.error("Erreur génération carte PDF:", e);
+    } finally {
+      setCarteDownloading(false);
+    }
   };
 
   const handleChangePwd = async (e) => {
@@ -1377,6 +1563,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
             <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
           </select>
           <button onClick={() => setPage("profil")} style={navBtnStyle(page === "profil")}>{t2("Mon Profil", "My Profile")}</button>
+          <button onClick={() => { setPage("carte"); }} style={navBtnStyle(page === "carte")}>{t2("🪪 Ma Carte", "🪪 My Card")}</button>
+          <button onClick={() => setPage("payer")} style={navBtnStyle(page === "payer")}>{t2("📱 Payer", "📱 Pay")}</button>
           <button onClick={() => setPage("membres")} style={navBtnStyle(page === "membres")}>{t2("Membres", "Members")}</button>
           <button onClick={() => setPage("cotisations")} style={navBtnStyle(page === "cotisations")}>{t2("Mes Paiements", "My Payments")}</button>
           <button onClick={() => setPage("historique")} style={navBtnStyle(page === "historique")}>{t2("Historique", "History")}</button>
@@ -1403,7 +1591,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         {page === "profil" && profile && (
           <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
-              <h2 style={{ margin: 0, color: "#2c3e50", fontSize: "20px" }}>👤 {t2("Mon Profil", "My Profile")}</h2>
+              <h2 style={{ margin: 0, color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="user" size={18} /> {t2("Mon Profil", "My Profile")}</h2>
               {!editMode && (
                 <button onClick={() => { setEditForm({ nom: profile.nom, prenom: profile.prenom, telephone: profile.telephone || "", photo: profile.photo || "" }); setEditMode(true); setEditError(""); }}
                   style={{ padding: "8px 16px", background: "#3498db", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
@@ -1505,11 +1693,186 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           </div>
         )}
 
+        {/* ── PAGE CARTE MEMBRE ── */}
+        {page === "carte" && profile && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
+              <h2 style={{ margin: 0, color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="card" size={18} /> {t2("Ma Carte Membre", "My Member Card")}</h2>
+              <button
+                onClick={downloadCarte}
+                disabled={carteDownloading || !carteQRUrl}
+                style={{ padding: "9px 20px", background: carteDownloading || !carteQRUrl ? "#bdc3c7" : "#16a085", color: "white", border: "none", borderRadius: "8px", cursor: carteDownloading || !carteQRUrl ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "700" }}>
+                {carteDownloading ? t2("Génération…", "Generating…") : t2("⬇ Télécharger PDF", "⬇ Download PDF")}
+              </button>
+            </div>
+
+            <p style={{ color: "#7f8c8d", fontSize: "13px", marginBottom: "24px" }}>
+              {t2("Voici votre carte membre digitale. Présentez-la ou partagez-la pour justifier de votre appartenance à l'association.", "This is your digital member card. Present or share it to prove your membership.")}
+            </p>
+
+            {/* Carte visuelle */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "28px" }}>
+              <div style={{
+                width: "342px", height: "216px",
+                background: "linear-gradient(135deg, #1a2a3a 0%, #2c3e50 60%, #1a3a4a 100%)",
+                borderRadius: "14px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(26,42,58,0.45)",
+                fontFamily: "Arial, sans-serif",
+                flexShrink: 0,
+              }}>
+                {/* Bande décorative gauche */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: "10px", height: "100%", background: "#16a085" }} />
+                {/* Bande du haut */}
+                <div style={{ position: "absolute", left: "10px", top: 0, right: 0, height: "38px", background: "rgba(52,73,94,0.8)", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
+                  <span style={{ color: "white", fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {compte.nom_association}
+                  </span>
+                  <span style={{ color: "#a8d8cc", fontSize: "9px", fontWeight: "600", letterSpacing: "1px" }}>CARTE MEMBRE</span>
+                </div>
+                {/* Photo membre */}
+                <div style={{ position: "absolute", left: "22px", top: "56px", width: "72px", height: "72px", borderRadius: "50%", overflow: "hidden", border: "3px solid #16a085", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {profile.photo
+                    ? <img src={profile.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span style={{ fontSize: "28px", color: "#a8d8cc", fontWeight: "700" }}>{((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase()}</span>
+                  }
+                </div>
+                {/* Infos membre */}
+                <div style={{ position: "absolute", left: "108px", top: "50px", right: "118px" }}>
+                  <div style={{ color: "white", fontWeight: "700", fontSize: "15px", marginBottom: "5px", lineHeight: 1.2 }}>
+                    {profile.nom} {profile.prenom}
+                  </div>
+                  <div style={{ color: "#a8d8ea", fontSize: "11px", marginBottom: "8px" }}>N° {profile.matricule || "N/A"}</div>
+                  {profile.poste && (
+                    <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 10px", borderRadius: "10px", marginBottom: "7px" }}>
+                      {profile.poste}
+                    </div>
+                  )}
+                  {profile.date_inscription && (
+                    <div style={{ color: "#7fafc4", fontSize: "10px" }}>
+                      {t2("Membre depuis", "Member since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}
+                    </div>
+                  )}
+                </div>
+                {/* QR Code */}
+                <div style={{ position: "absolute", right: "14px", top: "46px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                  {carteQRUrl
+                    ? <img src={carteQRUrl} alt="QR Code" style={{ width: "88px", height: "88px", display: "block" }} />
+                    : <div style={{ width: "88px", height: "88px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
+                  }
+                  <div style={{ textAlign: "center", fontSize: "8px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Scanner", "Scan")}</div>
+                </div>
+                {/* Barre du bas */}
+                <div style={{ position: "absolute", left: "10px", bottom: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
+                  <span style={{ color: "white", fontWeight: "700", fontSize: "10px", letterSpacing: "1px" }}>COTISATION PRO</span>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "9px" }}>{compte.nom_association}</span>
+                </div>
+                {/* Décoration cercles */}
+                <div style={{ position: "absolute", right: "-18px", bottom: "24px", width: "80px", height: "80px", borderRadius: "50%", border: "20px solid rgba(22,160,133,0.12)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", right: "-6px", bottom: "-6px", width: "48px", height: "48px", borderRadius: "50%", border: "14px solid rgba(52,152,219,0.15)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Info QR code */}
+            <div style={{ background: "#f0faf7", border: "1px solid #a9dfbf", borderRadius: "10px", padding: "14px 18px", fontSize: "13px", color: "#1e8449", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "18px" }}>ℹ️</span>
+              <div>
+                <strong>{t2("QR Code d'identification", "Identification QR Code")}</strong>
+                <p style={{ margin: "4px 0 0", color: "#555", fontSize: "12px" }}>
+                  {t2("Le QR code contient vos informations de membre (nom, matricule, association). Toute personne le scannant pourra vérifier votre appartenance à l'association.", "The QR code contains your member info (name, matricule, association). Anyone scanning it can verify your membership.")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PAGE PAYER (Mobile Money) ── */}
+        {page === "payer" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="phone" size={18} /> {t2("Payer par Mobile Money", "Pay via Mobile Money")}</h2>
+            <p style={{ color: "#7f8c8d", fontSize: "13px", margin: "0 0 24px" }}>
+              {t2("Utilisez l'un des comptes ci-dessous pour régler votre cotisation, puis informez le trésorier.", "Use one of the accounts below to pay your contribution, then inform the treasurer.")}
+            </p>
+
+            {(() => {
+              const providers = [
+                { key: "om",   label: "Orange Money", img: imgOrange, color: "#FF6600", bg: "#fff3e6", border: "#FF660044", numero: userMMConfig.om_numero, nom: userMMConfig.om_nom },
+                { key: "wave", label: "Wave",         img: imgWave,   color: "#009BDB", bg: "#e6f5fc", border: "#009BDB44", numero: userMMConfig.wave_numero, nom: userMMConfig.wave_nom },
+                { key: "mtn",  label: "MTN MoMo",    img: imgMTN,    color: "#FFCC00", bg: "#fffbe6", border: "#FFCC0044", numero: userMMConfig.mtn_numero, nom: userMMConfig.mtn_nom },
+              ].filter(p => p.numero);
+
+              if (providers.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", padding: "40px 20px", background: "#f7f9fc", borderRadius: "12px", color: "#7f8c8d" }}>
+                    <div style={{ fontSize: "48px", marginBottom: "12px" }}>📭</div>
+                    <div style={{ fontWeight: "600", marginBottom: "6px" }}>{t2("Aucun compte Mobile Money configuré", "No Mobile Money account configured")}</div>
+                    <div style={{ fontSize: "13px" }}>{t2("Le trésorier n'a pas encore renseigné les comptes de paiement.", "The treasurer has not yet added payment accounts.")}</div>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {providers.map(({ key, label, img, color, bg, border, numero, nom }) => (
+                    <div key={key} style={{ background: bg, border: `1.5px solid ${border}`, borderRadius: "14px", padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "center" }}>
+                      {/* Infos paiement */}
+                      <div style={{ flex: 1, minWidth: "180px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                          <img src={img} alt={label} style={{ height: "36px", width: "auto", maxWidth: "88px", objectFit: "contain" }} />
+                        </div>
+                        <div style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+                          <div style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{t2("Numéro", "Number")}</div>
+                          <div style={{ fontSize: "20px", fontWeight: "800", color: "#2c3e50", letterSpacing: "1px" }}>{numero}</div>
+                          {nom && <div style={{ fontSize: "13px", color: "#7f8c8d", marginTop: "4px" }}>{nom}</div>}
+                        </div>
+                        <div style={{ marginTop: "10px", fontSize: "12px", color: "#7f8c8d", background: "white", borderRadius: "8px", padding: "10px 12px" }}>
+                          {t2("Après paiement, envoyez la capture d'écran ou la référence à votre trésorier.", "After payment, send the screenshot or reference to your treasurer.")}
+                        </div>
+                      </div>
+                      {/* QR Code */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                        <div style={{ background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 2px 10px rgba(0,0,0,0.12)", border: `2px solid ${color}33` }}>
+                          {payQRUrls[key]
+                            ? <img src={payQRUrls[key]} alt={`QR ${label}`} style={{ width: "100px", height: "100px", display: "block" }} />
+                            : <div style={{ width: "100px", height: "100px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
+                          }
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#7f8c8d", fontWeight: "600" }}>{t2("Scanner pour payer", "Scan to pay")}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Rappel cotisations */}
+                  {cotisations.filter(c => c.statut !== "Payé").length > 0 && (
+                    <div style={{ background: "#fef9e7", border: "1px solid #f9e79f", borderRadius: "12px", padding: "16px 18px" }}>
+                      <div style={{ fontWeight: "700", color: "#d4ac0d", fontSize: "13px", marginBottom: "10px" }}>
+                        📋 {t2("Vos cotisations à régler", "Your outstanding contributions")}
+                      </div>
+                      {cotisations.filter(c => c.statut !== "Payé").map((c, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "white", borderRadius: "8px", marginBottom: "6px" }}>
+                          <div>
+                            <div style={{ fontWeight: "600", fontSize: "13px", color: "#2c3e50" }}>{c.periode}</div>
+                            <div style={{ fontSize: "11px", color: "#7f8c8d" }}>{t2("Reste :", "Remaining:")} {c.reste}</div>
+                          </div>
+                          <span style={{ background: c.statut === "Partiel" ? "#f39c12" : "#e74c3c", color: "white", padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: "700" }}>
+                            {c.statut === "Partiel" ? t2("Partiel", "Partial") : t2("Impayé", "Unpaid")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {/* ── PAGE COTISATIONS ── */}
         {page === "cotisations" && (
           <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
-              💰 {t2("Mes Cotisations", "My Contributions")}
+            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Icon name="dollar" size={18} /> {t2("Mes Cotisations", "My Contributions")}
             </h2>
             {cotisations.length === 0 ? (
               <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0", fontSize: "15px" }}>
@@ -1543,8 +1906,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         {/* ── PAGE MEMBRES ── */}
         {page === "membres" && (
           <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-            <h2 style={{ margin: "0 0 20px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
-              👥 {t2("Membres de l'association", "Association Members")}
+            <h2 style={{ margin: "0 0 20px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Icon name="users" size={18} /> {t2("Membres de l'association", "Association Members")}
             </h2>
             <div style={{ marginBottom: "16px" }}>
               <input
@@ -1585,8 +1948,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                         </div>
                         <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>
                           {m.matricule && <span style={{ marginRight: "10px" }}>#{m.matricule}</span>}
-                          {m.telephone && <span style={{ marginRight: "10px" }}>📞 {m.telephone}</span>}
-                          {m.email && <span>✉️ {m.email}</span>}
+                          {m.telephone && <span style={{ marginRight: "10px" }}><Icon name="phone" size={11} style={{ verticalAlign: "middle", marginRight: "3px" }} />{m.telephone}</span>}
+                          {m.email && <span><Icon name="mail" size={11} style={{ verticalAlign: "middle", marginRight: "3px" }} />{m.email}</span>}
                         </div>
                       </div>
                       {m.date_inscription && (
@@ -1608,8 +1971,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         {/* ── PAGE HISTORIQUE MEMBRE ── */}
         {page === "historique" && (
           <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
-              📋 {t2("Historique de mes paiements", "My Payment History")}
+            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Icon name="receipt" size={18} /> {t2("Historique de mes paiements", "My Payment History")}
             </h2>
             {meHistorique.length === 0 ? (
               <div style={{ textAlign: "center", color: "#7f8c8d", padding: "40px 0", fontSize: "15px" }}>
@@ -1624,11 +1987,17 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                       <div>
                         <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "16px" }}>{h.periode}</div>
                         <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>
-                          🗓️ {t2("Date de paiement", "Payment date")}: <strong>{h.datePaiement}</strong>
-                          {h.numeroRecu && <span style={{ marginLeft: "12px" }}>🧾 {t2("Reçu", "Receipt")}: <strong>{h.numeroRecu}</strong></span>}
+                          <Icon name="clock" size={11} style={{ verticalAlign: "middle", marginRight: "3px" }} /> {t2("Date de paiement", "Payment date")}: <strong>{h.datePaiement}</strong>
+                          {h.numeroRecu && <span style={{ marginLeft: "12px" }}><Icon name="receipt" size={11} style={{ verticalAlign: "middle", marginRight: "3px" }} /> {t2("Reçu", "Receipt")}: <strong>{h.numeroRecu}</strong></span>}
                         </div>
                         {h.modePaiement && h.modePaiement !== "-" && (
-                          <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>💳 {t2("Mode", "Method")}: {h.modePaiement}</div>
+                          <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "4px", display: "flex", alignItems: "center", gap: "5px" }}>
+                            <Icon name="card" size={11} style={{ verticalAlign: "middle" }} />
+                            {t2("Mode", "Method")}:
+                            {({ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[h.modePaiement])
+                              ? <img src={{ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[h.modePaiement]} alt={h.modePaiement} style={{ height: "16px", width: "auto", maxWidth: "40px", objectFit: "contain", verticalAlign: "middle" }} />
+                              : <span>{h.modePaiement}</span>}
+                          </div>
                         )}
                       </div>
                       <span style={{ background: h.statut === "Payé" ? "#27ae60" : h.statut === "Partiel" ? "#f39c12" : "#e74c3c", color: "white", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", fontWeight: "700", flexShrink: 0 }}>
@@ -1654,8 +2023,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         {/* ── PAGE APERÇU COTISATIONS ── */}
         {page === "apercu" && (
           <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8" }}>
-              📊 {t2("Suivi des cotisations", "Contributions Overview")}
+            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Icon name="bar-chart" size={18} /> {t2("Suivi des cotisations", "Contributions Overview")}
             </h2>
             {toutesCotsations.length === 0 ? (
               <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0" }}>{t2("Aucune cotisation créée.", "No contributions created.")}</div>
@@ -1789,7 +2158,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
             )
           return (
             <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }} onClick={() => { setUserMsgEmojiOpen(null); setUserMsgTooltip(null); }}>
-              <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px" }}>{isHautMembreUser ? "✉️" : "📢"} {t2("Messages", "Messages")}</h2>
+              <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="mail" size={18} /> {t2("Messages", "Messages")}</h2>
               {isHautMembreUser ? (
                 <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", marginTop: "12px" }}>
                   <button style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "nouveau" ? "700" : "500", background: userMsgTab === "nouveau" ? "#e67e22" : "transparent", color: userMsgTab === "nouveau" ? "white" : "#7f8c8d" }} onClick={() => { setUserMsgTab("nouveau"); setUserMsgSendError(""); setUserMsgSendSuccess(""); }}>✏️ {t2("Nouveau", "New")}</button>
@@ -1851,7 +2220,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
           <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "400px", maxWidth: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, color: "#2c3e50", fontSize: "17px" }}>🔑 {t2("Changer le mot de passe", "Change Password")}</h3>
+              <h3 style={{ margin: 0, color: "#2c3e50", fontSize: "17px", display: "flex", alignItems: "center", gap: "8px" }}><Icon name="key" size={16} /> {t2("Changer le mot de passe", "Change Password")}</h3>
               <button onClick={() => setShowChangePwd(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#7f8c8d" }}>✕</button>
             </div>
             {changePwdSuccess ? (
@@ -1943,6 +2312,12 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         <button className={`bnav-item${page === "profil" ? " bnav-active" : ""}`} onClick={() => setPage("profil")}>
           <span className="bnav-label">{t2("Profil", "Profile")}</span>
         </button>
+        <button className={`bnav-item${page === "carte" ? " bnav-active" : ""}`} onClick={() => setPage("carte")}>
+          <span className="bnav-label">{t2("Carte", "Card")}</span>
+        </button>
+        <button className={`bnav-item${page === "payer" ? " bnav-active" : ""}`} onClick={() => setPage("payer")}>
+          <span className="bnav-label">{t2("Payer", "Pay")}</span>
+        </button>
         <button className={`bnav-item${page === "cotisations" ? " bnav-active" : ""}`} onClick={() => setPage("cotisations")}>
           <span className="bnav-label">{t2("Cotisations", "Contributions")}</span>
         </button>
@@ -2006,6 +2381,8 @@ function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const accountMenuRef = useRef(null);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const plusMenuRef = useRef(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [helpSection, setHelpSection] = useState(null);
@@ -2038,6 +2415,8 @@ function App() {
     modePaiement: "Espèces",
   });
   const [selectedAdherentForPayment, setSelectedAdherentForPayment] = useState(null);
+  const [addPaiementError, setAddPaiementError] = useState("");
+  const [addPaiementSaving, setAddPaiementSaving] = useState(false);
   const MOIS_LISTE = translations[lang].months;
   const ANNEE_COURANTE = new Date().getFullYear();
   const ANNEES_LISTE = Array.from({ length: 10 }, (_, i) => ANNEE_COURANTE + i);
@@ -2104,6 +2483,12 @@ function App() {
   const [periodes, setPeriodes] = useState([]);
   const [loadingAdherents, setLoadingAdherents] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditOffset, setAuditOffset] = useState(0);
+  const [auditActionFilter, setAuditActionFilter] = useState("");
+  const AUDIT_LIMIT = 50;
   const [adminMessages, setAdminMessages] = useState([]);
   const [msgForm, setMsgForm] = useState({ titre: "", contenu: "" });
   const [msgLoading, setMsgLoading] = useState(false);
@@ -2114,6 +2499,40 @@ function App() {
   const [msgEmojiOpen, setMsgEmojiOpen] = useState(null);
   const [msgTooltip, setMsgTooltip] = useState(null);
   const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+  // ── Mobile Money ─────────────────────────────────────────────
+  const MM_EMPTY = { om_numero: "", om_nom: "", wave_numero: "", wave_nom: "", mtn_numero: "", mtn_nom: "" };
+  const [mmConfig, setMmConfig] = useState(MM_EMPTY);
+  const [mmForm, setMmForm] = useState(MM_EMPTY);
+  const [mmEditMode, setMmEditMode] = useState(false);
+  const [mmSaving, setMmSaving] = useState(false);
+  const [mmSuccess, setMmSuccess] = useState("");
+  const [mmError, setMmError] = useState("");
+
+  // ── Comptabilité ─────────────────────────────────────────────
+  const CATEG_DEPENSES = ["Alimentation", "Transport", "Location / Loyer", "Salaires / Honoraires", "Communication", "Matériel", "Événement", "Autre"];
+  const [depenses, setDepenses] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [comptaResume, setComptaResume] = useState({ recettes: 0, depenses: 0, solde: 0 });
+  const [comptaLoading, setComptaLoading] = useState(false);
+  const [comptaSousOnglet, setComptaSousOnglet] = useState("recettes");
+  const [evolution, setEvolution] = useState([]);
+  const [recettesSearch, setRecettesSearch] = useState("");
+  const [depensesSearch, setDepensesSearch] = useState("");
+  const [depenseForm, setDepenseForm] = useState({ libelle: "", montant: "", categorie: "Autre", date_depense: new Date().toISOString().split("T")[0], description: "" });
+  const [depenseFormVisible, setDepenseFormVisible] = useState(false);
+  const [depenseError, setDepenseError] = useState("");
+  const [depenseLoading, setDepenseLoading] = useState(false);
+  const [budgetForm, setBudgetForm] = useState({ libelle: "", montant_prevu: "", date_debut: "", date_fin: "" });
+  const [budgetFormVisible, setBudgetFormVisible] = useState(false);
+  const [budgetError, setBudgetError] = useState("");
+  const [budgetEditId, setBudgetEditId] = useState(null);
+  const [budgetLoading, setBudgetLoading] = useState(false);
+  const [comptaFiltreDateDebut, setComptaFiltreDateDebut] = useState("");
+  const [comptaFiltreDateFin, setComptaFiltreDateFin] = useState("");
+  const [depenseEditId, setDepenseEditId] = useState(null);
+  const [livreData, setLivreData] = useState([]);
+  const [recouvrementData, setRecouvrementData] = useState([]);
 
   // ── Profil membre ───────────────────────────────────────────
   const [profilData, setProfilData] = useState({ nom: "", prenom: "", telephone: "", photo: "", email: "", matricule: "", date_inscription: "" });
@@ -2132,6 +2551,46 @@ function App() {
   const [roleTransferLoading, setRoleTransferLoading] = useState(false);
   const [roleTransferError, setRoleTransferError] = useState("");
   const [roleTransferSuccess, setRoleTransferSuccess] = useState("");
+  const [adminCarteQRUrl, setAdminCarteQRUrl] = useState("");
+  const [adminCarteDownloading, setAdminCarteDownloading] = useState(false);
+
+  // ── Expiration automatique de session ───────────────────
+  const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
+  const COUNTDOWN_S   = 60;             // 60 s de préavis
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [inactivityCountdown, setInactivityCountdown] = useState(COUNTDOWN_S);
+  const inactivityTimer  = useRef(null);
+  const countdownTimer   = useRef(null);
+  const warningActiveRef = useRef(false);
+
+  const loadMMConfig = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/mobile-money/config`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const cfg = { om_numero: data.om_numero || "", om_nom: data.om_nom || "", wave_numero: data.wave_numero || "", wave_nom: data.wave_nom || "", mtn_numero: data.mtn_numero || "", mtn_nom: data.mtn_nom || "" };
+      setMmConfig(cfg);
+      setMmForm(cfg);
+    } catch {}
+  };
+
+  const saveMMConfig = async () => {
+    setMmSaving(true); setMmError(""); setMmSuccess("");
+    try {
+      const res = await apiFetch(`${API_BASE}/mobile-money/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mmForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMmError(data.error || "Erreur."); return; }
+      setMmConfig({ ...mmForm });
+      setMmEditMode(false);
+      setMmSuccess(lang === "fr" ? "Configuration Mobile Money enregistrée ✓" : "Mobile Money config saved ✓");
+      setTimeout(() => setMmSuccess(""), 3000);
+    } catch { setMmError("Erreur réseau."); }
+    finally { setMmSaving(false); }
+  };
 
   const loadProfil = async () => {
     setProfilLoading(true);
@@ -2145,7 +2604,7 @@ function App() {
           telephone: data.telephone || "", photo: data.adherent.photo || "",
           email: data.email || "", matricule: data.adherent.matricule || "",
           date_inscription: data.adherent.date_inscription || data.created_at || "",
-          poste: data.adherent.poste || (lang === "fr" ? "Président" : "President"),
+          poste: data.adherent.poste || null,
         });
       } else {
         setProfilData({
@@ -2157,6 +2616,7 @@ function App() {
         });
       }
     } catch {} finally { setProfilLoading(false); }
+    if (isAdmin) loadMMConfig();
   };
 
   const loadAdherentCotisations = async (id) => {
@@ -2185,7 +2645,9 @@ function App() {
       });
       const data = await res.json();
       if (!res.ok) { setProfilError(data.error || t("networkError")); return; }
-      setProfilData(prev => ({ ...prev, nom: profilEditForm.nom.trim(), prenom: profilEditForm.prenom.trim(), telephone: profilEditForm.telephone.trim(), photo: profilEditForm.photo }));
+      const updated = { nom: profilEditForm.nom.trim(), prenom: profilEditForm.prenom.trim(), telephone: profilEditForm.telephone.trim(), photo: profilEditForm.photo };
+      setProfilData(prev => ({ ...prev, ...updated }));
+      setAdminCarteQRUrl(""); // Forcer régénération du QR avec les nouvelles infos
       setProfilEditMode(false);
       setProfilSuccess(lang === "fr" ? "Profil mis à jour avec succès ✅" : "Profile updated successfully ✅");
       setTimeout(() => setProfilSuccess(""), 3500);
@@ -2200,6 +2662,90 @@ function App() {
       const data = await res.json();
       setMesCotisations(Array.isArray(data) ? data : []);
     } catch {} finally { setMesCotisationsLoading(false); }
+  };
+
+  const generateAdminCarteQR = async (data) => {
+    const p = data || profilData;
+    if (!p || !p.nom) return;
+    try {
+      const content = [
+        `Association: ${compte.nom_association}`,
+        `Membre: ${p.nom} ${p.prenom}`,
+        `Matricule: ${p.matricule || "N/A"}`,
+        p.poste ? `Poste: ${p.poste}` : "",
+      ].filter(Boolean).join("\n");
+      const url = await QRCode.toDataURL(content, { width: 200, margin: 1, color: { dark: "#1a2a3a", light: "#ffffff" } });
+      setAdminCarteQRUrl(url);
+    } catch {}
+  };
+
+  const downloadAdminCarte = async () => {
+    if (!profilData.nom || adminCarteDownloading) return;
+    setAdminCarteDownloading(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [54, 86] });
+      const W = 86, H = 54;
+      doc.setFillColor(26, 39, 66);
+      doc.rect(0, 0, W, H, "F");
+      doc.setFillColor(52, 152, 219, 0.3);
+      doc.circle(W - 10, -10, 30, "F");
+      try {
+        const img = new window.Image();
+        img.src = logo;
+        await new Promise(r => { img.onload = r; img.onerror = r; });
+        doc.addImage(img, "PNG", 4, 4, 10, 10);
+      } catch {}
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.setFont(undefined, "bold");
+      doc.text(compte.nom_association || "", 16, 9, { maxWidth: 45 });
+      doc.setFontSize(5);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(168, 216, 240);
+      doc.text("CARTE MEMBRE", 16, 13.5, { charSpace: 1.5 });
+      doc.setDrawColor(52, 152, 219);
+      doc.setLineWidth(0.3);
+      doc.line(4, 17, W - 4, 17);
+      if (profilData.photo) {
+        try {
+          doc.addImage(profilData.photo, "JPEG", 4, 20, 22, 22);
+        } catch {}
+      }
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont(undefined, "bold");
+      doc.text(`${profilData.prenom} ${profilData.nom}`, 30, 24);
+      doc.setTextColor(150, 200, 220);
+      doc.setFontSize(6);
+      doc.setFont(undefined, "normal");
+      doc.text(`N° ${profilData.matricule || "N/A"}`, 30, 28);
+      if (profilData.poste) {
+        doc.setFillColor(22, 160, 133);
+        doc.roundedRect(29, 30, Math.min(profilData.poste.length * 1.7 + 5, 34), 5.5, 1, 1, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(5.5);
+        doc.setFont(undefined, "bold");
+        doc.text(profilData.poste, 31.5, 33.5);
+      }
+      if (adminCarteQRUrl) {
+        const qS = 26, qX = W - qS - 4, qY = (H - qS) / 2 + 2;
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(qX - 1, qY - 1, qS + 2, qS + 2, 1.5, 1.5, "F");
+        doc.addImage(adminCarteQRUrl, "PNG", qX, qY, qS, qS);
+        doc.setFontSize(4.5);
+        doc.setTextColor(200, 220, 240);
+        doc.text("Scannez pour vérifier", qX + qS / 2, qY + qS + 2.5, { align: "center" });
+      }
+      doc.setFontSize(5);
+      doc.setTextColor(200, 220, 240);
+      doc.text(compte.nom_association || "", W - 4, H - 3.5, { align: "right" });
+      doc.save(`carte-membre-${profilData.matricule || profilData.nom}.pdf`);
+    } catch (e) {
+      console.error("Erreur carte PDF:", e);
+    } finally {
+      setAdminCarteDownloading(false);
+    }
   };
 
   // ── Chargement des adhérents ────────────────────────────────
@@ -2254,6 +2800,19 @@ function App() {
     }
   };
 
+  const loadAuditLogs = async (offset = 0, action = "") => {
+    setAuditLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: AUDIT_LIMIT, offset });
+      if (action) params.set("action", action);
+      const res = await apiFetch(`${API_BASE}/audit-logs?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAuditLogs(data.rows || []);
+      setAuditTotal(data.total || 0);
+    } catch {} finally { setAuditLoading(false); }
+  };
+
   const loadMessages = async () => {
     try {
       const res = await apiFetch(`${API_BASE}/messages`);
@@ -2264,6 +2823,313 @@ function App() {
       const seenAt = parseInt(localStorage.getItem(seenKey) || "0");
       setAdminMsgUnread((Array.isArray(data) ? data : []).filter(m => new Date(m.created_at).getTime() > seenAt).length);
     } catch {}
+  };
+
+  const loadComptaResume = async (dateDebut = comptaFiltreDateDebut, dateFin = comptaFiltreDateFin) => {
+    try {
+      const params = new URLSearchParams();
+      if (dateDebut) params.set("dateDebut", dateDebut);
+      if (dateFin) params.set("dateFin", dateFin);
+      const res = await apiFetch(`${API_BASE}/comptabilite/resume?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setComptaResume(data);
+    } catch {}
+  };
+
+  const loadDepenses = async (dateDebut = comptaFiltreDateDebut, dateFin = comptaFiltreDateFin) => {
+    try {
+      const params = new URLSearchParams();
+      if (dateDebut) params.set("dateDebut", dateDebut);
+      if (dateFin) params.set("dateFin", dateFin);
+      const res = await apiFetch(`${API_BASE}/depenses?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setDepenses(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
+  const loadBudgets = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/budgets`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setBudgets(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
+  const loadEvolution = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/comptabilite/evolution`);
+      if (!res.ok) return;
+      setEvolution(await res.json());
+    } catch {}
+  };
+
+  const loadLivreDeCaisse = async (dateDebut = comptaFiltreDateDebut, dateFin = comptaFiltreDateFin) => {
+    try {
+      const params = new URLSearchParams();
+      if (dateDebut) params.set("dateDebut", dateDebut);
+      if (dateFin) params.set("dateFin", dateFin);
+      const res = await apiFetch(`${API_BASE}/comptabilite/livre-de-caisse?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setLivreData(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
+  const loadRecouvrement = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/comptabilite/recouvrement`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRecouvrementData(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
+  const exportExcelFinancier = async () => {
+    try {
+      const xlsxMod = await import("xlsx-js-style");
+      const XL = xlsxMod.default || xlsxMod;
+
+      const wb = XL.utils.book_new();
+      const nomAssoc = compte?.nom_association || "association";
+      const today = new Date().toISOString().split("T")[0];
+      const hStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "16A085" } }, alignment: { horizontal: "center" } };
+      const applyHeaders = (ws, aoa, style) => aoa[0].forEach((_, ci) => { const cell = ws[XL.utils.encode_cell({ r: 0, c: ci })]; if (cell) cell.s = style; });
+
+      // Feuille Recettes
+      const recAoa = [
+        ["Date", "N° Reçu", "Membre", "Période", "Montant (FCFA)", "Mode de paiement"],
+        ...historiqueTransactions.map(tx => [tx.datePaiement, tx.numeroRecu || "", `${tx.nom} ${tx.prenom}`, tx.periode, parseAmount(tx.montantPaye), tx.modePaiement]),
+      ];
+      const wsRec = XL.utils.aoa_to_sheet(recAoa);
+      applyHeaders(wsRec, recAoa, hStyle);
+      wsRec["!cols"] = [{ wch: 12 }, { wch: 16 }, { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 18 }];
+      XL.utils.book_append_sheet(wb, wsRec, "Recettes");
+
+      // Feuille Dépenses
+      const depAoa = [
+        ["Date", "Libellé", "Catégorie", "Montant (FCFA)", "Description"],
+        ...depenses.map(d => [new Date(d.date_depense).toLocaleDateString("fr-FR"), d.libelle, d.categorie, Number(d.montant), d.description || ""]),
+      ];
+      const wsDep = XL.utils.aoa_to_sheet(depAoa);
+      applyHeaders(wsDep, depAoa, { ...hStyle, fill: { fgColor: { rgb: "E74C3C" } } });
+      wsDep["!cols"] = [{ wch: 12 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 30 }];
+      XL.utils.book_append_sheet(wb, wsDep, "Dépenses");
+
+      // Feuille Livre de caisse
+      if (livreData.length > 0) {
+        const livreAoa = [
+          ["Date", "Type", "Libellé", "Entrée (FCFA)", "Sortie (FCFA)", "Solde (FCFA)", "Référence"],
+          ...livreData.map(l => [l.date ? new Date(l.date).toLocaleDateString("fr-FR") : "", l.type, l.libelle, l.entree || "", l.sortie || "", l.solde, l.ref || ""]),
+        ];
+        const wsLivre = XL.utils.aoa_to_sheet(livreAoa);
+        applyHeaders(wsLivre, livreAoa, { ...hStyle, fill: { fgColor: { rgb: "2C3E50" } } });
+        wsLivre["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 20 }];
+        XL.utils.book_append_sheet(wb, wsLivre, "Livre de caisse");
+      }
+
+      // Feuille Recouvrement
+      if (recouvrementData.length > 0) {
+        const recouAoa = [
+          ["Période", "Montant dû (FCFA)", "Membres attendus", "Ont payé", "Payé complet", "Taux (%)", "Montant collecté (FCFA)"],
+          ...recouvrementData.map(r => [r.libelle, r.montant_du, r.attendus, r.ont_paye, r.payes_complets, r.taux, r.montant_collecte]),
+        ];
+        const wsRecou = XL.utils.aoa_to_sheet(recouAoa);
+        applyHeaders(wsRecou, recouAoa, { ...hStyle, fill: { fgColor: { rgb: "8E44AD" } } });
+        wsRecou["!cols"] = [{ wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 22 }];
+        XL.utils.book_append_sheet(wb, wsRecou, "Recouvrement");
+      }
+
+      XL.writeFile(wb, `export-financier-${nomAssoc}-${today}.xlsx`);
+    } catch (err) {
+      if (err.name !== "AbortError") showToast("Erreur export Excel : " + err.message);
+    }
+  };
+
+  const loadComptabilite = async (dateDebut = comptaFiltreDateDebut, dateFin = comptaFiltreDateFin) => {
+    setComptaLoading(true);
+    await Promise.all([loadComptaResume(dateDebut, dateFin), loadDepenses(dateDebut, dateFin), loadBudgets(), loadEvolution(), loadHistorique(), loadLivreDeCaisse(dateDebut, dateFin), loadRecouvrement()]);
+    setComptaLoading(false);
+  };
+
+  const genererRapportPDF = () => {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = 210, margin = 16;
+    let y = 0;
+    const fmt = (n) => Number(n).toLocaleString("fr-FR") + " FCFA";
+    const moisFr = (m) => { const [yr, mo] = m.split("-"); const noms = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"]; return `${noms[parseInt(mo)-1]} ${yr}`; };
+
+    // En-tête
+    doc.setFillColor(26,42,58); doc.rect(0,0,W,28,"F");
+    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont(undefined,"bold");
+    doc.text("RAPPORT FINANCIER", margin, 13);
+    doc.setFontSize(9); doc.setFont(undefined,"normal");
+    doc.text(compte.nom_association || "", margin, 20);
+    doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")}`, W-margin, 20, { align:"right" });
+    y = 36;
+
+    // Résumé
+    doc.setTextColor(44,62,80); doc.setFontSize(12); doc.setFont(undefined,"bold");
+    doc.text("RÉSUMÉ FINANCIER", margin, y); y += 6;
+    doc.setDrawColor(220,230,240); doc.line(margin, y, W-margin, y); y += 5;
+    const cards = [["Recettes (cotisations)", comptaResume.recettes, [39,174,96]], ["Dépenses", comptaResume.depenses, [231,76,60]], ["Solde net", comptaResume.solde, comptaResume.solde >= 0 ? [41,128,185] : [231,76,60]]];
+    cards.forEach(([lbl, val, rgb]) => {
+      doc.setFontSize(10); doc.setFont(undefined,"normal"); doc.setTextColor(127,140,141); doc.text(lbl, margin, y);
+      doc.setFont(undefined,"bold"); doc.setTextColor(...rgb); doc.text(fmt(val), W-margin, y, { align:"right" }); y += 7;
+    });
+    y += 4;
+
+    // Évolution mensuelle
+    if (evolution.length > 0) {
+      doc.setTextColor(44,62,80); doc.setFontSize(12); doc.setFont(undefined,"bold");
+      doc.text("ÉVOLUTION MENSUELLE", margin, y); y += 6;
+      doc.setDrawColor(220,230,240); doc.line(margin, y, W-margin, y); y += 4;
+      doc.setFontSize(9); doc.setFont(undefined,"bold"); doc.setTextColor(127,140,141);
+      doc.text("Mois", margin, y); doc.text("Recettes", 100, y); doc.text("Dépenses", 140, y); doc.text("Solde", W-margin, y, { align:"right" }); y += 5;
+      evolution.slice(-6).forEach((e, i) => {
+        doc.setFillColor(i%2===0 ? 249:255, i%2===0 ? 249:255, i%2===0 ? 249:255); doc.rect(margin-2, y-4, W-2*margin+4, 6, "F");
+        doc.setFont(undefined,"normal"); doc.setTextColor(44,62,80); doc.text(moisFr(e.mois), margin, y);
+        doc.setTextColor(39,174,96); doc.text(fmt(e.recettes), 100, y);
+        doc.setTextColor(231,76,60); doc.text(fmt(e.depenses), 140, y);
+        const s = e.recettes - e.depenses; doc.setTextColor(s>=0?41:231, s>=0?128:76, s>=0?185:60); doc.text(fmt(s), W-margin, y, { align:"right" }); y += 6;
+      });
+      y += 4;
+    }
+
+    // Top dépenses par catégorie
+    if (depenses.length > 0) {
+      doc.setTextColor(44,62,80); doc.setFontSize(12); doc.setFont(undefined,"bold");
+      doc.text("DÉPENSES PAR CATÉGORIE", margin, y); y += 6;
+      doc.setDrawColor(220,230,240); doc.line(margin, y, W-margin, y); y += 4;
+      const byCateg = {};
+      depenses.forEach(d => { byCateg[d.categorie] = (byCateg[d.categorie]||0) + Number(d.montant); });
+      const sorted = Object.entries(byCateg).sort((a,b)=>b[1]-a[1]);
+      sorted.forEach(([cat,tot],i) => {
+        doc.setFillColor(i%2===0?249:255, i%2===0?249:255, i%2===0?249:255); doc.rect(margin-2, y-4, W-2*margin+4, 6, "F");
+        doc.setFontSize(9); doc.setFont(undefined,"normal"); doc.setTextColor(44,62,80); doc.text(cat, margin, y);
+        doc.setTextColor(231,76,60); doc.text(fmt(tot), W-margin, y, { align:"right" }); y += 6;
+      });
+    }
+
+    doc.save(`rapport-financier-${compte.nom_association || "association"}-${new Date().toISOString().split("T")[0]}.pdf`);
+  };
+
+  const handleSaveDepense = async () => {
+    setDepenseError("");
+    if (!depenseForm.libelle.trim()) { setDepenseError("Le libellé est requis."); return; }
+    if (!depenseForm.montant || parseFloat(depenseForm.montant) <= 0) { setDepenseError("Le montant doit être positif."); return; }
+    if (!depenseForm.date_depense) { setDepenseError("La date est requise."); return; }
+    setDepenseLoading(true);
+    try {
+      const isEdit = depenseEditId !== null;
+      const url = isEdit ? `${API_BASE}/depenses/${depenseEditId}` : `${API_BASE}/depenses`;
+      const res = await apiFetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(depenseForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDepenseError(data.error || "Erreur."); return; }
+      if (isEdit) {
+        setDepenses(prev => prev.map(d => d.id === depenseEditId ? data : d));
+      } else {
+        setDepenses(prev => [data, ...prev]);
+      }
+      setDepenseForm({ libelle: "", montant: "", categorie: "Autre", date_depense: new Date().toISOString().split("T")[0], description: "" });
+      setDepenseFormVisible(false);
+      setDepenseEditId(null);
+      loadComptaResume();
+      showToast(isEdit ? (lang === "fr" ? "Dépense modifiée ✓" : "Expense updated ✓") : (lang === "fr" ? "Dépense enregistrée ✓" : "Expense recorded ✓"));
+    } catch { setDepenseError("Erreur réseau."); }
+    finally { setDepenseLoading(false); }
+  };
+
+  const handleDeleteDepense = async (id) => {
+    if (!window.confirm(lang === "fr" ? "Supprimer cette dépense ?" : "Delete this expense?")) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/depenses/${id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setDepenses(prev => prev.filter(d => d.id !== id));
+      loadComptaResume();
+      showToast(lang === "fr" ? "Dépense supprimée." : "Expense deleted.");
+    } catch {}
+  };
+
+  const handleSaveBudget = async () => {
+    setBudgetError("");
+    if (!budgetForm.libelle.trim()) { setBudgetError("Le libellé est requis."); return; }
+    if (!budgetForm.montant_prevu || parseFloat(budgetForm.montant_prevu) <= 0) { setBudgetError("Le montant prévu doit être positif."); return; }
+    setBudgetLoading(true);
+    try {
+      const isEdit = budgetEditId !== null;
+      const url = isEdit ? `${API_BASE}/budgets/${budgetEditId}` : `${API_BASE}/budgets`;
+      const method = isEdit ? "PUT" : "POST";
+      const res = await apiFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(budgetForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setBudgetError(data.error || "Erreur."); return; }
+      setBudgetFormVisible(false);
+      setBudgetEditId(null);
+      setBudgetForm({ libelle: "", montant_prevu: "", date_debut: "", date_fin: "" });
+      loadBudgets();
+      showToast(isEdit ? (lang === "fr" ? "Budget modifié ✓" : "Budget updated ✓") : (lang === "fr" ? "Budget créé ✓" : "Budget created ✓"));
+    } catch { setBudgetError("Erreur réseau."); }
+    finally { setBudgetLoading(false); }
+  };
+
+  const handleDeleteBudget = async (id) => {
+    if (!window.confirm(lang === "fr" ? "Supprimer ce budget ?" : "Delete this budget?")) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/budgets/${id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setBudgets(prev => prev.filter(b => b.id !== id));
+      showToast(lang === "fr" ? "Budget supprimé." : "Budget deleted.");
+    } catch {}
+  };
+
+  const loadServerStatus = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/health`);
+      if (res.ok) setServerStatus(await res.json());
+    } catch {}
+  };
+
+  const handleTestSms = async () => {
+    if (!testSmsPhone.trim()) return;
+    setTestSmsLoading(true);
+    setTestSmsResult(null);
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/test-sms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telephone: testSmsPhone.trim() }),
+      });
+      const data = await res.json();
+      setTestSmsResult({ ok: res.ok, ...data });
+    } catch {
+      setTestSmsResult({ ok: false, error: "Erreur réseau." });
+    } finally {
+      setTestSmsLoading(false);
+    }
+  };
+
+  const handleEnvoyerRappels = async (periodeId) => {
+    setRappelLoading(true);
+    setRappelResult(null);
+    try {
+      const res = await apiFetch(`${API_BASE}/cotisations/${periodeId}/rappels`, { method: "POST" });
+      const data = await res.json();
+      setRappelResult({ ok: res.ok, ...data });
+    } catch {
+      setRappelResult({ ok: false, error: "Erreur réseau." });
+    } finally {
+      setRappelLoading(false);
+    }
   };
 
   const handleReactMessage = async (id, emoji) => {
@@ -2280,7 +3146,7 @@ function App() {
     } catch {}
   };
 
-  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); } }, [compte]);
+  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); loadServerStatus(); } }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── SSE — rafraîchissement temps réel quand un rôle change ───
   useEffect(() => {
@@ -2343,6 +3209,77 @@ function App() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showAccountMenu]);
+
+  // Fermer le menu Plus au clic en dehors
+  useEffect(() => {
+    if (!showPlusMenu) return;
+    const handler = (e) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target))
+        setShowPlusMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPlusMenu]);
+
+  // Générer le QR code de la carte admin quand le profil est chargé
+  useEffect(() => {
+    if (page === "profil" && profilData.nom && !adminCarteQRUrl) {
+      generateAdminCarteQR(profilData);
+    }
+  }, [page, profilData.nom]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Minuterie d'inactivité ──────────────────────────────
+  useEffect(() => {
+    if (!compte) return;
+    const startInactivityTimer = () => {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => {
+        warningActiveRef.current = true;
+        setShowInactivityWarning(true);
+        setInactivityCountdown(COUNTDOWN_S);
+      }, INACTIVITY_MS);
+    };
+    const onActivity = () => {
+      if (warningActiveRef.current) return;
+      startInactivityTimer();
+    };
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"];
+    events.forEach(ev => document.addEventListener(ev, onActivity, { passive: true }));
+    startInactivityTimer();
+    return () => {
+      events.forEach(ev => document.removeEventListener(ev, onActivity));
+      clearTimeout(inactivityTimer.current);
+    };
+  }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compte à rebours quand le warning est affiché
+  useEffect(() => {
+    if (!showInactivityWarning) return;
+    countdownTimer.current = setInterval(() => {
+      setInactivityCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownTimer.current);
+          handleLogout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdownTimer.current);
+  }, [showInactivityWarning]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStayLoggedIn = () => {
+    warningActiveRef.current = false;
+    clearInterval(countdownTimer.current);
+    setShowInactivityWarning(false);
+    setInactivityCountdown(COUNTDOWN_S);
+    clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      warningActiveRef.current = true;
+      setShowInactivityWarning(true);
+      setInactivityCountdown(COUNTDOWN_S);
+    }, INACTIVITY_MS);
+  };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -2428,6 +3365,13 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedPeriode, setSelectedPeriode] = useState(null);
   const [selectedStatutFilter, setSelectedStatutFilter] = useState("tous");
+  const [rappelLoading, setRappelLoading] = useState(false);
+  const [showRappelModal, setShowRappelModal] = useState(false);
+  const [rappelResult, setRappelResult] = useState(null);
+  const [serverStatus, setServerStatus] = useState(null);
+  const [testSmsPhone, setTestSmsPhone] = useState("");
+  const [testSmsLoading, setTestSmsLoading] = useState(false);
+  const [testSmsResult, setTestSmsResult] = useState(null);
 
   // ── Gestion utilisateurs (admin) ───────────────────────────
   const [userList, setUserList] = useState([]);
@@ -2527,8 +3471,9 @@ function App() {
 
   // ── Enregistrer un paiement ─────────────────────────────────
   const handleSaveAddPaiement = async () => {
+    setAddPaiementError("");
     if (!selectedAdherentForPayment || !addPaiementFormData.montantPaye) {
-      alert(t("alertSelectMemberAmount"));
+      setAddPaiementError(t("alertSelectMemberAmount"));
       return;
     }
     const periodeObj = periodes.find((p) => p.libelle === selectedPeriode);
@@ -2538,7 +3483,7 @@ function App() {
     const montantPaye = Number(addPaiementFormData.montantPaye);
 
     if (isNaN(montantPaye) || montantPaye <= 0) {
-      alert(t("alertAmountPositive"));
+      setAddPaiementError(t("alertAmountPositive"));
       return;
     }
 
@@ -2551,7 +3496,11 @@ function App() {
     const statut = totalPaye === 0 ? "Impayé" : reste <= 0 ? "Payé" : "Partiel";
 
     if (montantPaye > montantDu - dejaPaye) {
-      alert(`Le montant saisi (${formatAmount(montantPaye)}) dépasse le reste à payer (${formatAmount(montantDu - dejaPaye)}).`);
+      setAddPaiementError(
+        lang === "fr"
+          ? `Le montant saisi (${formatAmount(montantPaye)}) dépasse le reste à payer (${formatAmount(montantDu - dejaPaye)}).`
+          : `Amount entered (${formatAmount(montantPaye)}) exceeds remaining balance (${formatAmount(montantDu - dejaPaye)}).`
+      );
       return;
     }
 
@@ -2577,31 +3526,47 @@ function App() {
       modePaiement: addPaiementFormData.modePaiement,
     };
 
+    setAddPaiementSaving(true);
     try {
-      const response = await apiFetch(`${API_BASE}/periodes/${periodeObj.id}/paiements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adherent_id: selectedAdherentForPayment.id,
-          montantPaye: montantPaye,
-          modePaiement: addPaiementFormData.modePaiement,
-          numeroRecu,
-          datePaiement: datePaiementISO,
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Erreur paiement");
+      let response;
+      try {
+        response = await apiFetch(`${API_BASE}/periodes/${periodeObj.id}/paiements`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            adherent_id: selectedAdherentForPayment.id,
+            montantPaye: montantPaye,
+            modePaiement: addPaiementFormData.modePaiement,
+            numeroRecu,
+            datePaiement: datePaiementISO,
+          }),
+        });
+      } catch {
+        setAddPaiementError(
+          lang === "fr"
+            ? "Erreur réseau : impossible de joindre le serveur. Vérifiez votre connexion et réessayez."
+            : "Network error: unable to reach the server. Check your connection and try again."
+        );
+        return;
+      }
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAddPaiementError(result.error || (lang === "fr" ? "Erreur lors de l'enregistrement du paiement." : "Error recording the payment."));
+        return;
+      }
 
       await loadPeriodes();
       await loadHistorique();
       setLastPaiement(recuInfo);
       setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" });
       setSelectedAdherentForPayment(null);
+      setAddPaiementError("");
       setShowAddPaiementForm(false);
       setShowSuccessMessage(true);
       setShowRecuPrompt(true);
-    } catch (error) {
-      setApiError(error.message);
+    } finally {
+      setAddPaiementSaving(false);
     }
   };
 
@@ -3227,15 +4192,36 @@ function App() {
   };
   const statutLabel = (s) =>
     s === "Payé" ? t("statusPaid") : s === "Partiel" ? t("statusPartial") : t("statusUnpaid");
+  const MM_PROVIDERS = [
+    { value: "Orange Money", label: "Orange Money", color: "#FF6600", bg: "#fff3e6" },
+    { value: "Wave",         label: "Wave",         color: "#009BDB", bg: "#e6f5fc" },
+    { value: "MTN MoMo",    label: "MTN MoMo",     color: "#FFCC00", bg: "#fffbe6" },
+  ];
   const modeLabel = (m) => {
-    const map = { "Espèces": t("cash"), "Mobile Money": t("mobileMoney"), "Virement": t("transfer"), "Chèque": t("check"), "Autre": t("other") };
+    const map = { "Espèces": t("cash"), "Mobile Money": t("mobileMoney"), "Orange Money": "Orange Money", "Wave": "Wave", "MTN MoMo": "MTN MoMo", "Virement": t("transfer"), "Chèque": t("check"), "Autre": t("other") };
     return map[m] || m;
+  };
+  const modeBadge = (m) => {
+    const p = MM_PROVIDERS.find(p => p.value === m);
+    if (p) return { color: p.color, bg: p.bg };
+    if (m === "Espèces") return { color: "#27ae60", bg: "#eafaf1" };
+    if (m === "Virement") return { color: "#2980b9", bg: "#eaf2fb" };
+    return { color: "#7f8c8d", bg: "#f4f6f7" };
   };
 
   const isAdmin = compte?.role === "admin";
   const isTresorier = compte?.role === "user" && !!compte?.poste?.toLowerCase().includes("trésorier");
   const isPresident = compte?.role === "user" && !!compte?.poste?.toLowerCase().includes("président");
   const isHautMembre = isAdmin || (compte?.role === "user" && !!compte?.poste);
+
+  // Président différent du créateur (un membre a le poste Président)
+  const nonCreatorPresidentExists = adherents.some(
+    (a) => a.poste && a.poste.toLowerCase().includes("président") && a.email !== compte?.email
+  );
+  // Le créateur peut attribuer des postes si aucun président externe n'existe encore,
+  // OU si le créateur lui-même est président, OU si c'est un membre président
+  const creatorIsPresident = isAdmin && !!(profilData?.poste?.toLowerCase().includes("président"));
+  const canAssignPoste = (isAdmin && (!nonCreatorPresidentExists || creatorIsPresident)) || isPresident;
 
   // ── Guard : si non connecté → landing ou authentification ──
   if (!compte) {
@@ -3289,78 +4275,150 @@ function App() {
         </div>
       )}
 
-      {/* ── MENU ────────────────────────────────────────────── */}
-      <div style={styles.menu} className="app-menu">
+      {/* ── MODAL INACTIVITÉ ─────────────────────────────────── */}
+      {showInactivityWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "white", borderRadius: "16px", padding: "36px 32px", width: "420px", maxWidth: "94vw", boxShadow: "0 12px 48px rgba(0,0,0,0.32)", textAlign: "center" }}>
+            <div style={{ fontSize: "52px", marginBottom: "12px" }}>⏳</div>
+            <h2 style={{ margin: "0 0 10px", fontSize: "20px", color: "#2c3e50", fontWeight: "800" }}>
+              {lang === "fr" ? "Session inactive" : "Inactive session"}
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: "14px", color: "#7f8c8d", lineHeight: "1.6" }}>
+              {lang === "fr"
+                ? "Vous n'avez effectué aucune action depuis un moment. Vous serez automatiquement déconnecté(e) pour protéger votre compte."
+                : "You haven't performed any action for a while. You will be automatically logged out to protect your account."}
+            </p>
+
+            {/* Compte à rebours circulaire */}
+            <div style={{ position: "relative", width: "90px", height: "90px", margin: "0 auto 24px" }}>
+              <svg viewBox="0 0 36 36" style={{ width: "90px", height: "90px", transform: "rotate(-90deg)" }}>
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ecf0f1" strokeWidth="3" />
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e74c3c" strokeWidth="3"
+                  strokeDasharray={`${(inactivityCountdown / COUNTDOWN_S) * 100} 100`}
+                  strokeLinecap="round" style={{ transition: "stroke-dasharray 1s linear" }} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", fontWeight: "800", color: inactivityCountdown <= 10 ? "#e74c3c" : "#2c3e50" }}>
+                {inactivityCountdown}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={handleStayLoggedIn}
+                style={{ padding: "12px 28px", background: "#27ae60", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "15px", flex: "1", minWidth: "150px" }}>
+                {lang === "fr" ? "Rester connecté(e)" : "Stay logged in"}
+              </button>
+              <button onClick={() => handleLogout()}
+                style={{ padding: "12px 20px", background: "none", color: "#e74c3c", border: "2px solid #e74c3c", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>
+                {lang === "fr" ? "Se déconnecter" : "Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BARRE DE NAVIGATION DESKTOP ──────────────────── */}
+      <header className="app-navbar">
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-          <img src={logo} alt="Logo Cotisation Pro" style={{ height: "52px", width: "52px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} className="app-menu-logo" />
+        <div className="app-navbar-brand">
+          <img src={logo} alt="Logo" className="app-navbar-logo" />
           <div>
-            <div style={{ color: "white", fontWeight: "700", fontSize: "16px", whiteSpace: "nowrap" }}>Cotisation Pro</div>
-            <div style={{ color: "#3498db", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>🏛️ {compte.nom_association}</div>
+            <div className="app-navbar-title">Cotisation Pro</div>
+            <div className="app-navbar-assoc"><Icon name="building" size={11} style={{ marginRight: "4px", verticalAlign: "middle" }} />{compte.nom_association}</div>
           </div>
         </div>
 
-        {/* Boutons desktop */}
-        <div style={styles.menuButtons} className="app-menu-buttons">
-          <select value={lang} onChange={(e) => setLang(e.target.value)}
-            style={{ padding: "6px 30px 6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "20px", cursor: "pointer", fontWeight: "600", fontSize: "13px", outline: "none" }}
-            className="lang-select">
-            <option value="fr" style={{ background: "#2c3e50" }}>🇫🇷 FR</option>
-            <option value="en" style={{ background: "#2c3e50" }}>🇬🇧 EN</option>
-          </select>
-          <button style={styles.btn} onClick={() => setPage("accueil")}>{t("home")}</button>
-          <button style={styles.btn} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>{t("members")}</button>
-          <button style={styles.btn} onClick={() => setPage("cotisations")}>{t("contributions")}</button>
-          <button style={styles.btn} onClick={() => setPage("historique")}>{t("history")}</button>
-
-          <button style={{ ...styles.btn, background: "#e67e22", position: "relative" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
-            {lang === "fr" ? "Messages" : "Messages"}
-            {adminMsgUnread > 0 && <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "16px", height: "16px", fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{adminMsgUnread}</span>}
+        {/* Onglets principaux */}
+        <nav className="app-navbar-tabs">
+          <button className={`nav-tab${page === "accueil" ? " nav-tab-active" : ""}`} onClick={() => setPage("accueil")}>
+            <Icon name="home" size={15} /> {t("home")}
           </button>
-          <div style={{ position: "relative", marginLeft: "14px" }} ref={accountMenuRef}>
-            <button style={{ ...styles.btn, background: "#34495e", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setShowAccountMenu(v => !v)}>
-              {t("accountMenu")} ▾
+          <button className={`nav-tab${page === "adherents" ? " nav-tab-active" : ""}`} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>
+            <Icon name="users" size={15} /> {t("members")}
+          </button>
+          <button className={`nav-tab${page === "cotisations" ? " nav-tab-active" : ""}`} onClick={() => setPage("cotisations")}>
+            <Icon name="list" size={15} /> {t("contributions")}
+          </button>
+          <button className={`nav-tab${page === "historique" ? " nav-tab-active" : ""}`} onClick={() => setPage("historique")}>
+            <Icon name="clock" size={15} /> {t("history")}
+          </button>
+
+          {/* Dropdown "Plus" */}
+          <div className="nav-tab-dropdown" ref={plusMenuRef}>
+            <button
+              className={`nav-tab nav-tab-plus${["messages", "comptabilite", "audit"].includes(page) ? " nav-tab-active" : ""}`}
+              onClick={() => setShowPlusMenu(v => !v)}
+            >
+              {lang === "fr" ? "Plus" : "More"} {showPlusMenu ? "▲" : "▾"}
+              {adminMsgUnread > 0 && <span className="nav-badge">{adminMsgUnread}</span>}
+            </button>
+            {showPlusMenu && (
+              <div className="nav-dropdown-panel">
+                <button className={`nav-dropdown-item${page === "messages" ? " nav-dropdown-active" : ""}`}
+                  onClick={() => { setShowPlusMenu(false); setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
+                  <Icon name="mail" size={14} /> {lang === "fr" ? "Messages" : "Messages"}
+                  {adminMsgUnread > 0 && <span className="nav-badge">{adminMsgUnread}</span>}
+                </button>
+                {(isAdmin || isTresorier) && (
+                  <button className={`nav-dropdown-item${page === "comptabilite" ? " nav-dropdown-active" : ""}`}
+                    onClick={() => { setShowPlusMenu(false); setPage("comptabilite"); loadComptabilite(); }}>
+                    <Icon name="bar-chart" size={14} /> {lang === "fr" ? "Comptabilité" : "Accounting"}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button className={`nav-dropdown-item${page === "audit" ? " nav-dropdown-active" : ""}`}
+                    onClick={() => { setShowPlusMenu(false); setPage("audit"); setAuditOffset(0); setAuditActionFilter(""); loadAuditLogs(0, ""); }}>
+                    <Icon name="shield" size={14} /> Audit
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* Droite : langue + compte */}
+        <div className="app-navbar-right">
+          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select nav-lang-select">
+            <option value="fr" style={{ background: "#1e2d3d" }}>🇫🇷 FR</option>
+            <option value="en" style={{ background: "#1e2d3d" }}>🇬🇧 EN</option>
+          </select>
+
+          <div style={{ position: "relative" }} ref={accountMenuRef}>
+            <button className="nav-account-btn" onClick={() => setShowAccountMenu(v => !v)} title={t("accountMenu")}>
+              ···
             </button>
             {showAccountMenu && (
-              <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "white", borderRadius: "10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", minWidth: "230px", zIndex: 999, overflow: "hidden", border: "1px solid #ecf0f1" }}>
-                <div style={{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #ecf0f1" }}>
+              <div className="nav-account-panel">
+                <div className="nav-account-header">
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                     <div style={{ fontSize: "11px", color: "#3498db", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("accountMenu")}</div>
                     <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: isAdmin ? "#f3e5f5" : isTresorier ? "#e8f0fe" : "#e3f2fd", color: isAdmin ? "#6a1b9a" : isTresorier ? "#6c3483" : "#1565c0" }}>
-                      {isAdmin ? (lang === "fr" ? "Trésorier" : "Treasurer") : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
+                      {isAdmin ? (compte?.poste || (lang === "fr" ? "Créateur" : "Creator")) : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
                     </span>
                   </div>
                   <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
                   <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{compte.email}</div>
                 </div>
                 {[
-                  { label: lang === "fr" ? "👤 Mon profil" : "👤 My Profile", action: () => { setShowAccountMenu(false); loadProfil(); setPage("profil"); } },
-                  { label: lang === "fr" ? "💰 Mes cotisations" : "💰 My Contributions", action: () => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); } },
-                  { label: t("changePassword"), action: () => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); } },
-                  { label: t("changeEmail"), action: () => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); } },
-                  ...(isAdmin ? [{ label: t("helpMenu"), action: () => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); } }] : []),
-                  { label: t("aboutMenu"), action: () => { setShowAccountMenu(false); setShowAbout(true); } },
-                ].map(({ label, action }) => (
-                  <button key={label}
-                    style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#2c3e50", fontFamily: "inherit", boxSizing: "border-box" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f8ff"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                    onClick={action}>{label}</button>
+                  { icon: "user",    label: lang === "fr" ? "Mon profil" : "My Profile", action: () => { setShowAccountMenu(false); loadProfil(); setPage("profil"); } },
+                  { icon: "dollar",  label: lang === "fr" ? "Mes cotisations" : "My Contributions", action: () => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); } },
+                  { icon: "key",     label: t("changePassword"), action: () => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); } },
+                  { icon: "mail",    label: t("changeEmail"), action: () => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); } },
+                  ...(isAdmin ? [{ icon: "list", label: t("helpMenu"), action: () => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); } }] : []),
+                  { icon: "building", label: t("aboutMenu"), action: () => { setShowAccountMenu(false); setShowAbout(true); } },
+                ].map(({ icon, label, action }) => (
+                  <button key={label} className="nav-account-item" onClick={action} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name={icon} size={14} style={{ opacity: 0.6 }} /> {label}
+                  </button>
                 ))}
                 <div style={{ height: "1px", background: "#ecf0f1", margin: "2px 0" }} />
-                <button
-                  style={{ display: "block", width: "100%", padding: "11px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#c0392b", fontFamily: "inherit", fontWeight: "600", boxSizing: "border-box" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#fff5f5"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                  onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }}>
-                  🚪 {t("logout")}
+                <button className="nav-account-item nav-account-logout" onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="logout" size={14} style={{ opacity: 0.7 }} /> {t("logout")}
                 </button>
               </div>
             )}
           </div>
         </div>
-
-      </div>
+      </header>
 
       <div style={styles.content} className="app-content">
 
@@ -3398,12 +4456,12 @@ function App() {
                             # {profilData.matricule}
                           </div>
                         )}
-                        <div style={{ color: "#a0b9cc", fontSize: "12px", marginTop: "8px" }}>🏛️ {compte.nom_association}</div>
+                        <div style={{ color: "#a0b9cc", fontSize: "12px", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}><Icon name="building" size={11} />{compte.nom_association}</div>
                       </div>
                       {/* Badge rôle */}
                       {(() => {
-                        const roleLabel = isAdmin ? (lang === "fr" ? "TRÉSORIER" : "TREASURER") : profilData.poste ? profilData.poste.toUpperCase() : "MEMBRE";
-                        const roleBg = isAdmin ? "#8e44ad" : profilData.poste && profilData.poste.toLowerCase().includes("trésorier") ? "#27ae60" : profilData.poste && profilData.poste.toLowerCase().includes("secrétaire") ? "#e67e22" : "#3498db";
+                        const roleLabel = isAdmin ? (profilData.poste ? profilData.poste.toUpperCase() : (lang === "fr" ? "CRÉATEUR" : "CREATOR")) : profilData.poste ? profilData.poste.toUpperCase() : "MEMBRE";
+                        const roleBg = isAdmin && !profilData.poste ? "#7f8c8d" : profilData.poste && profilData.poste.toLowerCase().includes("président") ? "#8e44ad" : profilData.poste && profilData.poste.toLowerCase().includes("trésorier") ? "#27ae60" : profilData.poste && profilData.poste.toLowerCase().includes("secrétaire") ? "#e67e22" : "#3498db";
                         return <div style={{ background: roleBg, color: "white", padding: "5px 14px", borderRadius: "20px", fontSize: "11px", fontWeight: "800", letterSpacing: "1px", alignSelf: "flex-start", whiteSpace: "nowrap" }}>{roleLabel}</div>;
                       })()}
                     </div>
@@ -3417,31 +4475,38 @@ function App() {
                     {profilError && (
                       <div style={{ width: "100%", background: "#fdecea", color: "#c0392b", padding: "8px 14px", borderRadius: "8px", fontSize: "13px" }}>⚠️ {profilError}</div>
                     )}
+                    {isAdmin && nonCreatorPresidentExists && (
+                      <div style={{ width: "100%", background: "#eaf4fb", border: "1px solid #aed6f1", borderRadius: "8px", padding: "8px 14px", fontSize: "12px", color: "#1a5276", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                        <Icon name="info" size={14} style={{ marginTop: "1px", flexShrink: 0 }} /> {lang === "fr"
+                          ? "Un président est en place. L'attribution des postes lui est désormais réservée."
+                          : "A president is in place. Role assignment is now reserved for them."}
+                      </div>
+                    )}
                     {!profilEditMode ? (
                       <>
                         <button
                           onClick={() => { setProfilEditForm({ nom: profilData.nom, prenom: profilData.prenom, telephone: profilData.telephone, photo: profilData.photo }); setProfilError(""); setProfilEditMode(true); }}
                           style={{ padding: "9px 20px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                          ✏️ {lang === "fr" ? "Modifier le profil" : "Edit Profile"}
+                          <Icon name="edit" size={14} /> {lang === "fr" ? "Modifier le profil" : "Edit Profile"}
                         </button>
                         <button
                           onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); }}
                           style={{ padding: "9px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                          🔑 {lang === "fr" ? "Mot de passe" : "Password"}
+                          <Icon name="key" size={14} /> {lang === "fr" ? "Mot de passe" : "Password"}
                         </button>
-                        {(isAdmin || isPresident) && (
+                        {canAssignPoste && (
                           <button
                             onClick={() => { setRoleTransferPoste("Président(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
                             style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            🔄 {lang === "fr" ? "Attribuer un rôle" : "Assign a Role"}
+                            <Icon name="rotate-cw" size={14} /> {lang === "fr" ? "Attribuer un rôle" : "Assign a Role"}
                           </button>
                         )}
                       </>
                     ) : (
                       <>
                         <button onClick={saveProfil} disabled={profilSaving}
-                          style={{ padding: "9px 20px", background: profilSaving ? "#95a5a6" : "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px" }}>
-                          {profilSaving ? (lang === "fr" ? "Enregistrement…" : "Saving…") : (lang === "fr" ? "✅ Enregistrer" : "✅ Save")}
+                          style={{ padding: "9px 20px", background: profilSaving ? "#95a5a6" : "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {profilSaving ? (lang === "fr" ? "Enregistrement…" : "Saving…") : (<><Icon name="save" size={14} /> {lang === "fr" ? "Enregistrer" : "Save"}</>)}
                         </button>
                         <button onClick={() => { setProfilEditMode(false); setProfilError(""); }}
                           style={{ padding: "9px 20px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>
@@ -3457,13 +4522,13 @@ function App() {
                       /* ── Mode lecture ── */
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
                         {[
-                          { icon: "✉️", label: "Email", value: profilData.email || "—" },
-                          { icon: "📞", label: lang === "fr" ? "Téléphone" : "Phone", value: profilData.telephone || "—" },
-                          { icon: "📅", label: lang === "fr" ? "Date d'inscription" : "Registration date", value: profilData.date_inscription ? new Date(profilData.date_inscription).toLocaleDateString("fr-FR") : "—" },
-                          { icon: "🪪", label: "Matricule", value: profilData.matricule ? `# ${profilData.matricule}` : "—" },
+                          { icon: "mail",  label: "Email", value: profilData.email || "—" },
+                          { icon: "phone", label: lang === "fr" ? "Téléphone" : "Phone", value: profilData.telephone || "—" },
+                          { icon: "clock", label: lang === "fr" ? "Date d'inscription" : "Registration date", value: profilData.date_inscription ? new Date(profilData.date_inscription).toLocaleDateString("fr-FR") : "—" },
+                          { icon: "badge", label: "Matricule", value: profilData.matricule ? `# ${profilData.matricule}` : "—" },
                         ].map(({ icon, label, value }) => (
                           <div key={label} style={{ background: "#f7f9fc", borderRadius: "10px", padding: "14px 16px", border: "1px solid #e8edf3", display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                            <span style={{ fontSize: "20px", lineHeight: "1", marginTop: "2px" }}>{icon}</span>
+                            <span style={{ marginTop: "2px", color: "#7f8c8d" }}><Icon name={icon} size={18} /></span>
                             <div>
                               <div style={{ fontSize: "11px", color: "#95a5a6", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{label}</div>
                               <div style={{ fontSize: "14px", color: "#2c3e50", fontWeight: "600", wordBreak: "break-all" }}>{value}</div>
@@ -3516,13 +4581,61 @@ function App() {
                   </div>
                 </div>
 
+                {/* ── Carte Membre avec QR Code ── */}
+                <div style={{ background: "white", borderRadius: "14px", border: "1px solid #e8edf3", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", marginBottom: "16px" }}>
+                  <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <Icon name="card" size={20} style={{ color: "white" }} />
+                      <div>
+                        <div style={{ color: "white", fontWeight: "700", fontSize: "14px" }}>{lang === "fr" ? "Ma Carte Membre" : "My Member Card"}</div>
+                        <div style={{ color: "#a8c4d8", fontSize: "11px" }}>{lang === "fr" ? "Carte digitale avec QR Code" : "Digital card with QR Code"}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={downloadAdminCarte}
+                      disabled={adminCarteDownloading || !adminCarteQRUrl}
+                      style={{ padding: "7px 16px", background: adminCarteDownloading || !adminCarteQRUrl ? "rgba(255,255,255,0.08)" : "rgba(22,160,133,0.9)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "8px", cursor: adminCarteDownloading || !adminCarteQRUrl ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: "700" }}>
+                      {adminCarteDownloading ? (lang === "fr" ? "Génération…" : "Generating…") : (lang === "fr" ? "⬇ Télécharger PDF" : "⬇ Download PDF")}
+                    </button>
+                  </div>
+                  <div style={{ padding: "18px 20px" }}>
+                    {/* Carte visuelle */}
+                    <div style={{ position: "relative", borderRadius: "12px", overflow: "hidden", background: "linear-gradient(135deg,#1a2742 0%,#2c3e50 55%,#1a6a9a 100%)", padding: "16px 14px", minHeight: "110px", boxShadow: "0 4px 18px rgba(44,62,80,0.25)", maxWidth: "440px" }}>
+                      <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(52,152,219,0.15)" }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                        {profilData.photo
+                          ? <img src={profilData.photo} alt="" style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(52,152,219,0.7)", flexShrink: 0 }} />
+                          : <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "rgba(52,152,219,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>👤</div>
+                        }
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ color: "white", fontWeight: "800", fontSize: "16px", lineHeight: "1.2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profilData.prenom} {profilData.nom}</div>
+                          <div style={{ color: "#a8d8ea", fontSize: "11px", marginTop: "3px" }}>N° {profilData.matricule || "N/A"}</div>
+                          {profilData.poste && (
+                            <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 10px", borderRadius: "10px", marginTop: "4px" }}>
+                              {profilData.poste}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase" }}>{compte.nom_association}</div>
+                      {/* QR Code */}
+                      <div style={{ position: "absolute", right: "12px", top: "12px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                        {adminCarteQRUrl
+                          ? <img src={adminCarteQRUrl} alt="QR Code" style={{ width: "72px", height: "72px", display: "block" }} />
+                          : <div style={{ width: "72px", height: "72px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "10px" }}>…</div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* ── Carte Mes cotisations rapide ── */}
-                <div style={{ background: "linear-gradient(135deg,#e8f4fd,#f0f8ff)", borderRadius: "14px", padding: "18px 22px", border: "1px solid #bee3f8", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", cursor: "pointer", transition: "box-shadow 0.2s" }}
+                <div style={{ background: "linear-gradient(135deg,#e8f4fd,#f0f8ff)", borderRadius: "14px", padding: "18px 22px", border: "1px solid #bee3f8", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", cursor: "pointer", transition: "box-shadow 0.2s", marginBottom: "16px" }}
                   onClick={() => { loadMesCotisations(); setPage("mes-cotisations"); }}
                   onMouseEnter={e => e.currentTarget.style.boxShadow = "0 6px 20px rgba(52,152,219,0.20)"}
                   onMouseLeave={e => e.currentTarget.style.boxShadow = ""}>
                   <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>💰</div>
+                    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="dollar" size={22} style={{ color: "white" }} /></div>
                     <div>
                       <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px" }}>{lang === "fr" ? "Mes cotisations" : "My Contributions"}</div>
                       <div style={{ color: "#7f8c8d", fontSize: "12px", marginTop: "2px" }}>{lang === "fr" ? "Voir mes paiements et statuts" : "View my payments and statuses"}</div>
@@ -3530,6 +4643,93 @@ function App() {
                   </div>
                   <div style={{ color: "#3498db", fontWeight: "700", fontSize: "18px" }}>→</div>
                 </div>
+
+                {/* ── Configuration Mobile Money ── */}
+                {isAdmin && (
+                  <div style={{ background: "white", borderRadius: "14px", border: "1px solid #e8edf3", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "linear-gradient(135deg,#1a2a3a,#2c3e50)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <Icon name="phone" size={20} style={{ color: "white" }} />
+                        <div>
+                          <div style={{ color: "white", fontWeight: "700", fontSize: "14px" }}>{lang === "fr" ? "Comptes Mobile Money" : "Mobile Money Accounts"}</div>
+                          <div style={{ color: "#a8c4d8", fontSize: "11px" }}>{lang === "fr" ? "Numéros de réception des paiements" : "Payment receiving numbers"}</div>
+                        </div>
+                      </div>
+                      {!mmEditMode && (
+                        <button onClick={() => { setMmForm({ ...mmConfig }); setMmEditMode(true); setMmError(""); setMmSuccess(""); }}
+                          style={{ padding: "7px 16px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                          ✏️ {lang === "fr" ? "Modifier" : "Edit"}
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ padding: "18px 20px" }}>
+                      {mmSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "9px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px", fontWeight: "600" }}>{mmSuccess}</div>}
+                      {mmError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "9px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>⚠️ {mmError}</div>}
+                      {!mmEditMode ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          {[
+                            { label: "Orange Money", img: imgOrange, color: "#FF6600", bg: "#fff3e6", numero: mmConfig.om_numero, nom: mmConfig.om_nom },
+                            { label: "Wave",         img: imgWave,   color: "#009BDB", bg: "#e6f5fc", numero: mmConfig.wave_numero, nom: mmConfig.wave_nom },
+                            { label: "MTN MoMo",    img: imgMTN,    color: "#FFCC00", bg: "#fffbe6", numero: mmConfig.mtn_numero, nom: mmConfig.mtn_nom },
+                          ].map(({ label, img, color, bg, numero, nom }) => (
+                            <div key={label} style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 16px", background: bg, borderRadius: "10px", border: `1px solid ${color}33` }}>
+                              <img src={img} alt={label} style={{ height: "28px", width: "auto", maxWidth: "62px", objectFit: "contain", flexShrink: 0 }} />
+                              <div style={{ flex: 1 }}>
+                                {numero ? (
+                                  <div style={{ color: "#2c3e50", fontSize: "14px", fontWeight: "600", marginTop: "2px" }}>{numero}{nom ? ` — ${nom}` : ""}</div>
+                                ) : (
+                                  <div style={{ color: "#bdc3c7", fontSize: "12px", fontStyle: "italic" }}>{lang === "fr" ? "Non configuré" : "Not configured"}</div>
+                                )}
+                              </div>
+                              {numero && <span style={{ background: color, color: "white", padding: "2px 10px", borderRadius: "10px", fontSize: "10px", fontWeight: "700" }}>ACTIF</span>}
+                            </div>
+                          ))}
+                          {!mmConfig.om_numero && !mmConfig.wave_numero && !mmConfig.mtn_numero && (
+                            <div style={{ textAlign: "center", padding: "10px", color: "#7f8c8d", fontSize: "13px" }}>
+                              {lang === "fr" ? "Aucun compte Mobile Money configuré. Cliquez sur Modifier pour en ajouter." : "No Mobile Money account configured. Click Edit to add one."}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          {[
+                            { label: "Orange Money", img: imgOrange, color: "#FF6600", numKey: "om_numero", nomKey: "om_nom", ph: "+225 07 00 00 00 00" },
+                            { label: "Wave",         img: imgWave,   color: "#009BDB", numKey: "wave_numero", nomKey: "wave_nom", ph: "+225 01 00 00 00 00" },
+                            { label: "MTN MoMo",     img: imgMTN,    color: "#FFCC00", numKey: "mtn_numero", nomKey: "mtn_nom", ph: "+225 05 00 00 00 00" },
+                          ].map(({ label, img, color, numKey, nomKey, ph }) => (
+                            <div key={numKey} style={{ marginBottom: "16px", padding: "12px 16px", background: "#f7f9fc", borderRadius: "10px", border: "1px solid #e8edf3" }}>
+                              <div style={{ fontWeight: "700", fontSize: "13px", color: "#2c3e50", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                <img src={img} alt={label} style={{ height: "22px", width: "auto", maxWidth: "52px", objectFit: "contain" }} />
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div>
+                                  <label style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Numéro" : "Number"}</label>
+                                  <input value={mmForm[numKey]} onChange={e => setMmForm(f => ({ ...f, [numKey]: e.target.value }))}
+                                    placeholder={ph} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Nom bénéficiaire" : "Beneficiary name"}</label>
+                                  <input value={mmForm[nomKey]} onChange={e => setMmForm(f => ({ ...f, [nomKey]: e.target.value }))}
+                                    placeholder={lang === "fr" ? "Ex. Jean Kouakou" : "Ex. Jean Kouakou"} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box" }} />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                            <button onClick={() => { setMmEditMode(false); setMmForm({ ...mmConfig }); setMmError(""); }}
+                              style={{ padding: "9px 20px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>
+                              {lang === "fr" ? "Annuler" : "Cancel"}
+                            </button>
+                            <button onClick={saveMMConfig} disabled={mmSaving}
+                              style={{ padding: "9px 20px", background: mmSaving ? "#95a5a6" : "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "700", opacity: mmSaving ? 0.8 : 1 }}>
+                              {mmSaving ? (lang === "fr" ? "Enregistrement…" : "Saving…") : (lang === "fr" ? "✅ Enregistrer" : "✅ Save")}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -3540,7 +4740,7 @@ function App() {
           <div style={{ maxWidth: "680px", margin: "0 auto" }}>
             <button style={styles.backBtn} onClick={() => setPage("accueil")}>{t("backBtn")}</button>
             <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>💰</div>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="dollar" size={24} style={{ color: "white" }} /></div>
               <div>
                 <h2 style={{ margin: 0, color: "#2c3e50", fontSize: "20px", fontWeight: "800" }}>{lang === "fr" ? "Mes cotisations" : "My Contributions"}</h2>
                 <p style={{ margin: 0, color: "#7f8c8d", fontSize: "13px" }}>{lang === "fr" ? "Historique de vos paiements et soldes" : "Your payment history and balances"}</p>
@@ -3563,12 +4763,12 @@ function App() {
                   return (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
                       {[
-                        { label: lang === "fr" ? "Payées" : "Paid", count: payes, color: "#27ae60", bg: "#d5f5e3", icon: "✅" },
-                        { label: lang === "fr" ? "Partielles" : "Partial", count: partiels, color: "#f39c12", bg: "#fef9e7", icon: "⏳" },
-                        { label: lang === "fr" ? "Impayées" : "Unpaid", count: impayes, color: "#e74c3c", bg: "#fdecea", icon: "❌" },
+                        { label: lang === "fr" ? "Payées" : "Paid", count: payes, color: "#27ae60", bg: "#d5f5e3", icon: "check-circle" },
+                        { label: lang === "fr" ? "Partielles" : "Partial", count: partiels, color: "#f39c12", bg: "#fef9e7", icon: "hourglass" },
+                        { label: lang === "fr" ? "Impayées" : "Unpaid", count: impayes, color: "#e74c3c", bg: "#fdecea", icon: "x-circle" },
                       ].map(({ label, count, color, bg, icon }) => (
                         <div key={label} style={{ background: bg, borderRadius: "12px", padding: "16px 14px", textAlign: "center", border: `1px solid ${color}33` }}>
-                          <div style={{ fontSize: "22px", marginBottom: "4px" }}>{icon}</div>
+                          <div style={{ marginBottom: "4px", color }}><Icon name={icon} size={22} /></div>
                           <div style={{ fontSize: "22px", fontWeight: "800", color }}>{count}</div>
                           <div style={{ fontSize: "11px", color, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
                         </div>
@@ -3712,6 +4912,72 @@ function App() {
                 </p>
               )}
             </div>
+
+            {/* ── Statut notifications (email + SMS) — admin seulement ── */}
+            {isAdmin && (
+              <div style={{ marginTop: "28px", background: "white", borderRadius: "14px", border: "1px solid #e0e6ed", padding: "22px 26px" }}>
+                <h3 style={{ margin: "0 0 16px", fontSize: "15px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "8px" }}>
+                  🔔 {lang === "fr" ? "Statut des notifications" : "Notification status"}
+                </h3>
+                <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "20px" }}>
+                  {[
+                    { icon: "📧", label: "Email (Gmail)", ok: serverStatus?.email, desc: lang === "fr" ? "Confirmation paiement, rappels" : "Payment confirmation, reminders" },
+                    { icon: "📱", label: "SMS (Africa's Talking)", ok: serverStatus?.sms, desc: lang === "fr" ? "Compte créé, paiement, rappels" : "Account created, payment, reminders" },
+                  ].map(({ icon, label, ok, desc }) => (
+                    <div key={label} style={{ flex: "1", minWidth: "200px", background: ok ? "#eafaf1" : "#f8f9fa", border: `1.5px solid ${ok ? "#a9dfbf" : "#e0e6ed"}`, borderRadius: "10px", padding: "14px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                      <span style={{ fontSize: "22px" }}>{icon}</span>
+                      <div>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "6px" }}>
+                          {label}
+                          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: ok ? "#27ae60" : "#e74c3c", color: "white" }}>
+                            {ok ? (lang === "fr" ? "Actif" : "Active") : (lang === "fr" ? "Inactif" : "Inactive")}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "3px" }}>{desc}</div>
+                        {!ok && (
+                          <div style={{ fontSize: "11px", color: "#e74c3c", marginTop: "4px" }}>
+                            {label.includes("SMS")
+                              ? (lang === "fr" ? "Ajoutez AT_USERNAME et AT_API_KEY dans les variables d'env." : "Add AT_USERNAME and AT_API_KEY to env vars.")
+                              : (lang === "fr" ? "Ajoutez EMAIL_USER et EMAIL_PASS dans les variables d'env." : "Add EMAIL_USER and EMAIL_PASS to env vars.")}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Test SMS */}
+                {serverStatus?.sms && (
+                  <div style={{ borderTop: "1px solid #e0e6ed", paddingTop: "18px" }}>
+                    <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>
+                      📱 {lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}
+                    </p>
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                      <input
+                        value={testSmsPhone}
+                        onChange={e => { setTestSmsPhone(e.target.value); setTestSmsResult(null); }}
+                        placeholder={lang === "fr" ? "Ex: +2250701234567" : "Ex: +2250701234567"}
+                        style={{ flex: "1", minWidth: "180px", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "monospace" }}
+                      />
+                      <button onClick={handleTestSms} disabled={testSmsLoading || !testSmsPhone.trim()}
+                        style={{ padding: "9px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: testSmsLoading || !testSmsPhone.trim() ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: testSmsLoading || !testSmsPhone.trim() ? 0.6 : 1 }}>
+                        {testSmsLoading ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer test" : "Send test")}
+                      </button>
+                    </div>
+                    {testSmsResult && (
+                      <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", background: testSmsResult.ok ? "#eafaf1" : "#fef0f0", color: testSmsResult.ok ? "#27ae60" : "#c0392b", fontWeight: "600" }}>
+                        {testSmsResult.ok ? `✅ ${testSmsResult.message}` : `❌ ${testSmsResult.error}`}
+                      </div>
+                    )}
+                    <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#bdc3c7" }}>
+                      {lang === "fr"
+                        ? "Fournisseur : Africa's Talking. Variables requises : AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optionnel). Indicatif par défaut : +225 (Côte d'Ivoire)."
+                        : "Provider: Africa's Talking. Required vars: AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optional). Default country code: +225 (Côte d'Ivoire)."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -3725,7 +4991,7 @@ function App() {
                 {/* ── Code d'invitation membres ── */}
                 {isHautMembre && <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", color: "white" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "18px" }}>🔗</span>
+                    <Icon name="link" size={16} />
                     <div>
                       <div style={{ fontWeight: "700", fontSize: "14px" }}>{lang === "fr" ? "Code d'invitation — auto-inscription" : "Invite code — self-registration"}</div>
                       <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
@@ -3768,7 +5034,7 @@ function App() {
                 {!loadingAdherents && adherents.filter(a => a.poste).length > 0 && (
                   <div style={{ background: "linear-gradient(135deg,#1a2742,#2c3e50)", borderRadius: "14px", padding: "20px 24px", marginBottom: "24px", color: "white" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                      <span style={{ fontSize: "22px" }}>🏛️</span>
+                      <Icon name="building" size={22} style={{ color: "white" }} />
                       <div>
                         <div style={{ fontWeight: "700", fontSize: "16px" }}>{lang === "fr" ? "Bureau de l'association" : "Association Board"}</div>
                         <div style={{ fontSize: "12px", color: "#a0b4c8" }}>{lang === "fr" ? "Membres élus et responsables" : "Elected members and officers"}</div>
@@ -3981,7 +5247,7 @@ function App() {
                                   # {adherent.matricule}
                                 </div>
                               )}
-                              <div style={{ color: "#a0b9cc", fontSize: "13px", marginTop: "8px" }}>🏛️ {compte.nom_association}</div>
+                              <div style={{ color: "#a0b9cc", fontSize: "13px", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}><Icon name="building" size={12} />{compte.nom_association}</div>
                             </div>
                             {/* Badge rôle */}
                             <div style={{ background: roleBadgeBg, color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "800", letterSpacing: "1px", alignSelf: "flex-start", whiteSpace: "nowrap" }}>{roleBadgeLabel}</div>
@@ -4008,13 +5274,13 @@ function App() {
                         <div style={{ background: "white", padding: "24px 28px 28px" }}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
                             {[
-                              { icon: "✉️", label: "Email", value: adherent.email || "—" },
-                              { icon: "📞", label: lang === "fr" ? "Téléphone" : "Phone", value: adherent.telephone || "—" },
-                              { icon: "📅", label: lang === "fr" ? "Date d'inscription" : "Registration date", value: adherent.date ? new Date(adherent.date).toLocaleDateString("fr-FR") : "—" },
-                              { icon: "🪪", label: "Matricule", value: adherent.matricule ? `# ${adherent.matricule}` : "—" },
+                              { icon: "mail",  label: "Email", value: adherent.email || "—" },
+                              { icon: "phone", label: lang === "fr" ? "Téléphone" : "Phone", value: adherent.telephone || "—" },
+                              { icon: "clock", label: lang === "fr" ? "Date d'inscription" : "Registration date", value: adherent.date ? new Date(adherent.date).toLocaleDateString("fr-FR") : "—" },
+                              { icon: "badge", label: "Matricule", value: adherent.matricule ? `# ${adherent.matricule}` : "—" },
                             ].map(({ icon, label, value }) => (
                               <div key={label} style={{ background: "#f7f9fc", borderRadius: "12px", padding: "16px 18px", border: "1px solid #e8edf3", display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                                <span style={{ fontSize: "22px", lineHeight: "1", marginTop: "2px" }}>{icon}</span>
+                                <span style={{ marginTop: "2px", color: "#7f8c8d" }}><Icon name={icon} size={18} /></span>
                                 <div>
                                   <div style={{ fontSize: "11px", color: "#95a5a6", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "5px" }}>{label}</div>
                                   <div style={{ fontSize: "15px", color: "#2c3e50", fontWeight: "600", wordBreak: "break-all" }}>{value}</div>
@@ -4029,7 +5295,7 @@ function App() {
                       <div style={{ borderRadius: "18px", overflow: "hidden", boxShadow: "0 4px 20px rgba(44,62,80,0.12)", background: "white" }}>
                         <div style={{ background: "linear-gradient(135deg,#e8f4fd,#dff0fb)", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #bee3f8" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                            <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>💰</div>
+                            <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="dollar" size={22} style={{ color: "white" }} /></div>
                             <div>
                               <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "16px" }}>{lang === "fr" ? "Cotisations" : "Contributions"}</div>
                               <div style={{ color: "#7f8c8d", fontSize: "12px" }}>{lang === "fr" ? "Historique des paiements" : "Payment history"}</div>
@@ -4324,6 +5590,87 @@ function App() {
                       >
                         {t("exportExcel")}
                       </button>
+                      {(isAdmin || isTresorier) && (
+                        <button
+                          style={{ ...styles.addBtn, background: "#2980b9", width: "auto", minWidth: "190px" }}
+                          onClick={() => { setRappelResult(null); setShowRappelModal(true); }}
+                        >
+                          📧 {lang === "fr" ? "Envoyer rappels" : "Send reminders"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Modal rappels email */}
+                  {showRappelModal && selectedPeriode && (
+                    <div style={styles.modalOverlay} onClick={() => { if (!rappelLoading) setShowRappelModal(false); }}>
+                      <div style={{ background: "white", borderRadius: "14px", padding: "32px 28px", width: "420px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                        {!rappelResult ? (
+                          <>
+                            <div style={{ fontSize: "48px", marginBottom: "12px" }}>📧</div>
+                            <h2 style={{ margin: "0 0 10px", fontSize: "18px", color: "#2c3e50" }}>
+                              {lang === "fr" ? "Envoyer des rappels" : "Send reminders"}
+                            </h2>
+                            <p style={{ margin: "0 0 20px", fontSize: "14px", color: "#7f8c8d", lineHeight: "1.6" }}>
+                              {lang === "fr"
+                                ? `Un email de rappel sera envoyé à tous les adhérents avec cotisation impayée ou partielle pour la période « ${periodeLabel(selectedPeriode)} ».`
+                                : `A reminder email will be sent to all members with unpaid or partial contributions for the period « ${periodeLabel(selectedPeriode)} ».`}
+                            </p>
+                            <p style={{ margin: "0 0 24px", fontSize: "13px", color: "#e67e22", background: "#fff8f0", borderRadius: "8px", padding: "10px 14px" }}>
+                              ⚠️ {lang === "fr" ? "Seuls les adhérents ayant un email renseigné recevront le message." : "Only members with a registered email will receive the message."}
+                            </p>
+                            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                              <button onClick={() => handleEnvoyerRappels(selectedPeriode)} disabled={rappelLoading}
+                                style={{ padding: "11px 26px", background: "#2980b9", color: "white", border: "none", borderRadius: "8px", cursor: rappelLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px", opacity: rappelLoading ? 0.7 : 1, flex: 1 }}>
+                                {rappelLoading ? (lang === "fr" ? "Envoi en cours…" : "Sending…") : (lang === "fr" ? "Confirmer l'envoi" : "Confirm send")}
+                              </button>
+                              <button onClick={() => setShowRappelModal(false)} disabled={rappelLoading}
+                                style={{ padding: "11px 20px", background: "none", color: "#7f8c8d", border: "1.5px solid #e0e6ed", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "14px" }}>
+                                {lang === "fr" ? "Annuler" : "Cancel"}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: "52px", marginBottom: "12px" }}>{rappelResult.ok ? "✅" : "❌"}</div>
+                            <h2 style={{ margin: "0 0 10px", fontSize: "18px", color: rappelResult.ok ? "#27ae60" : "#e74c3c" }}>
+                              {rappelResult.ok ? (lang === "fr" ? "Rappels envoyés !" : "Reminders sent!") : (lang === "fr" ? "Erreur" : "Error")}
+                            </h2>
+                            {rappelResult.ok ? (
+                              <div style={{ margin: "0 0 22px" }}>
+                                <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap", marginBottom: "10px" }}>
+                                  <div style={{ textAlign: "center", background: "#eaf4fb", borderRadius: "10px", padding: "12px 20px", minWidth: "100px" }}>
+                                    <div style={{ marginBottom: "4px", color: "#2980b9" }}><Icon name="mail" size={22} /></div>
+                                    <div style={{ fontSize: "22px", fontWeight: "800", color: "#2980b9" }}>{rappelResult.emails ?? rappelResult.envoyes ?? 0}</div>
+                                    <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{lang === "fr" ? "email(s)" : "email(s)"}</div>
+                                  </div>
+                                  <div style={{ textAlign: "center", background: "#eafaf1", borderRadius: "10px", padding: "12px 20px", minWidth: "100px" }}>
+                                    <div style={{ marginBottom: "4px", color: "#27ae60" }}><Icon name="phone" size={22} /></div>
+                                    <div style={{ fontSize: "22px", fontWeight: "800", color: "#27ae60" }}>{rappelResult.sms ?? 0}</div>
+                                    <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{lang === "fr" ? "SMS" : "SMS"}</div>
+                                  </div>
+                                </div>
+                                {rappelResult.ignores > 0 && (
+                                  <p style={{ fontSize: "13px", color: "#e74c3c", margin: "6px 0 0" }}>
+                                    {rappelResult.ignores} {lang === "fr" ? "échec(s)" : "failure(s)"}
+                                  </p>
+                                )}
+                                {(rappelResult.emails ?? rappelResult.envoyes ?? 0) === 0 && (rappelResult.sms ?? 0) === 0 && (
+                                  <p style={{ fontSize: "13px", color: "#7f8c8d", margin: "8px 0 0" }}>
+                                    {lang === "fr" ? "Aucun adhérent impayé avec contact trouvé." : "No unpaid member with contact found."}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p style={{ fontSize: "14px", color: "#7f8c8d", margin: "0 0 22px" }}>{rappelResult.error || rappelResult.message}</p>
+                            )}
+                            <button onClick={() => setShowRappelModal(false)}
+                              style={{ padding: "11px 30px", background: "#2c3e50", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>
+                              {lang === "fr" ? "Fermer" : "Close"}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -4426,17 +5773,39 @@ function App() {
 
                             <div style={styles.formRow}>
                               <label style={styles.label}>{t("paymentMethodLabel")}</label>
-                              <select
-                                value={addPaiementFormData.modePaiement}
-                                onChange={(e) => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: e.target.value })}
-                                style={styles.input}
-                              >
-                                <option value="Espèces">{t("cash")}</option>
-                                <option value="Mobile Money">{t("mobileMoney")}</option>
-                                <option value="Virement">{t("transfer")}</option>
-                                <option value="Chèque">{t("check")}</option>
-                                <option value="Autre">{t("other")}</option>
-                              </select>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                                {[
+                                  { value: "Espèces", label: t("cash"), icon: "💵", color: "#27ae60", selBg: "#eafaf1", selBorder: "#27ae60" },
+                                  { value: "Virement", label: t("transfer"), icon: "🏦", color: "#2980b9", selBg: "#eaf2fb", selBorder: "#2980b9" },
+                                  { value: "Chèque", label: t("check"), icon: "📄", color: "#8e44ad", selBg: "#f5eef8", selBorder: "#8e44ad" },
+                                  { value: "Autre", label: t("other"), icon: "💳", color: "#7f8c8d", selBg: "#f4f6f7", selBorder: "#7f8c8d" },
+                                ].map(({ value, label, icon, color, selBg, selBorder }) => {
+                                  const sel = addPaiementFormData.modePaiement === value;
+                                  return (
+                                    <button key={value} type="button"
+                                      onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: value })}
+                                      style={{ border: sel ? `2px solid ${selBorder}` : "1.5px solid #dde3ea", borderRadius: "10px", background: sel ? selBg : "white", padding: "7px 13px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: sel ? "700" : "500", color: sel ? color : "#2c3e50", boxShadow: sel ? `0 0 0 2px ${selBorder}22` : "none", transition: "all 0.15s" }}
+                                    >
+                                      <span>{icon}</span><span>{label}</span>
+                                    </button>
+                                  );
+                                })}
+                                {[
+                                  { value: "Orange Money", img: imgOrange, selBorder: "#ff6600", selBg: "#fff3ea" },
+                                  { value: "Wave", img: imgWave, selBorder: "#00b4d8", selBg: "#e8f8fc" },
+                                  { value: "MTN MoMo", img: imgMTN, selBorder: "#ffcc00", selBg: "#fffbe6" },
+                                ].map(({ value, img, selBorder, selBg }) => {
+                                  const sel = addPaiementFormData.modePaiement === value;
+                                  return (
+                                    <button key={value} type="button"
+                                      onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: value })}
+                                      style={{ border: sel ? `2px solid ${selBorder}` : "1.5px solid #dde3ea", borderRadius: "10px", background: sel ? selBg : "white", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: sel ? `0 0 0 2px ${selBorder}33` : "none", transition: "all 0.15s" }}
+                                    >
+                                      <img src={img} alt={value} style={{ height: "30px", width: "auto", maxWidth: "64px", objectFit: "contain" }} />
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
 
                             {/* Aperçu du calcul */}
@@ -4474,9 +5843,21 @@ function App() {
                               </div>
                             )}
 
+                            {addPaiementError && (
+                              <div style={{ background: "#fdecea", color: "#c0392b", border: "1px solid #f5b7b1", borderRadius: "8px", padding: "10px 14px", marginBottom: "12px", fontSize: "13px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                                <span style={{ flexShrink: 0, fontWeight: "700" }}>⚠️</span>
+                                <span>{addPaiementError}</span>
+                              </div>
+                            )}
                             <div style={styles.modalButtons}>
-                              <button style={{ ...styles.addBtn, background: "#0daf3e" }} onClick={handleSaveAddPaiement}>{t("pay")}</button>
-                              <button style={styles.cancelBtn} onClick={() => { setShowAddPaiementForm(false); setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); }}>{t("cancel")}</button>
+                              <button
+                                style={{ ...styles.addBtn, background: addPaiementSaving ? "#95a5a6" : "#0daf3e", cursor: addPaiementSaving ? "not-allowed" : "pointer", opacity: addPaiementSaving ? 0.8 : 1 }}
+                                onClick={handleSaveAddPaiement}
+                                disabled={addPaiementSaving}
+                              >
+                                {addPaiementSaving ? (lang === "fr" ? "Enregistrement…" : "Saving…") : t("pay")}
+                              </button>
+                              <button style={styles.cancelBtn} onClick={() => { setShowAddPaiementForm(false); setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); setAddPaiementError(""); }}>{t("cancel")}</button>
                             </div>
                           </div>
                         </div>
@@ -4952,11 +6333,749 @@ function App() {
                         <td style={styles.td}><strong>{tx.nom} {tx.prenom}</strong></td>
                         <td style={styles.td}>{periodeLabel(tx.periode)}</td>
                         <td style={{ ...styles.td, fontWeight: "bold", color: "#27ae60" }}>{tx.montantPaye}</td>
-                        <td style={styles.td}>{modeLabel(tx.modePaiement)}</td>
+                        <td style={styles.td}>
+                          {({ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[tx.modePaiement])
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}><img src={{ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[tx.modePaiement]} alt={tx.modePaiement} style={{ height: "18px", width: "auto", maxWidth: "42px", objectFit: "contain", verticalAlign: "middle" }} /></span>
+                            : modeLabel(tx.modePaiement)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── JOURNAL D'AUDIT ──────────────────────────────────── */}
+        {page === "audit" && isAdmin && (
+          <div>
+            <h1 style={{ margin: "0 0 6px", fontSize: "22px", color: "#2c3e50" }}>
+              🔐 {lang === "fr" ? "Journal d'audit" : "Audit Log"}
+            </h1>
+            <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#7f8c8d" }}>
+              {lang === "fr" ? "Toutes les actions sensibles enregistrées — qui, quoi, quand, depuis quelle IP." : "All sensitive actions recorded — who, what, when, from which IP."}
+            </p>
+
+            {/* Filtre par action */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "18px", flexWrap: "wrap", alignItems: "center" }}>
+              <select
+                value={auditActionFilter}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setAuditActionFilter(v);
+                  setAuditOffset(0);
+                  loadAuditLogs(0, v);
+                }}
+                style={{ padding: "8px 14px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", color: "#2c3e50", background: "white", cursor: "pointer", outline: "none" }}
+              >
+                <option value="">{lang === "fr" ? "Toutes les actions" : "All actions"}</option>
+                <option value="CONNEXION">Connexion</option>
+                <option value="CHANGEMENT_MOT_DE_PASSE">{lang === "fr" ? "Changement mot de passe" : "Password change"}</option>
+                <option value="CHANGEMENT_EMAIL">{lang === "fr" ? "Changement email" : "Email change"}</option>
+                <option value="AJOUT_ADHERENT">{lang === "fr" ? "Ajout adhérent" : "Member added"}</option>
+                <option value="MODIFICATION_ADHERENT">{lang === "fr" ? "Modification adhérent" : "Member edited"}</option>
+                <option value="SUPPRESSION_ADHERENT">{lang === "fr" ? "Suppression adhérent" : "Member deleted"}</option>
+                <option value="CREATION_PERIODE">{lang === "fr" ? "Création période" : "Period created"}</option>
+                <option value="ENREGISTREMENT_PAIEMENT">{lang === "fr" ? "Paiement enregistré" : "Payment recorded"}</option>
+                <option value="CREATION_UTILISATEUR">{lang === "fr" ? "Création utilisateur" : "User created"}</option>
+                <option value="SUPPRESSION_UTILISATEUR">{lang === "fr" ? "Suppression utilisateur" : "User deleted"}</option>
+              </select>
+              <span style={{ fontSize: "13px", color: "#95a5a6" }}>
+                {lang === "fr" ? `${auditTotal} entrée(s) au total` : `${auditTotal} total entries`}
+              </span>
+            </div>
+
+            {auditLoading ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#7f8c8d" }}>
+                {lang === "fr" ? "Chargement…" : "Loading…"}
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "50px 0", color: "#7f8c8d" }}>
+                <div style={{ marginBottom: "10px", opacity: 0.3 }}><Icon name="shield" size={40} /></div>
+                <p style={{ margin: 0 }}>{lang === "fr" ? "Aucune entrée dans le journal." : "No entries in the audit log."}</p>
+              </div>
+            ) : (
+              <>
+                <div style={styles.tableContainer}>
+                  <table style={{ ...styles.table, tableLayout: "auto" }}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>{lang === "fr" ? "Date / Heure" : "Date / Time"}</th>
+                        <th style={styles.th}>{lang === "fr" ? "Utilisateur" : "User"}</th>
+                        <th style={styles.th}>Action</th>
+                        <th style={styles.th}>{lang === "fr" ? "Détails" : "Details"}</th>
+                        <th style={styles.th}>IP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map((log, i) => {
+                        const actionColors = {
+                          CONNEXION: "#27ae60",
+                          CHANGEMENT_MOT_DE_PASSE: "#e67e22",
+                          CHANGEMENT_EMAIL: "#e67e22",
+                          AJOUT_ADHERENT: "#3498db",
+                          MODIFICATION_ADHERENT: "#2980b9",
+                          SUPPRESSION_ADHERENT: "#e74c3c",
+                          CREATION_PERIODE: "#8e44ad",
+                          ENREGISTREMENT_PAIEMENT: "#27ae60",
+                          CREATION_UTILISATEUR: "#3498db",
+                          SUPPRESSION_UTILISATEUR: "#e74c3c",
+                        };
+                        const color = actionColors[log.action] || "#7f8c8d";
+                        const auteur = log.nom ? `${log.prenom || ""} ${log.nom}`.trim() : (log.user_type === "admin" ? (lang === "fr" ? "Trésorier" : "Treasurer") : (lang === "fr" ? "Membre" : "Member"));
+                        return (
+                          <tr key={log.id} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                            <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d", whiteSpace: "nowrap" }}>
+                              {new Date(log.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
+                            </td>
+                            <td style={styles.td}>
+                              <div style={{ fontWeight: "600", fontSize: "13px", color: "#2c3e50" }}>{auteur}</div>
+                              {log.poste && <div style={{ fontSize: "11px", color: "#7f8c8d" }}>{log.poste}</div>}
+                            </td>
+                            <td style={styles.td}>
+                              <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: "10px", background: color + "22", color, fontWeight: "700", fontSize: "11px", whiteSpace: "nowrap", border: `1px solid ${color}44` }}>
+                                {log.action.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td style={{ ...styles.td, fontSize: "13px", color: "#4a5568", maxWidth: "300px", wordBreak: "break-word" }}>
+                              {log.details || "—"}
+                            </td>
+                            <td style={{ ...styles.td, fontSize: "12px", color: "#95a5a6", fontFamily: "monospace" }}>
+                              {log.ip_address || "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {auditTotal > AUDIT_LIMIT && (
+                  <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "20px", alignItems: "center" }}>
+                    <button
+                      disabled={auditOffset === 0}
+                      onClick={() => { const o = Math.max(0, auditOffset - AUDIT_LIMIT); setAuditOffset(o); loadAuditLogs(o, auditActionFilter); }}
+                      style={{ padding: "8px 18px", border: "1.5px solid #e0e6ed", borderRadius: "8px", background: "white", cursor: auditOffset === 0 ? "not-allowed" : "pointer", color: auditOffset === 0 ? "#bdc3c7" : "#2c3e50", fontWeight: "600", fontSize: "13px" }}
+                    >
+                      ← {lang === "fr" ? "Précédent" : "Previous"}
+                    </button>
+                    <span style={{ fontSize: "13px", color: "#7f8c8d" }}>
+                      {auditOffset + 1}–{Math.min(auditOffset + AUDIT_LIMIT, auditTotal)} / {auditTotal}
+                    </span>
+                    <button
+                      disabled={auditOffset + AUDIT_LIMIT >= auditTotal}
+                      onClick={() => { const o = auditOffset + AUDIT_LIMIT; setAuditOffset(o); loadAuditLogs(o, auditActionFilter); }}
+                      style={{ padding: "8px 18px", border: "1.5px solid #e0e6ed", borderRadius: "8px", background: "white", cursor: auditOffset + AUDIT_LIMIT >= auditTotal ? "not-allowed" : "pointer", color: auditOffset + AUDIT_LIMIT >= auditTotal ? "#bdc3c7" : "#2c3e50", fontWeight: "600", fontSize: "13px" }}
+                    >
+                      {lang === "fr" ? "Suivant" : "Next"} →
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════ COMPTABILITÉ ═══ */}
+        {page === "comptabilite" && (isAdmin || isTresorier) && (
+          <div>
+            {/* En-tête */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "10px" }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "22px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="bar-chart" size={20} /> {lang === "fr" ? "Comptabilité" : "Accounting"}</h1>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#7f8c8d" }}>
+                  {lang === "fr" ? "Recettes · Dépenses · Trésorerie · Rapports" : "Revenue · Expenses · Treasury · Reports"}
+                </p>
+              </div>
+            </div>
+
+            {/* Filtres date */}
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", margin: "16px 0 20px" }}>
+              <label style={{ fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>{lang === "fr" ? "Période :" : "Period:"}</label>
+              <input type="date" value={comptaFiltreDateDebut}
+                onChange={e => { setComptaFiltreDateDebut(e.target.value); loadComptabilite(e.target.value, comptaFiltreDateFin); }}
+                style={{ padding: "7px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none" }} />
+              <span style={{ color: "#bdc3c7" }}>→</span>
+              <input type="date" value={comptaFiltreDateFin}
+                onChange={e => { setComptaFiltreDateFin(e.target.value); loadComptabilite(comptaFiltreDateDebut, e.target.value); }}
+                style={{ padding: "7px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none" }} />
+              {(comptaFiltreDateDebut || comptaFiltreDateFin) && (
+                <button onClick={() => { setComptaFiltreDateDebut(""); setComptaFiltreDateFin(""); loadComptabilite("", ""); }}
+                  style={{ padding: "7px 14px", border: "1.5px solid #e74c3c", borderRadius: "8px", background: "none", color: "#e74c3c", fontSize: "13px", cursor: "pointer", fontWeight: "600" }}>
+                  ✕ {lang === "fr" ? "Tout afficher" : "Show all"}
+                </button>
+              )}
+            </div>
+
+            {/* Cartes résumé */}
+            {comptaLoading ? (
+              <div style={{ textAlign: "center", padding: "30px 0", color: "#7f8c8d" }}>{lang === "fr" ? "Chargement…" : "Loading…"}</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "28px" }}>
+                {[
+                  { label: lang === "fr" ? "Recettes (cotisations)" : "Revenue (contributions)", value: comptaResume.recettes, color: "#27ae60", bg: "#eafaf1", icon: "arrow-up" },
+                  { label: lang === "fr" ? "Dépenses" : "Expenses", value: comptaResume.depenses, color: "#e74c3c", bg: "#fef0f0", icon: "arrow-down" },
+                  { label: "Solde", value: comptaResume.solde, color: comptaResume.solde >= 0 ? "#2980b9" : "#e74c3c", bg: comptaResume.solde >= 0 ? "#eaf4fb" : "#fef0f0", icon: "dollar" },
+                ].map(({ label, value, color, bg, icon }) => (
+                  <div key={label} style={{ background: bg, border: `1.5px solid ${color}33`, borderRadius: "12px", padding: "20px 24px" }}>
+                    <div style={{ marginBottom: "6px", color }}><Icon name={icon} size={22} /></div>
+                    <div style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{label}</div>
+                    <div style={{ fontSize: "22px", fontWeight: "800", color }}>{Number(value).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} FCFA</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── 5 onglets ── */}
+            <div style={{ display: "flex", gap: "0", borderBottom: "2px solid #e0e6ed", marginBottom: "24px", overflowX: "auto" }}>
+              {[
+                { key: "recettes",   icon: "arrow-up",   label: lang === "fr" ? "Recettes"        : "Revenue"        },
+                { key: "depenses",   icon: "arrow-down", label: lang === "fr" ? "Dépenses"        : "Expenses"       },
+                { key: "livre",      icon: "receipt",    label: lang === "fr" ? "Livre de caisse" : "Cash book"      },
+                { key: "tresorerie", icon: "dollar",     label: lang === "fr" ? "Trésorerie"      : "Treasury"       },
+                { key: "rapports",   icon: "bar-chart",  label: lang === "fr" ? "Rapports"        : "Reports"        },
+              ].map(({ key, icon, label }) => (
+                <button key={key} onClick={() => setComptaSousOnglet(key)}
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 20px", border: "none", borderBottom: comptaSousOnglet === key ? "3px solid #16a085" : "3px solid transparent", background: "none", cursor: "pointer", fontWeight: comptaSousOnglet === key ? "700" : "500", color: comptaSousOnglet === key ? "#16a085" : "#7f8c8d", fontSize: "14px", whiteSpace: "nowrap", transition: "all 0.2s" }}>
+                  <Icon name={icon} size={14}/> {label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ ONGLET RECETTES ══ */}
+            {comptaSousOnglet === "recettes" && (() => {
+              const filtered = historiqueTransactions.filter(tx => {
+                const q = recettesSearch.toLowerCase();
+                if (!q) return true;
+                return (tx.nom||"").toLowerCase().includes(q) || (tx.prenom||"").toLowerCase().includes(q) || (tx.periode||"").toLowerCase().includes(q) || (tx.modePaiement||"").toLowerCase().includes(q);
+              });
+              const total = filtered.reduce((s, tx) => s + parseAmount(tx.montantPaye), 0);
+              return (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
+                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                      <span style={{ background: "#eafaf1", color: "#27ae60", padding: "6px 14px", borderRadius: "8px", fontWeight: "700", fontSize: "14px" }}>
+                        {lang === "fr" ? "Total collecté" : "Total collected"} : {formatAmount(total)}
+                      </span>
+                      <span style={{ background: "#f0f4f8", color: "#7f8c8d", padding: "6px 14px", borderRadius: "8px", fontSize: "13px" }}>
+                        {filtered.length} {lang === "fr" ? "transaction(s)" : "transaction(s)"}
+                      </span>
+                    </div>
+                    <input type="text" value={recettesSearch} onChange={e => setRecettesSearch(e.target.value)}
+                      placeholder={lang === "fr" ? "Rechercher membre, période…" : "Search member, period…"}
+                      style={{ padding: "8px 14px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", minWidth: "220px" }} />
+                  </div>
+                  {filtered.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "50px 0", color: "#7f8c8d" }}>
+                      <div style={{ fontSize: "40px", marginBottom: "10px" }}>💰</div>
+                      <p style={{ margin: 0 }}>{lang === "fr" ? "Aucune recette trouvée." : "No revenue found."}</p>
+                    </div>
+                  ) : (
+                    <div style={styles.tableContainer}>
+                      <table style={{ ...styles.table, tableLayout: "auto" }}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>{lang === "fr" ? "Date" : "Date"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Reçu" : "Receipt"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Membre" : "Member"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Période" : "Period"}</th>
+                            <th style={{ ...styles.th, textAlign: "right" }}>{lang === "fr" ? "Montant" : "Amount"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Mode" : "Method"}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...filtered].reverse().map((tx, i) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                              <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d", whiteSpace: "nowrap" }}>{tx.datePaiement}</td>
+                              <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d" }}>{tx.numeroRecu || "—"}</td>
+                              <td style={{ ...styles.td, fontWeight: "600" }}>{tx.nom} {tx.prenom}</td>
+                              <td style={styles.td}>{periodeLabel(tx.periode)}</td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#27ae60", whiteSpace: "nowrap" }}>{tx.montantPaye}</td>
+                              <td style={styles.td}>
+                                {({ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[tx.modePaiement])
+                                  ? <img src={{ "Orange Money": imgOrange, "Wave": imgWave, "MTN MoMo": imgMTN }[tx.modePaiement]} alt={tx.modePaiement} style={{ height: "18px", width: "auto", maxWidth: "44px", objectFit: "contain", verticalAlign: "middle" }} />
+                                  : <span style={{ fontSize: "12px" }}>{modeLabel(tx.modePaiement)}</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: "#f0f4f8" }}>
+                            <td colSpan={4} style={{ ...styles.td, fontWeight: "700", color: "#2c3e50" }}>Total</td>
+                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "800", color: "#27ae60", fontSize: "15px" }}>{formatAmount(total)}</td>
+                            <td />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ══ ONGLET DÉPENSES ══ */}
+            {comptaSousOnglet === "depenses" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ background: "#fef0f0", color: "#e74c3c", padding: "6px 14px", borderRadius: "8px", fontWeight: "700", fontSize: "14px" }}>
+                      Total : {depenses.reduce((s,d)=>s+Number(d.montant),0).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA
+                    </span>
+                    <input type="text" value={depensesSearch} onChange={e => setDepensesSearch(e.target.value)}
+                      placeholder={lang === "fr" ? "Rechercher…" : "Search…"}
+                      style={{ padding: "7px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none" }} />
+                  </div>
+                  <button onClick={() => { setDepenseFormVisible(v => !v); setDepenseEditId(null); setDepenseError(""); setDepenseForm({ libelle: "", montant: "", categorie: "Autre", date_depense: new Date().toISOString().split("T")[0], description: "" }); }}
+                    style={{ padding: "9px 20px", background: "#16a085", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px" }}>
+                    {depenseFormVisible ? (lang === "fr" ? "✕ Annuler" : "✕ Cancel") : (lang === "fr" ? "+ Ajouter une dépense" : "+ Add expense")}
+                  </button>
+                </div>
+
+                {depenseFormVisible && (
+                  <div style={{ background: "#f0faf8", border: "1.5px solid #16a08533", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
+                    <h3 style={{ margin: "0 0 16px", fontSize: "15px", color: "#16a085" }}>{depenseEditId !== null ? (lang === "fr" ? "✏️ Modifier la dépense" : "✏️ Edit expense") : (lang === "fr" ? "Nouvelle dépense" : "New expense")}</h3>
+                    {depenseError && <div style={{ background: "#fef0f0", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>{depenseError}</div>}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Libellé *" : "Label *"}</label>
+                        <input value={depenseForm.libelle} onChange={e => setDepenseForm(f => ({ ...f, libelle: e.target.value }))}
+                          placeholder={lang === "fr" ? "Ex: Achat chaises" : "Ex: Chair purchase"}
+                          style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Montant (FCFA) *" : "Amount (FCFA) *"}</label>
+                        <input type="number" min="1" value={depenseForm.montant} onChange={e => setDepenseForm(f => ({ ...f, montant: e.target.value }))}
+                          placeholder="0"
+                          style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Catégorie" : "Category"}</label>
+                        <select value={depenseForm.categorie} onChange={e => setDepenseForm(f => ({ ...f, categorie: e.target.value }))}
+                          style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", boxSizing: "border-box", background: "white" }}>
+                          {CATEG_DEPENSES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Date *" : "Date *"}</label>
+                        <input type="date" value={depenseForm.date_depense} onChange={e => setDepenseForm(f => ({ ...f, date_depense: e.target.value }))}
+                          style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang === "fr" ? "Description (optionnel)" : "Description (optional)"}</label>
+                      <textarea value={depenseForm.description} onChange={e => setDepenseForm(f => ({ ...f, description: e.target.value }))}
+                        rows={2} placeholder={lang === "fr" ? "Détails supplémentaires…" : "Additional details…"}
+                        style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+                    </div>
+                    <button onClick={handleSaveDepense} disabled={depenseLoading}
+                      style={{ padding: "10px 24px", background: "#16a085", color: "white", border: "none", borderRadius: "8px", cursor: depenseLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: depenseLoading ? 0.7 : 1 }}>
+                      {depenseLoading ? (lang === "fr" ? "Enregistrement…" : "Saving…") : depenseEditId !== null ? (lang === "fr" ? "Mettre à jour" : "Update") : (lang === "fr" ? "Enregistrer la dépense" : "Save expense")}
+                    </button>
+                  </div>
+                )}
+
+                {(() => {
+                  const filteredDep = depenses.filter(d => {
+                    const q = depensesSearch.toLowerCase();
+                    return !q || (d.libelle||"").toLowerCase().includes(q) || (d.categorie||"").toLowerCase().includes(q) || (d.description||"").toLowerCase().includes(q);
+                  });
+                  const categColors = { "Alimentation":"#e67e22","Transport":"#3498db","Location / Loyer":"#8e44ad","Salaires / Honoraires":"#27ae60","Communication":"#2980b9","Matériel":"#7f8c8d","Événement":"#e91e63","Autre":"#95a5a6" };
+                  return filteredDep.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "50px 0", color: "#7f8c8d" }}>
+                      <div style={{ fontSize: "40px", marginBottom: "10px" }}>💸</div>
+                      <p style={{ margin: 0 }}>{lang === "fr" ? "Aucune dépense trouvée." : "No expenses found."}</p>
+                    </div>
+                  ) : (
+                    <div style={styles.tableContainer}>
+                      <table style={{ ...styles.table, tableLayout: "auto" }}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>{lang === "fr" ? "Date" : "Date"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Libellé" : "Label"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Catégorie" : "Category"}</th>
+                            <th style={{ ...styles.th, textAlign: "right" }}>{lang === "fr" ? "Montant" : "Amount"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Description" : "Description"}</th>
+                            <th style={styles.th}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDep.map((d, i) => {
+                            const c = categColors[d.categorie] || "#95a5a6";
+                            return (
+                              <tr key={d.id} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                                <td style={{ ...styles.td, fontSize: "13px", whiteSpace: "nowrap", color: "#7f8c8d" }}>{new Date(d.date_depense).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US")}</td>
+                                <td style={{ ...styles.td, fontWeight: "600", color: "#2c3e50" }}>{d.libelle}</td>
+                                <td style={styles.td}><span style={{ display: "inline-block", padding: "3px 10px", borderRadius: "10px", background: c + "22", color: c, fontSize: "11px", fontWeight: "700", border: `1px solid ${c}44`, whiteSpace: "nowrap" }}>{d.categorie}</span></td>
+                                <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#e74c3c", whiteSpace: "nowrap" }}>{Number(d.montant).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} FCFA</td>
+                                <td style={{ ...styles.td, fontSize: "13px", color: "#7f8c8d", maxWidth: "220px", wordBreak: "break-word" }}>{d.description || "—"}</td>
+                                <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                                  <button onClick={() => { setDepenseEditId(d.id); setDepenseForm({ libelle: d.libelle, montant: String(d.montant), categorie: d.categorie, date_depense: d.date_depense, description: d.description || "" }); setDepenseFormVisible(true); setDepenseError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                                    style={{ padding: "5px 10px", background: "#eaf4fb", color: "#2980b9", border: "1px solid #2980b933", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", marginRight: "6px" }}>✏️</button>
+                                  <button onClick={() => handleDeleteDepense(d.id)} style={{ padding: "5px 12px", background: "#fef0f0", color: "#e74c3c", border: "1px solid #e74c3c44", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>🗑️</button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: "#f0f4f8" }}>
+                            <td colSpan={3} style={{ ...styles.td, fontWeight: "700", color: "#2c3e50" }}>Total</td>
+                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "800", color: "#e74c3c", fontSize: "15px" }}>{filteredDep.reduce((s,d)=>s+Number(d.montant),0).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</td>
+                            <td colSpan={2} />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ══ ONGLET LIVRE DE CAISSE ══ */}
+            {comptaSousOnglet === "livre" && (() => {
+              const fmt = n => Number(n).toLocaleString(lang === "fr" ? "fr-FR" : "en-US");
+              return (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "15px", color: "#2c3e50" }}>
+                        📒 {lang === "fr" ? "Journal général (livre de caisse)" : "General ledger (cash book)"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "3px" }}>
+                        {lang === "fr" ? "Toutes les opérations dans l'ordre chronologique avec le solde cumulatif" : "All operations in chronological order with running balance"}
+                      </div>
+                    </div>
+                    <button onClick={exportExcelFinancier}
+                      style={{ padding: "9px 20px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      📥 {lang === "fr" ? "Exporter Excel" : "Export Excel"}
+                    </button>
+                  </div>
+                  {livreData.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "60px 0", color: "#7f8c8d" }}>
+                      <div style={{ fontSize: "40px", marginBottom: "10px" }}>📒</div>
+                      <p style={{ margin: 0 }}>{lang === "fr" ? "Aucune opération enregistrée." : "No operations recorded."}</p>
+                    </div>
+                  ) : (
+                    <div style={styles.tableContainer}>
+                      <table style={{ ...styles.table, tableLayout: "auto" }}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>{lang === "fr" ? "Date" : "Date"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Type" : "Type"}</th>
+                            <th style={styles.th}>{lang === "fr" ? "Libellé" : "Label"}</th>
+                            <th style={{ ...styles.th, textAlign: "right", color: "#27ae60" }}>{lang === "fr" ? "Entrée" : "Income"}</th>
+                            <th style={{ ...styles.th, textAlign: "right", color: "#e74c3c" }}>{lang === "fr" ? "Sortie" : "Expense"}</th>
+                            <th style={{ ...styles.th, textAlign: "right" }}>Solde</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {livreData.map((l, i) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                              <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d", whiteSpace: "nowrap" }}>
+                                {l.date ? new Date(l.date).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US") : "—"}
+                              </td>
+                              <td style={styles.td}>
+                                <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "700",
+                                  background: l.type === "Recette" ? "#eafaf1" : "#fef0f0",
+                                  color: l.type === "Recette" ? "#27ae60" : "#e74c3c",
+                                  border: `1px solid ${l.type === "Recette" ? "#27ae6044" : "#e74c3c44"}` }}>
+                                  {l.type === "Recette" ? "↑" : "↓"} {l.type}
+                                </span>
+                              </td>
+                              <td style={{ ...styles.td, maxWidth: "280px", wordBreak: "break-word" }}>{l.libelle}</td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: l.entree > 0 ? "#27ae60" : "#bdc3c7", whiteSpace: "nowrap" }}>
+                                {l.entree > 0 ? `+${fmt(l.entree)}` : ""}
+                              </td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: l.sortie > 0 ? "#e74c3c" : "#bdc3c7", whiteSpace: "nowrap" }}>
+                                {l.sortie > 0 ? `-${fmt(l.sortie)}` : ""}
+                              </td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "800", whiteSpace: "nowrap",
+                                color: l.solde >= 0 ? "#2980b9" : "#e74c3c" }}>
+                                {fmt(l.solde)} FCFA
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: "#f0f4f8" }}>
+                            <td colSpan={3} style={{ ...styles.td, fontWeight: "700", color: "#2c3e50" }}>
+                              {lang === "fr" ? "Solde final" : "Final balance"}
+                            </td>
+                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#27ae60" }}>
+                              +{fmt(livreData.reduce((s, l) => s + l.entree, 0))} FCFA
+                            </td>
+                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#e74c3c" }}>
+                              -{fmt(livreData.reduce((s, l) => s + l.sortie, 0))} FCFA
+                            </td>
+                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "800", fontSize: "15px",
+                              color: livreData[livreData.length - 1]?.solde >= 0 ? "#2980b9" : "#e74c3c" }}>
+                              {fmt(livreData[livreData.length - 1]?.solde ?? 0)} FCFA
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ══ ONGLET TRÉSORERIE ══ */}
+            {comptaSousOnglet === "tresorerie" && (
+              <div>
+                {/* Carte solde */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+                  {[
+                    { label: lang==="fr"?"Recettes totales":"Total revenue", value: comptaResume.recettes, color: "#27ae60", bg: "#eafaf1", icon: "↑" },
+                    { label: lang==="fr"?"Dépenses totales":"Total expenses", value: comptaResume.depenses, color: "#e74c3c", bg: "#fef0f0", icon: "↓" },
+                    { label: lang==="fr"?"Solde disponible":"Available balance", value: comptaResume.solde, color: comptaResume.solde>=0?"#2980b9":"#e74c3c", bg: comptaResume.solde>=0?"#eaf4fb":"#fef0f0", icon: "=" },
+                  ].map(({label,value,color,bg,icon}) => (
+                    <div key={label} style={{ background: bg, border: `2px solid ${color}33`, borderRadius: "14px", padding: "22px 20px", textAlign: "center" }}>
+                      <div style={{ fontSize: "28px", fontWeight: "900", color, marginBottom: "4px" }}>{icon}</div>
+                      <div style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{label}</div>
+                      <div style={{ fontSize: "20px", fontWeight: "800", color }}>{Number(value).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Graphique SVG évolution mensuelle */}
+                {evolution.length > 0 && (() => {
+                  const data = evolution.slice(-6);
+                  const maxVal = Math.max(...data.map(e => Math.max(e.recettes, e.depenses)), 1);
+                  const chartH = 100, barW = 18, gap = 6, groupGap = 14, padL = 4, padB = 22;
+                  const moisFr = m => { const [,mo] = m.split("-"); return ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"][parseInt(mo)-1]; };
+                  const totalW = padL + data.length * (barW * 2 + gap + groupGap);
+                  return (
+                    <div style={{ background: "white", border: "1.5px solid #e0e6ed", borderRadius: "14px", padding: "20px 24px", marginBottom: "28px" }}>
+                      <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px", marginBottom: "16px" }}>
+                        {lang==="fr"?"Évolution mensuelle (6 derniers mois)":"Monthly evolution (last 6 months)"}
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <svg width={Math.max(totalW, 300)} height={chartH + padB + 10} style={{ display: "block" }}>
+                          {data.map((e, i) => {
+                            const x = padL + i * (barW * 2 + gap + groupGap);
+                            const hRec = Math.round((e.recettes / maxVal) * chartH);
+                            const hDep = Math.round((e.depenses / maxVal) * chartH);
+                            return (
+                              <g key={e.mois}>
+                                <rect x={x} y={chartH - hRec} width={barW} height={hRec} fill="#27ae60" rx="3" opacity="0.85" />
+                                <rect x={x + barW + gap} y={chartH - hDep} width={barW} height={hDep} fill="#e74c3c" rx="3" opacity="0.85" />
+                                <text x={x + barW} y={chartH + padB - 2} textAnchor="middle" fontSize="10" fill="#7f8c8d">{moisFr(e.mois)}</text>
+                              </g>
+                            );
+                          })}
+                          <line x1={0} y1={chartH} x2={totalW} y2={chartH} stroke="#e0e6ed" strokeWidth="1" />
+                        </svg>
+                      </div>
+                      <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "12px" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><span style={{ width: "12px", height: "12px", background: "#27ae60", borderRadius: "3px", display: "inline-block" }} />{lang==="fr"?"Recettes":"Revenue"}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><span style={{ width: "12px", height: "12px", background: "#e74c3c", borderRadius: "3px", display: "inline-block" }} />{lang==="fr"?"Dépenses":"Expenses"}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Budgets */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                  <div style={{ fontWeight: "700", fontSize: "15px", color: "#2c3e50" }}>🎯 {lang==="fr"?"Budgets":"Budgets"} ({budgets.length})</div>
+                  <button onClick={() => { setBudgetFormVisible(v => !v); setBudgetEditId(null); setBudgetForm({ libelle: "", montant_prevu: "", date_debut: "", date_fin: "" }); setBudgetError(""); }}
+                    style={{ padding: "9px 20px", background: "#16a085", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px" }}>
+                    {budgetFormVisible && budgetEditId === null ? (lang==="fr"?"✕ Annuler":"✕ Cancel") : (lang==="fr"?"+ Créer un budget":"+ Create budget")}
+                  </button>
+                </div>
+                {budgetFormVisible && (
+                  <div style={{ background: "#f0faf8", border: "1.5px solid #16a08533", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px" }}>
+                    <h3 style={{ margin: "0 0 16px", fontSize: "15px", color: "#16a085" }}>{budgetEditId !== null ? (lang==="fr"?"Modifier le budget":"Edit budget") : (lang==="fr"?"Nouveau budget":"New budget")}</h3>
+                    {budgetError && <div style={{ background: "#fef0f0", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>{budgetError}</div>}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang==="fr"?"Intitulé *":"Budget name *"}</label>
+                        <input value={budgetForm.libelle} onChange={e => setBudgetForm(f=>({...f,libelle:e.target.value}))} placeholder={lang==="fr"?"Ex: Budget 2026":"Ex: Budget 2026"} style={{ width:"100%",padding:"9px 12px",border:"1.5px solid #e0e6ed",borderRadius:"8px",fontSize:"13px",outline:"none",boxSizing:"border-box" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang==="fr"?"Montant prévu (FCFA) *":"Planned (FCFA) *"}</label>
+                        <input type="number" min="1" value={budgetForm.montant_prevu} onChange={e => setBudgetForm(f=>({...f,montant_prevu:e.target.value}))} placeholder="0" style={{ width:"100%",padding:"9px 12px",border:"1.5px solid #e0e6ed",borderRadius:"8px",fontSize:"13px",outline:"none",boxSizing:"border-box" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang==="fr"?"Date début":"Start date"}</label>
+                        <input type="date" value={budgetForm.date_debut} onChange={e => setBudgetForm(f=>({...f,date_debut:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:"1.5px solid #e0e6ed",borderRadius:"8px",fontSize:"13px",outline:"none",boxSizing:"border-box" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", color: "#7f8c8d", fontWeight: "600", display: "block", marginBottom: "4px" }}>{lang==="fr"?"Date fin":"End date"}</label>
+                        <input type="date" value={budgetForm.date_fin} onChange={e => setBudgetForm(f=>({...f,date_fin:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:"1.5px solid #e0e6ed",borderRadius:"8px",fontSize:"13px",outline:"none",boxSizing:"border-box" }} />
+                      </div>
+                    </div>
+                    <button onClick={handleSaveBudget} disabled={budgetLoading} style={{ padding:"10px 24px",background:budgetLoading?"#95a5a6":"#16a085",color:"white",border:"none",borderRadius:"8px",cursor:budgetLoading?"not-allowed":"pointer",fontWeight:"700",fontSize:"13px",opacity:budgetLoading?0.7:1 }}>
+                      {budgetLoading ? (lang==="fr"?"Enregistrement…":"Saving…") : (budgetEditId !== null ? (lang==="fr"?"Mettre à jour":"Update") : (lang==="fr"?"Créer le budget":"Create budget"))}
+                    </button>
+                  </div>
+                )}
+                {budgets.length === 0 && !budgetFormVisible ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "#7f8c8d" }}>
+                    <div style={{ fontSize: "36px", marginBottom: "10px" }}>🎯</div>
+                    <p style={{ margin: 0 }}>{lang==="fr"?"Aucun budget défini.":"No budget defined."}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {budgets.map(b => {
+                      const pct = Math.min(100, b.montant_prevu > 0 ? Math.round((b.depenses_reelles / b.montant_prevu) * 100) : 0);
+                      const isOver = b.depenses_reelles > b.montant_prevu;
+                      const barColor = isOver ? "#e74c3c" : pct > 80 ? "#e67e22" : "#27ae60";
+                      return (
+                        <div key={b.id} style={{ background: "white", border: "1.5px solid #e0e6ed", borderRadius: "12px", padding: "18px 22px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                            <div>
+                              <div style={{ fontWeight: "700", fontSize: "15px", color: "#2c3e50" }}>{b.libelle}</div>
+                              {(b.date_debut || b.date_fin) && (
+                                <div style={{ fontSize: "12px", color: "#95a5a6", marginTop: "2px" }}>
+                                  {b.date_debut ? new Date(b.date_debut).toLocaleDateString(lang==="fr"?"fr-FR":"en-US") : "…"} → {b.date_fin ? new Date(b.date_fin).toLocaleDateString(lang==="fr"?"fr-FR":"en-US") : "…"}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button onClick={() => { setBudgetEditId(b.id); setBudgetForm({ libelle: b.libelle, montant_prevu: String(b.montant_prevu), date_debut: b.date_debut||"", date_fin: b.date_fin||"" }); setBudgetFormVisible(true); setBudgetError(""); }}
+                                style={{ padding:"5px 14px",background:"#eaf4fb",color:"#2980b9",border:"1px solid #2980b933",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:"600" }}>
+                                ✏️ {lang==="fr"?"Modifier":"Edit"}
+                              </button>
+                              <button onClick={() => handleDeleteBudget(b.id)} style={{ padding:"5px 12px",background:"#fef0f0",color:"#e74c3c",border:"1px solid #e74c3c44",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:"600" }}>🗑️</button>
+                            </div>
+                          </div>
+                          <div style={{ height: "10px", background: "#ecf0f1", borderRadius: "5px", overflow: "hidden", marginBottom: "8px" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: "5px", transition: "width 0.5s ease" }} />
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", flexWrap: "wrap", gap: "4px" }}>
+                            <span style={{ color: "#e74c3c", fontWeight: "600" }}>{lang==="fr"?"Dépensé :":"Spent:"} {Number(b.depenses_reelles).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</span>
+                            <span style={{ color: "#7f8c8d" }}>{lang==="fr"?"Budget :":"Budget:"} {Number(b.montant_prevu).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</span>
+                            <span style={{ fontWeight: "700", color: barColor }}>{pct}% {isOver ? "⚠️" : ""}</span>
+                          </div>
+                          {isOver && (
+                            <div style={{ marginTop: "8px", background: "#fef0f0", color: "#c0392b", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                              {lang==="fr"?`Dépassement de ${(b.depenses_reelles-b.montant_prevu).toLocaleString("fr-FR")} FCFA`:`Over by ${(b.depenses_reelles-b.montant_prevu).toLocaleString("en-US")} FCFA`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══ ONGLET RAPPORTS ══ */}
+            {comptaSousOnglet === "rapports" && (
+              <div>
+                {/* Résumé rapide */}
+                <div style={{ background: "linear-gradient(135deg,#1a2a3a,#2c3e50)", borderRadius: "14px", padding: "24px 28px", marginBottom: "24px", color: "white" }}>
+                  <div style={{ fontWeight: "700", fontSize: "16px", marginBottom: "16px" }}>📊 {lang==="fr"?"Résumé financier complet":"Full financial summary"}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))", gap: "14px" }}>
+                    {[
+                      { label: lang==="fr"?"Recettes":"Revenue", value: comptaResume.recettes, color: "#2ecc71" },
+                      { label: lang==="fr"?"Dépenses":"Expenses", value: comptaResume.depenses, color: "#e74c3c" },
+                      { label: "Solde", value: comptaResume.solde, color: comptaResume.solde>=0?"#3498db":"#e74c3c" },
+                      { label: lang==="fr"?"Transactions":"Transactions", value: historiqueTransactions.length, color: "#f39c12", isCnt: true },
+                    ].map(({label,value,color,isCnt}) => (
+                      <div key={label} style={{ background: "rgba(255,255,255,0.08)", borderRadius: "10px", padding: "14px 16px" }}>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>{label}</div>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color }}>{isCnt ? value : `${Number(value).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA`}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Boutons d'export */}
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "24px" }}>
+                  <button onClick={genererRapportPDF}
+                    style={{ padding: "12px 28px", background: "#e74c3c", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 3px 10px rgba(231,76,60,0.3)" }}>
+                    📄 {lang==="fr"?"Télécharger le rapport PDF":"Download PDF report"}
+                  </button>
+                  <button onClick={exportExcelFinancier}
+                    style={{ padding: "12px 28px", background: "#27ae60", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 3px 10px rgba(39,174,96,0.3)" }}>
+                    📥 {lang==="fr"?"Exporter en Excel (4 feuilles)":"Export to Excel (4 sheets)"}
+                  </button>
+                </div>
+
+                {/* Tableau récapitulatif par mois */}
+                {evolution.length > 0 && (
+                  <div style={{ background: "white", border: "1.5px solid #e0e6ed", borderRadius: "12px", overflow: "hidden", marginBottom: "24px" }}>
+                    <div style={{ padding: "14px 20px", background: "#f7f9fc", borderBottom: "1px solid #e0e6ed", fontWeight: "700", color: "#2c3e50", fontSize: "14px" }}>
+                      {lang==="fr"?"Détail mensuel":"Monthly breakdown"}
+                    </div>
+                    <table style={{ ...styles.table, tableLayout: "auto" }}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>{lang==="fr"?"Mois":"Month"}</th>
+                          <th style={{ ...styles.th, textAlign: "right", color: "#27ae60" }}>{lang==="fr"?"Recettes":"Revenue"}</th>
+                          <th style={{ ...styles.th, textAlign: "right", color: "#e74c3c" }}>{lang==="fr"?"Dépenses":"Expenses"}</th>
+                          <th style={{ ...styles.th, textAlign: "right" }}>Solde</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {evolution.map((e, i) => {
+                          const s = e.recettes - e.depenses;
+                          const [yr, mo] = e.mois.split("-");
+                          const nomsMois = lang==="fr" ? ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"] : ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                          return (
+                            <tr key={e.mois} style={{ background: i%2===0?"#f9f9f9":"#fff" }}>
+                              <td style={{ ...styles.td, fontWeight: "600" }}>{nomsMois[parseInt(mo)-1]} {yr}</td>
+                              <td style={{ ...styles.td, textAlign: "right", color: "#27ae60", fontWeight: "600" }}>{Number(e.recettes).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</td>
+                              <td style={{ ...styles.td, textAlign: "right", color: "#e74c3c", fontWeight: "600" }}>{Number(e.depenses).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: s>=0?"#2980b9":"#e74c3c" }}>{Number(s).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Taux de recouvrement par période */}
+                {recouvrementData.length > 0 && (
+                  <div style={{ background: "white", border: "1.5px solid #e0e6ed", borderRadius: "12px", overflow: "hidden" }}>
+                    <div style={{ padding: "14px 20px", background: "#f0f0f8", borderBottom: "1px solid #e0e6ed", fontWeight: "700", color: "#2c3e50", fontSize: "14px" }}>
+                      🎯 {lang==="fr"?"Taux de recouvrement par période de cotisation":"Recovery rate by contribution period"}
+                    </div>
+                    <table style={{ ...styles.table, tableLayout: "auto" }}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>{lang==="fr"?"Période":"Period"}</th>
+                          <th style={{ ...styles.th, textAlign: "right" }}>{lang==="fr"?"Attendus":"Expected"}</th>
+                          <th style={{ ...styles.th, textAlign: "right" }}>{lang==="fr"?"Ont payé":"Paid"}</th>
+                          <th style={{ ...styles.th, textAlign: "right" }}>{lang==="fr"?"Taux":"Rate"}</th>
+                          <th style={{ ...styles.th, textAlign: "right" }}>{lang==="fr"?"Montant collecté":"Amount collected"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recouvrementData.map((r, i) => {
+                          const pct = r.taux;
+                          const barColor = pct >= 80 ? "#27ae60" : pct >= 50 ? "#e67e22" : "#e74c3c";
+                          return (
+                            <tr key={r.id} style={{ background: i%2===0?"#f9f9f9":"#fff" }}>
+                              <td style={{ ...styles.td, fontWeight: "600" }}>{r.libelle}</td>
+                              <td style={{ ...styles.td, textAlign: "right", color: "#7f8c8d" }}>{r.attendus}</td>
+                              <td style={{ ...styles.td, textAlign: "right" }}>
+                                <span style={{ fontWeight: "700", color: barColor }}>{r.payes_complets}</span>
+                                {r.ont_paye > r.payes_complets && <span style={{ fontSize: "11px", color: "#e67e22", marginLeft: "4px" }}>(+{r.ont_paye - r.payes_complets} {lang==="fr"?"partiel":"partial"})</span>}
+                              </td>
+                              <td style={{ ...styles.td, textAlign: "right" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+                                  <div style={{ width: "60px", height: "8px", background: "#ecf0f1", borderRadius: "4px", overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: "4px" }} />
+                                  </div>
+                                  <span style={{ fontWeight: "800", color: barColor, minWidth: "36px", textAlign: "right" }}>{pct}%</span>
+                                </div>
+                              </td>
+                              <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#27ae60", whiteSpace: "nowrap" }}>
+                                {Number(r.montant_collecte).toLocaleString(lang==="fr"?"fr-FR":"en-US")} FCFA
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -5338,11 +7457,21 @@ function App() {
         <button className={`bnav-item${page === "historique" ? " bnav-active" : ""}`} onClick={() => setPage("historique")}>
           <span className="bnav-label">{t("history")}</span>
         </button>
+        {(isAdmin || isTresorier) && (
+          <button className={`bnav-item${page === "comptabilite" ? " bnav-active" : ""}`} onClick={() => { setPage("comptabilite"); loadComptabilite(); }}>
+            <span className="bnav-label">{lang === "fr" ? "Compta" : "Accounting"}</span>
+          </button>
+        )}
 
         <button className={`bnav-item${page === "messages" ? " bnav-active" : ""}`} style={{ position: "relative" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
           <span className="bnav-label">{lang === "fr" ? "Messages" : "Messages"}</span>
           {adminMsgUnread > 0 && <span style={{ position: "absolute", top: "4px", right: "8px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "14px", height: "14px", fontSize: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{adminMsgUnread}</span>}
         </button>
+        {isAdmin && (
+          <button className={`bnav-item${page === "audit" ? " bnav-active" : ""}`} onClick={() => { setPage("audit"); setAuditOffset(0); setAuditActionFilter(""); loadAuditLogs(0, ""); }}>
+            <span className="bnav-label">🔐 Audit</span>
+          </button>
+        )}
         <button className={`bnav-item${mobileAccountOpen ? " bnav-active" : ""}`} onClick={() => setMobileAccountOpen(v => !v)}>
           <span className="bnav-label">{t("accountMenu")}</span>
         </button>
@@ -5364,15 +7493,15 @@ function App() {
               <option value="en" style={{ background: "#1e2d3d" }}>🇬🇧 English</option>
             </select>
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn" onClick={() => { loadProfil(); setPage("profil"); setMobileAccountOpen(false); }}>👤 {lang === "fr" ? "Mon profil" : "My Profile"}</button>
-            <button className="mobile-sheet-btn" onClick={() => { loadMesCotisations(); setPage("mes-cotisations"); setMobileAccountOpen(false); }}>💰 {lang === "fr" ? "Mes cotisations" : "My Contributions"}</button>
+            <button className="mobile-sheet-btn" onClick={() => { loadProfil(); setPage("profil"); setMobileAccountOpen(false); }}><Icon name="user" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{lang === "fr" ? "Mon profil" : "My Profile"}</button>
+            <button className="mobile-sheet-btn" onClick={() => { loadMesCotisations(); setPage("mes-cotisations"); setMobileAccountOpen(false); }}><Icon name="dollar" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{lang === "fr" ? "Mes cotisations" : "My Contributions"}</button>
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileAccountOpen(false); }}>🔑 {t("changePassword")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileAccountOpen(false); }}>✉️ {t("changeEmail")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileAccountOpen(false); }}>❓ {t("helpMenu")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}>ℹ️ {t("aboutMenu")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileAccountOpen(false); }}><Icon name="key" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("changePassword")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileAccountOpen(false); }}><Icon name="mail" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("changeEmail")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileAccountOpen(false); }}><Icon name="list" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("helpMenu")}</button>
+            <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}><Icon name="info" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("aboutMenu")}</button>
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}>🚪 {t("logout")}</button>
+            <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}><Icon name="logout" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("logout")}</button>
           </div>
         </div>
       )}
@@ -5382,12 +7511,19 @@ function App() {
         <div style={styles.modalOverlay} onClick={() => setShowRoleTransfer(false)}>
           <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "460px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, fontSize: "17px", color: "#2c3e50" }}>🔄 {lang === "fr" ? "Transférer un rôle" : "Transfer a Role"}</h3>
+              <h3 style={{ margin: 0, fontSize: "17px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "8px" }}><Icon name="rotate-cw" size={16} /> {lang === "fr" ? "Transférer un rôle" : "Transfer a Role"}</h3>
               <button onClick={() => setShowRoleTransfer(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#7f8c8d" }}>✕</button>
             </div>
-            <p style={{ margin: "0 0 18px", fontSize: "13px", color: "#7f8c8d", lineHeight: "1.5" }}>
+            <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", lineHeight: "1.5" }}>
               {lang === "fr" ? "Attribuez un poste à un membre. Ce membre aura les droits liés à ce rôle." : "Assign a role to a member. That member will receive the related permissions."}
             </p>
+            {isAdmin && !nonCreatorPresidentExists && (
+              <div style={{ background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "8px", padding: "9px 14px", marginBottom: "14px", fontSize: "12px", color: "#7b6000", lineHeight: "1.5" }}>
+                ⚠️ {lang === "fr"
+                  ? "Une fois un Président désigné, seul ce dernier pourra attribuer des postes."
+                  : "Once a President is designated, only that person will be able to assign roles."}
+              </div>
+            )}
             {roleTransferError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>⚠️ {roleTransferError}</div>}
             {roleTransferSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>✅ {roleTransferSuccess}</div>}
             <div style={{ marginBottom: "14px" }}>
@@ -5428,7 +7564,6 @@ function App() {
                     });
                     if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
                     setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
-                    const isTresorierTransfer = roleTransferPoste.toLowerCase().includes("trésorier");
                     // Mettre à jour le propre poste si un nouveau poste est choisi
                     if (roleTransferMyPoste !== undefined) {
                       await apiFetch(`${API_BASE}/me`, {
@@ -5442,15 +7577,8 @@ function App() {
                       sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
                       setCompte(updatedCompte);
                     }
-                    if (isTresorierTransfer) {
-                      setRoleTransferSuccess(lang === "fr"
-                        ? `✅ Poste "${roleTransferPoste}" transféré à ${targetAdherent.prenom} ${targetAdherent.nom}. Déconnexion automatique dans 3 s…`
-                        : `✅ Role "${roleTransferPoste}" transferred to ${targetAdherent.prenom} ${targetAdherent.nom}. Logging out in 3 s…`);
-                      setTimeout(() => { setShowRoleTransfer(false); handleLogout(); }, 3000);
-                    } else {
-                      setRoleTransferSuccess(lang === "fr" ? `Rôle "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
-                      setTimeout(() => setShowRoleTransfer(false), 2500);
-                    }
+                    setRoleTransferSuccess(lang === "fr" ? `Rôle "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
+                    setTimeout(() => setShowRoleTransfer(false), 2500);
                   } catch { setRoleTransferError(lang === "fr" ? "Erreur réseau." : "Network error."); }
                   finally { setRoleTransferLoading(false); }
                 }}

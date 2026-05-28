@@ -239,30 +239,289 @@ button:disabled {
   }
 }
 
-/* ── Barre de navigation fixe en bas — mobile uniquement ─ */
-.bottom-nav {
-  display: none; /* caché sur desktop */
+/* ── Barre de navigation principale ─────────── */
+.app-navbar {
+  background: #1e2d3d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0 20px;
+  min-height: 58px;
+  height: auto;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+  position: sticky;
+  top: 0;
+  z-index: 500;
 }
 
+.app-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.app-navbar-logo {
+  height: 36px;
+  width: 36px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(52,152,219,0.5);
+}
+
+.app-navbar-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.app-navbar-assoc {
+  color: #3498db;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Onglets */
+.app-navbar-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  flex: 1;
+  padding: 0 8px;
+  gap: 2px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 clamp(8px, 1.5vw, 14px);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: clamp(12px, 1.2vw, 13px);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  border-radius: 0;
+  min-height: 48px;
+  height: auto;
+  position: relative;
+}
+
+.nav-tab:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.07);
+}
+
+.nav-tab-active {
+  color: #fff !important;
+  border-bottom-color: #3498db;
+  background: rgba(52,152,219,0.1);
+}
+
+/* Dropdown Plus */
+.nav-tab-dropdown {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.nav-tab-plus {
+  padding-right: 10px;
+}
+
+.nav-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  background: #1e2d3d;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  min-width: 190px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.30);
+  overflow: hidden;
+  z-index: 700;
+  padding: 4px 0;
+}
+
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+
+.nav-dropdown-item:hover {
+  background: rgba(52,152,219,0.15);
+  color: #fff;
+}
+
+.nav-dropdown-active {
+  color: #3498db !important;
+  background: rgba(52,152,219,0.12);
+}
+
+/* Badge notification */
+.nav-badge {
+  background: #e74c3c;
+  color: white;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+
+/* Droite : langue + compte */
+.app-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.nav-lang-select {
+  padding: 5px 10px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.nav-account-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -2px;
+  transition: background 0.15s;
+}
+
+.nav-account-btn:hover {
+  background: rgba(255,255,255,0.22);
+}
+
+.nav-account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  min-width: 240px;
+  z-index: 999;
+  overflow: hidden;
+  border: 1px solid #ecf0f1;
+}
+
+.nav-account-header {
+  padding: 14px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.nav-account-item {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: #2c3e50;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: background 0.1s;
+}
+
+.nav-account-item:hover {
+  background: #f0f8ff;
+}
+
+.nav-account-logout {
+  color: #c0392b !important;
+  font-weight: 600;
+}
+
+.nav-account-logout:hover {
+  background: #fff5f5 !important;
+}
+
+/* Navbar responsive sur mobile */
 @media (max-width: 768px) {
-  .bottom-nav {
+  .app-navbar {
     display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: #2c3e50;
-    border-top: 2px solid rgba(52,152,219,0.3);
-    z-index: 600;
-    justify-content: space-around;
-    align-items: stretch;
-    box-shadow: 0 -3px 16px rgba(0,0,0,0.25);
+    padding: 6px 10px;
+    gap: 4px;
   }
-  /* Espace pour que le contenu ne passe pas sous la barre */
-  .app-content {
-    padding-bottom: 70px !important;
+  .app-navbar-brand {
+    padding: 4px 0;
   }
+  .app-navbar-tabs {
+    width: 100%;
+    order: 3;
+    justify-content: center;
+    padding: 4px 0 8px;
+    gap: 4px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .app-navbar-right {
+    order: 2;
+  }
+  .nav-tab {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 12px;
+    border-bottom: none;
+    border-radius: 6px;
+  }
+  .nav-tab-active {
+    border-bottom: none !important;
+    background: rgba(52,152,219,0.2) !important;
+  }
+}
+
+/* ── Barre de navigation fixe en bas — désactivée (navbar top utilisée sur mobile) ─ */
+.bottom-nav {
+  display: none;
 }
 
 .bnav-item {
@@ -387,7 +646,7 @@ button:disabled {
 /* ── Contenu principal ────────────────────────────────── */
 @media (max-width: 768px) {
   .app-content {
-    padding: 10px 10px !important;
+    padding: 10px 10px 20px !important;
   }
 
   /* Titres h1/h2 plus petits sur mobile */
