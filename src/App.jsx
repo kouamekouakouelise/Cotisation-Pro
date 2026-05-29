@@ -1358,6 +1358,32 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const apiFetch = (url, options = {}) =>
     fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${compte.token}` } });
 
+  const handlePayMM = async () => {
+    setPayMMError("");
+    setPayMMSuccess("");
+    if (!payMMForm.montant || isNaN(Number(payMMForm.montant)) || Number(payMMForm.montant) <= 0) {
+      setPayMMError(t2("Montant invalide.", "Invalid amount."));
+      return;
+    }
+    setPayMMLoading(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/me/demandes-paiement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cotisation_id: payMMCot?.cotisationId, montant: payMMForm.montant, numero_transaction: payMMForm.numero_transaction }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setPayMMError(d.error || "Erreur"); }
+      else {
+        setPayMMSuccess(t2("Demande envoyée ! En attente de validation par le trésorier.", "Request sent! Awaiting treasurer validation."));
+        const updated = await apiFetch(`${API_BASE}/me/demandes-paiement`).then(x => x.json());
+        setMesDemandes(Array.isArray(updated) ? updated : []);
+        setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "" }); }, 2500);
+      }
+    } catch { setPayMMError(t2("Erreur réseau.", "Network error.")); }
+    setPayMMLoading(false);
+  };
+
   useEffect(() => {
     Promise.all([
       apiFetch(`${API_BASE}/me`).then((r) => r.json()).then(setProfile),
@@ -1954,32 +1980,6 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           const FR_MOIS_USER = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
           const pAmt = (v) => Number(String(v || "").replace(/[^0-9.-]/g, "")) || 0;
           const fAmt = (v) => `${v.toLocaleString("fr-FR")} F`;
-
-          const handlePayMM = async () => {
-            setPayMMError("");
-            setPayMMSuccess("");
-            if (!payMMForm.montant || isNaN(Number(payMMForm.montant)) || Number(payMMForm.montant) <= 0) {
-              setPayMMError(t2("Montant invalide.", "Invalid amount."));
-              return;
-            }
-            setPayMMLoading(true);
-            try {
-              const r = await apiFetch(`${API_BASE}/me/demandes-paiement`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ cotisation_id: payMMCot.cotisationId, montant: payMMForm.montant, numero_transaction: payMMForm.numero_transaction }),
-              });
-              const d = await r.json();
-              if (!r.ok) { setPayMMError(d.error || "Erreur"); }
-              else {
-                setPayMMSuccess(t2("Demande envoyée ! En attente de validation par le trésorier.", "Request sent! Awaiting treasurer validation."));
-                const updated = await apiFetch(`${API_BASE}/me/demandes-paiement`).then(x => x.json());
-                setMesDemandes(Array.isArray(updated) ? updated : []);
-                setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "" }); }, 2500);
-              }
-            } catch { setPayMMError(t2("Erreur réseau.", "Network error.")); }
-            setPayMMLoading(false);
-          };
 
           // Extraire l'année depuis une période "Mois AAAA"
           const getYear = (periode) => {
