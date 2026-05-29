@@ -739,14 +739,6 @@ app.post("/api/auth/register", async (req, res) => {
         `,
       }).catch((e) => console.warn("Email bienvenue non envoyé:", e.message));
 
-      // SMS de bienvenue (non bloquant, si numéro fourni)
-      if (telephone) {
-        sendSMS(
-          telephone.trim(),
-          `Bonjour ${prenom.trim()} ! Votre compte Cotisation Pro pour "${nom_association.trim()}" a été créé avec succès. Connectez-vous dès maintenant.`
-        ).catch((e) => console.warn("SMS bienvenue non envoyé:", e.message));
-      }
-
       res.json({ token, nom_association: nom_association.trim(), email: emailKey, role: "admin" });
     } catch (e) {
       await conn.rollback();
@@ -1542,20 +1534,7 @@ app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res
     }
 
     // SMS de bienvenue si téléphone disponible
-    let smsSent = false;
-    const telPourSms = telKey || (await pool.query("SELECT telephone FROM adherents WHERE id = ?", [adherentId]).then(([r]) => r[0]?.telephone).catch(() => null));
-    if (atSMS && telPourSms) {
-      try {
-        const nomOrg = req.nomAssociation || "votre association";
-        const ligneIdentifiants = emailKey
-          ? `\nEmail: ${emailKey}\nMDP: ${plainPwd || "(envoyé par email)"}`
-          : "";
-        await sendSMS(telPourSms,
-          `Cotisation Pro - ${nomOrg}\nBonjour ${prenom} ${nom} !\nVotre compte membre a ete cree.${ligneIdentifiants}\nConnectez-vous sur l'application.`
-        );
-        smsSent = true;
-      } catch (_) {}
-    }
+    const smsSent = false;
 
     await conn.commit();
     await logAudit(req.compteId, req.userId || req.compteId, req.role, "AJOUT_ADHERENT", `Adhérent ajouté : ${nom} ${prenom} (${matricule})`, getClientIp(req));
@@ -1898,14 +1877,6 @@ app.post("/api/periodes/:periodeId/paiements", authMiddleware, trésorierMiddlew
           "SELECT nom, prenom, telephone FROM adherents WHERE id = ? AND telephone IS NOT NULL AND telephone != ''",
           [adherent_id]
         );
-        if (adhSms?.telephone) {
-          const [[cotSms]] = await pool.query("SELECT libelle FROM cotisations WHERE id = ?", [periodeId]);
-          const [[assocSms]] = await pool.query("SELECT nom_association FROM comptes WHERE id = ?", [req.compteId]);
-          const fm = (v) => Number(v).toLocaleString("fr-FR");
-          await sendSMS(adhSms.telephone,
-            `Cotisation Pro - ${assocSms?.nom_association || "Association"}\nPaiement recu : ${fm(montant)} FCFA\nPeriode: ${cotSms?.libelle || ""}\nReste: ${fm(nouveauReste)} FCFA\nStatut: ${statut}\nRecu: ${recu}`
-          );
-        }
       } catch (_) {}
     }
 
@@ -2407,15 +2378,6 @@ app.post("/api/cotisations/:id/rappels", authMiddleware, trésorierMiddleware, a
         } catch (_) { ignores++; }
       }
 
-      // ── SMS ──
-      if (atSMS && adh.telephone) {
-        try {
-          await sendSMS(adh.telephone,
-            `Rappel Cotisation Pro - ${nomOrg}\nBonjour ${adh.prenom} ${adh.nom} !\nCotisation: ${cot.libelle}\nReste a payer: ${fm(adh.reste)} FCFA\nStatut: ${adh.statut}\nContactez votre tresorier(e).`
-          );
-          smsEnvoyes++;
-        } catch (_) { ignores++; }
-      }
     }
 
     await logAudit(req.compteId, req.userId || req.compteId, req.role, "RAPPELS_NOTIFICATION",

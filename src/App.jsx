@@ -5459,8 +5459,7 @@ function App() {
                 </div>
                 <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "20px" }}>
                   {[
-                    { iconName: "mail",       label: "Email (Gmail)",        ok: serverStatus?.email, desc: lang === "fr" ? "Confirmation paiement, rappels" : "Payment confirmation, reminders" },
-                    { iconName: "smartphone", label: "SMS (Africa's Talking)", ok: serverStatus?.sms,   desc: lang === "fr" ? "Compte créé, paiement, rappels" : "Account created, payment, reminders" },
+                    { iconName: "mail", label: "Email (Gmail)", ok: serverStatus?.email, desc: lang === "fr" ? "Confirmation paiement, rappels" : "Payment confirmation, reminders" },
                   ].map(({ iconName, label, ok, desc }) => (
                     <div key={label} style={{ flex: "1", minWidth: "200px", background: ok ? "#eafaf1" : "#f8f9fa", border: `1.5px solid ${ok ? "#a9dfbf" : "#e0e6ed"}`, borderRadius: "12px", padding: "14px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
                       <div style={{ width: "38px", height: "38px", borderRadius: "11px", background: ok ? "linear-gradient(135deg,#1e8449,#27ae60)" : "linear-gradient(135deg,#5d6d7e,#7f8c8d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
@@ -5485,29 +5484,6 @@ function App() {
                     </div>
                   ))}
                 </div>
-                {serverStatus?.sms && (
-                  <div style={{ borderTop: "1px solid #e8edf3", paddingTop: "18px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
-                      <Icon name="smartphone" size={13} style={{ color: "#7f8c8d" }} />
-                      <span style={{ fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>{lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-                      <input value={testSmsPhone} onChange={e => { setTestSmsPhone(e.target.value); setTestSmsResult(null); }} placeholder="Ex: +2250701234567" style={{ flex: "1", minWidth: "180px", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "monospace" }} />
-                      <button onClick={handleTestSms} disabled={testSmsLoading || !testSmsPhone.trim()} style={{ padding: "9px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: testSmsLoading || !testSmsPhone.trim() ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: testSmsLoading || !testSmsPhone.trim() ? 0.6 : 1 }}>
-                        {testSmsLoading ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer test" : "Send test")}
-                      </button>
-                    </div>
-                    {testSmsResult && (
-                      <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", background: testSmsResult.ok ? "#eafaf1" : "#fef0f0", color: testSmsResult.ok ? "#27ae60" : "#c0392b", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
-                        {testSmsResult.ok ? <Icon name="check-circle" size={14} /> : <Icon name="x-circle" size={14} />}
-                        {testSmsResult.ok ? testSmsResult.message : testSmsResult.error}
-                      </div>
-                    )}
-                    <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#bdc3c7" }}>
-                      {lang === "fr" ? "Fournisseur : Africa's Talking. Variables requises : AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optionnel). Indicatif par défaut : +225 (Côte d'Ivoire)." : "Provider: Africa's Talking. Required vars: AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optional). Default country code: +225 (Côte d'Ivoire)."}
-                    </p>
-                  </div>
-                )}
               </div>
               </InView>
             )}
@@ -6290,20 +6266,15 @@ function App() {
                                     <div style={{ fontSize: "22px", fontWeight: "800", color: "#2980b9" }}>{rappelResult.emails ?? rappelResult.envoyes ?? 0}</div>
                                     <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{lang === "fr" ? "email(s)" : "email(s)"}</div>
                                   </div>
-                                  <div style={{ textAlign: "center", background: "#eafaf1", borderRadius: "10px", padding: "12px 20px", minWidth: "100px" }}>
-                                    <div style={{ marginBottom: "4px", color: "#27ae60" }}><Icon name="phone" size={22} /></div>
-                                    <div style={{ fontSize: "22px", fontWeight: "800", color: "#27ae60" }}>{rappelResult.sms ?? 0}</div>
-                                    <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{lang === "fr" ? "SMS" : "SMS"}</div>
-                                  </div>
                                 </div>
                                 {rappelResult.ignores > 0 && (
                                   <p style={{ fontSize: "13px", color: "#e74c3c", margin: "6px 0 0" }}>
                                     {rappelResult.ignores} {lang === "fr" ? "échec(s)" : "failure(s)"}
                                   </p>
                                 )}
-                                {(rappelResult.emails ?? rappelResult.envoyes ?? 0) === 0 && (rappelResult.sms ?? 0) === 0 && (
+                                {(rappelResult.emails ?? rappelResult.envoyes ?? 0) === 0 && (
                                   <p style={{ fontSize: "13px", color: "#7f8c8d", margin: "8px 0 0" }}>
-                                    {lang === "fr" ? "Aucun adhérent impayé avec contact trouvé." : "No unpaid member with contact found."}
+                                    {lang === "fr" ? "Aucun adhérent impayé avec email trouvé." : "No unpaid member with email found."}
                                   </p>
                                 )}
                               </div>
