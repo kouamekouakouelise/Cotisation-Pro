@@ -88,6 +88,46 @@ function InView({ children, delay = 0, style: extra = {}, className = "", ...res
   );
 }
 
+// ── Compteur animé ───────────────────────────────────────
+function CountUp({ target, color, prefix = "", suffix = "", duration = 1100 }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setVal(0); return; }
+    const start = Date.now();
+    const tick = () => {
+      const progress = Math.min((Date.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setVal(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  return (
+    <div style={{ fontSize: "26px", fontWeight: "800", color, letterSpacing: "-0.5px" }}>
+      {prefix}{val.toLocaleString("fr-FR")}{suffix}
+    </div>
+  );
+}
+
+// ── Horloge live ─────────────────────────────────────────
+function LiveClock({ lang }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div style={{ textAlign: "right", flexShrink: 0 }}>
+      <div style={{ fontSize: "32px", fontWeight: "800", color: "#fff", fontVariantNumeric: "tabular-nums", letterSpacing: "-1px" }}>
+        {now.toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+      </div>
+      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "4px", textTransform: "capitalize" }}>
+        {now.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 // PAGE D'ACCUEIL PUBLIQUE (LANDING)
 // ═══════════════════════════════════════════════════════
@@ -3146,7 +3186,7 @@ function App() {
     } catch {}
   };
 
-  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); loadServerStatus(); } }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); loadServerStatus(); loadProfil(); loadComptaResume(); } }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── SSE — rafraîchissement temps réel quand un rôle change ───
   useEffect(() => {
@@ -4815,107 +4855,192 @@ function App() {
         )}
 
         {/* ── ACCUEIL ─────────────────────────────────────────── */}
-        {page === "accueil" && (
-          <div>
-            <div style={{ ...styles.welcomeText, display: "flex", alignItems: "center", gap: "24px", backgroundColor: "#b8ddf0", boxShadow: "0 8px 24px rgba(52,152,219,0.30), 0 2px 6px rgba(0,0,0,0.12)", cursor: "default" }} className="welcome-text">
-              <img src={logo} alt="Logo Cotisation Pro" style={{ height: "130px", width: "130px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} className="welcome-logo" />
-              <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }} className="welcome-span">{currentText}</span>
-            </div>
-            <div style={styles.cards}>
-              <div
-                style={{ ...styles.card, transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.background = "#e0f3fc"; }}
-              >
-                <span style={{ fontSize: "36px", fontWeight: "bold", color: "#2c3e50" }}>{t("totalMembers")} {adherents.length}</span>
-              </div>
-            </div>
-            <div style={styles.summarySection} className="summary-section">
-              <div
-                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
-              >
-                <h3>{t("lastMemberAdded")}</h3>
-                <p>
-                  {adherents[adherents.length - 1]
-                    ? `${adherents[adherents.length - 1].nom} ${adherents[adherents.length - 1].prenom}`
-                    : "—"}
-                </p>
-              </div>
-              <div
-                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
-              >
-                <h3>{t("totalCollectedCurrentPeriod")}</h3>
-                <p style={{ fontSize: "12px", color: "#95a5a6", margin: "0 0 6px" }}>
-                  {currentPeriode ? periodeLabel(currentPeriode.libelle) : t("noPeriod")}
-                </p>
-                <strong style={{ fontSize: "20px", color: "#27ae60" }}>
-                  {formatAmount(totalEncaissePeriodeCourante)}
-                </strong>
-              </div>
-              <div
-                style={{ ...styles.summaryCard, textAlign: "center", transition: "transform 0.18s, box-shadow 0.18s", cursor: "default" }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(52,152,219,0.22)"; e.currentTarget.style.background = "#c5e8f7"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.10)"; e.currentTarget.style.background = "#e0f3fc"; }}
-              >
-                <h3>{t("lastContributionRegistered")}</h3>
-                <p>{periodes.length > 0 ? periodeLabel(periodes[periodes.length - 1].libelle) : "—"}</p>
-              </div>
-            </div>
-            <div style={styles.alerts}>
-              <div style={styles.alert}>
-                {currentPeriode ? (
-                  <>
-                    <strong>{currentPeriodeNotPaidCount}</strong>{" "}
-                    {currentPeriodeNotPaidCount !== 1 ? t("memberPlural") : t("memberSingular")} {t("notPaidFor")}
-                    <strong> {periodeLabel(currentPeriode.libelle)}</strong>
-                  </>
-                ) : (
-                  t("noCurrentPeriod")
-                )}
-                {currentPeriode && (
-                  <button
-                    style={styles.alertButton}
-                    onClick={() => { setPage("nonRegle"); setShowUnpaidOrPartial(false); setShowUnpaidOnly(false); }}
-                  >
-                    {t("view")}
-                  </button>
-                )}
-              </div>
-            </div>
-            <div style={{ ...styles.summaryCard, marginBottom: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, color: "#2c3e50" }}>{t("lastPayments")}</h3>
-                <button style={styles.alertButton} onClick={() => setPage("historique")}>{t("viewMore")}</button>
-              </div>
-              {cinqDerniersPaiements.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {cinqDerniersPaiements.map((pay, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#eaf6fd", borderRadius: "6px", border: "1px solid #c5e8f7" }}>
-                      <div>
-                        <span style={{ fontWeight: "bold", color: "#2c3e50" }}>{pay.nom} {pay.prenom}</span>
-                        <span style={{ fontSize: "12px", color: "#7f8c8d", marginLeft: "8px" }}>[{periodeLabel(pay.periode)}]</span>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ fontWeight: "bold", color: "#27ae60" }}>{pay.montantPaye}</span>
-                        <span style={{ fontSize: "12px", color: "#95a5a6", marginLeft: "8px" }}>{pay.datePaiement}</span>
-                      </div>
-                    </div>
-                  ))}
+        {page === "accueil" && (() => {
+          const nowD = new Date();
+          const monthlyData = Array.from({ length: 6 }, (_, i) => {
+            const d = new Date(nowD.getFullYear(), nowD.getMonth() - (5 - i), 1);
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const key = `${d.getFullYear()}-${mm}`;
+            const label = d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { month: "short" });
+            const total = historiqueTransactions
+              .filter(tx => { if (!tx.datePaiement) return false; const p = tx.datePaiement.split("/"); return p.length === 3 && `${p[2]}-${p[1]}` === key; })
+              .reduce((sum, tx) => sum + parseAmount(tx.montantPaye), 0);
+            return { label, total };
+          });
+          const maxMonth = Math.max(...monthlyData.map(m => m.total), 1);
+          const roleLabel = isAdmin ? (compte?.poste || (lang === "fr" ? "Créateur / Admin" : "Creator / Admin")) : isTresorier ? (lang === "fr" ? "Trésorier" : "Treasurer") : compte?.poste || (lang === "fr" ? "Membre" : "Member");
+          const roleColor = isAdmin ? "#9b59b6" : isTresorier ? "#3498db" : "#27ae60";
+          const derniersMsgs = adminMessages.slice(0, 3);
+          return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+
+            {/* ① CARTE BIENVENUE */}
+            <div style={{ background: "linear-gradient(135deg,#1a2742 0%,#2c3e50 60%,#1a6b9e 100%)", borderRadius: "16px", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "20px", flexWrap: "wrap", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", right: "-40px", top: "-40px", width: "200px", height: "200px", borderRadius: "50%", background: "rgba(52,152,219,0.12)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", right: "60px", bottom: "-60px", width: "160px", height: "160px", borderRadius: "50%", background: "rgba(52,152,219,0.08)", pointerEvents: "none" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <img src={profilData.photo || logo} alt="Photo" style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(52,152,219,0.7)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }} />
+                  <div style={{ position: "absolute", bottom: "2px", right: "2px", width: "14px", height: "14px", borderRadius: "50%", background: "#27ae60", border: "2px solid #1a2742" }} />
                 </div>
-              ) : (
-                <p style={{ color: "#95a5a6", fontStyle: "italic", fontSize: "13px", margin: 0 }}>
-                  {t("noPaymentRegistered")}
-                </p>
-              )}
+                <div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>{lang === "fr" ? "Bonjour," : "Hello,"}</div>
+                  <div style={{ color: "#fff", fontSize: "22px", fontWeight: "800", lineHeight: "1.2", marginBottom: "8px" }}>
+                    {profilData.prenom || profilData.nom ? `${profilData.prenom} ${profilData.nom}` : compte?.email?.split("@")[0]} 👋
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{ background: roleColor, color: "#fff", fontSize: "11px", fontWeight: "700", padding: "3px 10px", borderRadius: "20px" }}>{roleLabel}</span>
+                    <span style={{ color: "rgba(255,255,255,0.4)" }}>·</span>
+                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>🏛️ {compte?.nom_association}</span>
+                  </div>
+                </div>
+              </div>
+              <LiveClock lang={lang} />
             </div>
 
-            {/* ── Statut notifications (email + SMS) — admin seulement ── */}
+            {/* ② STATS CARDS avec animation compteur */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: "14px" }} className="home-stat-grid">
+              {[
+                { icon: "👥", label: lang === "fr" ? "Total adhérents" : "Total members",   value: adherents.length,             suffix: "",   color: "#3498db", bg: "linear-gradient(135deg,#eaf4fb,#d6ecf8)" },
+                { icon: "💰", label: lang === "fr" ? "Cotisations reçues" : "Contributions", value: totalEncaissePeriodeCourante, suffix: " F", color: "#27ae60", bg: "linear-gradient(135deg,#eafaf1,#d5f5e3)" },
+                { icon: "❌", label: lang === "fr" ? "Non payés" : "Unpaid",                 value: currentPeriodeNotPaidCount,   suffix: "",   color: "#e74c3c", bg: "linear-gradient(135deg,#fef0f0,#fad7d7)" },
+                { icon: "🏦", label: lang === "fr" ? "Solde net" : "Net balance",            value: Math.abs(comptaResume.solde), suffix: " F", color: comptaResume.solde >= 0 ? "#9b59b6" : "#e74c3c", bg: comptaResume.solde >= 0 ? "linear-gradient(135deg,#f5eefb,#e8d5f5)" : "linear-gradient(135deg,#fef0f0,#fad7d7)", prefix: comptaResume.solde < 0 ? "-" : "" },
+              ].map(({ icon, label, value, suffix, color, bg, prefix: pfx = "" }) => (
+                <div key={label} style={{ background: bg, borderRadius: "14px", padding: "20px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: `1px solid ${color}22`, position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: "-12px", right: "-12px", fontSize: "52px", opacity: "0.12", userSelect: "none", pointerEvents: "none" }}>{icon}</div>
+                  <div style={{ fontSize: "28px", marginBottom: "6px" }}>{icon}</div>
+                  <div style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{label}</div>
+                  <CountUp target={Math.round(value)} color={color} prefix={pfx} suffix={suffix} />
+                </div>
+              ))}
+            </div>
+
+            {/* ③ ACTIVITÉS + ALERTES */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }} className="home-mid-grid">
+              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>🕒 {lang === "fr" ? "Activités récentes" : "Recent activities"}</h3>
+                  <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => setPage("historique")}>{lang === "fr" ? "Voir tout" : "View all"}</button>
+                </div>
+                {cinqDerniersPaiements.length === 0 ? (
+                  <p style={{ color: "#95a5a6", fontSize: "13px", fontStyle: "italic", margin: 0 }}>{lang === "fr" ? "Aucune activité récente" : "No recent activity"}</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {cinqDerniersPaiements.map((pay, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", background: "#f8fbff", borderRadius: "8px", border: "1px solid #e8f4fd" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon name="dollar" size={14} style={{ color: "#fff" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: "700", fontSize: "13px", color: "#2c3e50", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pay.nom} {pay.prenom}</div>
+                          <div style={{ fontSize: "11px", color: "#95a5a6" }}>{pay.datePaiement} · {periodeLabel(pay.periode)}</div>
+                        </div>
+                        <span style={{ fontWeight: "700", fontSize: "13px", color: "#27ae60", flexShrink: 0 }}>{pay.montantPaye}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
+                <h3 style={{ margin: "0 0 14px", fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>⚠️ {lang === "fr" ? "Alertes importantes" : "Important alerts"}</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {currentPeriodeNotPaidCount > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "10px", padding: "12px 14px" }}>
+                      <span style={{ background: "#e74c3c", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{currentPeriodeNotPaidCount}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#c0392b" }}>{lang === "fr" ? "Membres non payés" : "Unpaid members"}</div>
+                        <div style={{ fontSize: "11px", color: "#e74c3c" }}>{currentPeriode ? periodeLabel(currentPeriode.libelle) : ""}</div>
+                      </div>
+                      <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px", background: "#e74c3c" }} onClick={() => { setPage("nonRegle"); setShowUnpaidOrPartial(false); setShowUnpaidOnly(false); }}>{lang === "fr" ? "Voir" : "View"}</button>
+                    </div>
+                  )}
+                  {adminMsgUnread > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "10px", padding: "12px 14px" }}>
+                      <span style={{ background: "#f39c12", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{adminMsgUnread}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#d35400" }}>{lang === "fr" ? "Nouveaux messages" : "New messages"}</div>
+                      </div>
+                      <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px", background: "#f39c12" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>{lang === "fr" ? "Lire" : "Read"}</button>
+                    </div>
+                  )}
+                  {comptaResume.solde < 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "10px", padding: "12px 14px" }}>
+                      <span style={{ fontSize: "20px" }}>🏦</span>
+                      <div>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#c0392b" }}>{lang === "fr" ? "Solde négatif" : "Negative balance"}</div>
+                        <div style={{ fontSize: "11px", color: "#e74c3c" }}>{formatAmount(comptaResume.solde)}</div>
+                      </div>
+                    </div>
+                  )}
+                  {currentPeriodeNotPaidCount === 0 && adminMsgUnread === 0 && comptaResume.solde >= 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#eafaf1", border: "1px solid #a9dfbf", borderRadius: "10px", padding: "12px 14px" }}>
+                      <span style={{ fontSize: "20px" }}>✅</span>
+                      <div style={{ fontWeight: "700", fontSize: "13px", color: "#1e8449" }}>{lang === "fr" ? "Tout est à jour !" : "All up to date!"}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ④ GRAPHIQUE + MESSAGES */}
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }} className="home-bottom-grid">
+              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>📈 {lang === "fr" ? "Cotisations — 6 derniers mois" : "Contributions — last 6 months"}</h3>
+                  <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => { setPage("comptabilite"); loadComptabilite(); }}>{lang === "fr" ? "Détail" : "Detail"}</button>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", height: "120px" }}>
+                  {monthlyData.map(({ label, total }, i) => {
+                    const pct = total / maxMonth * 100;
+                    const isLast = i === monthlyData.length - 1;
+                    return (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%" }}>
+                        <div style={{ fontSize: "9px", color: "#3498db", fontWeight: "700", minHeight: "12px" }}>{total > 0 ? `${Math.round(total / 1000)}k` : ""}</div>
+                        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
+                          <div style={{ width: "100%", height: `${Math.max(pct, 3)}%`, background: isLast ? "linear-gradient(to top,#2980b9,#3498db)" : "linear-gradient(to top,#a8d8ea,#c5e8f7)", borderRadius: "4px 4px 0 0", minHeight: "4px" }} />
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#95a5a6", fontWeight: "600", textTransform: "capitalize" }}>{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: "16px", marginTop: "12px", borderTop: "1px solid #f0f0f0", paddingTop: "10px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "12px", height: "12px", borderRadius: "2px", background: "#3498db" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois actuel" : "Current month"}</span></div>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "12px", height: "12px", borderRadius: "2px", background: "#c5e8f7" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois précédents" : "Previous months"}</span></div>
+                  <div style={{ marginLeft: "auto", fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Période : " : "Period: "}<strong style={{ color: "#27ae60" }}>{formatAmount(totalEncaissePeriodeCourante)}</strong></div>
+                </div>
+              </div>
+
+              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>
+                    📨 Messages
+                    {adminMsgUnread > 0 && <span style={{ marginLeft: "6px", background: "#e74c3c", color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: "700" }}>{adminMsgUnread}</span>}
+                  </h3>
+                  <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>{lang === "fr" ? "Voir" : "View"}</button>
+                </div>
+                {derniersMsgs.length === 0 ? (
+                  <p style={{ color: "#95a5a6", fontSize: "12px", fontStyle: "italic", margin: 0 }}>{lang === "fr" ? "Aucun message" : "No messages"}</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {derniersMsgs.map((m, i) => (
+                      <div key={i} style={{ padding: "10px 12px", background: m.is_mine ? "#eaf4fb" : "#f8f9fa", borderRadius: "8px", border: `1px solid ${m.is_mine ? "#c5e8f7" : "#e0e6ed"}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "10px", fontWeight: "700", color: m.is_mine ? "#3498db" : "#7f8c8d" }}>{m.is_mine ? (lang === "fr" ? "Vous" : "You") : (m.auteur_prenom || "Admin")}</span>
+                          <span style={{ fontSize: "10px", color: "#bdc3c7" }}>{m.created_at ? new Date(m.created_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short" }) : ""}</span>
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#2c3e50", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ⑤ Admin : statut notifications */}
             {isAdmin && (
-              <div style={{ marginTop: "28px", background: "white", borderRadius: "14px", border: "1px solid #e0e6ed", padding: "22px 26px" }}>
+              <div style={{ background: "white", borderRadius: "14px", border: "1px solid #e0e6ed", padding: "22px 26px" }}>
                 <h3 style={{ margin: "0 0 16px", fontSize: "15px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "8px" }}>
                   🔔 {lang === "fr" ? "Statut des notifications" : "Notification status"}
                 </h3>
@@ -4945,22 +5070,12 @@ function App() {
                     </div>
                   ))}
                 </div>
-
-                {/* Test SMS */}
                 {serverStatus?.sms && (
                   <div style={{ borderTop: "1px solid #e0e6ed", paddingTop: "18px" }}>
-                    <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>
-                      📱 {lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}
-                    </p>
+                    <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>📱 {lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}</p>
                     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-                      <input
-                        value={testSmsPhone}
-                        onChange={e => { setTestSmsPhone(e.target.value); setTestSmsResult(null); }}
-                        placeholder={lang === "fr" ? "Ex: +2250701234567" : "Ex: +2250701234567"}
-                        style={{ flex: "1", minWidth: "180px", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "monospace" }}
-                      />
-                      <button onClick={handleTestSms} disabled={testSmsLoading || !testSmsPhone.trim()}
-                        style={{ padding: "9px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: testSmsLoading || !testSmsPhone.trim() ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: testSmsLoading || !testSmsPhone.trim() ? 0.6 : 1 }}>
+                      <input value={testSmsPhone} onChange={e => { setTestSmsPhone(e.target.value); setTestSmsResult(null); }} placeholder="Ex: +2250701234567" style={{ flex: "1", minWidth: "180px", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "monospace" }} />
+                      <button onClick={handleTestSms} disabled={testSmsLoading || !testSmsPhone.trim()} style={{ padding: "9px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: testSmsLoading || !testSmsPhone.trim() ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: testSmsLoading || !testSmsPhone.trim() ? 0.6 : 1 }}>
                         {testSmsLoading ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer test" : "Send test")}
                       </button>
                     </div>
@@ -4970,16 +5085,15 @@ function App() {
                       </div>
                     )}
                     <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#bdc3c7" }}>
-                      {lang === "fr"
-                        ? "Fournisseur : Africa's Talking. Variables requises : AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optionnel). Indicatif par défaut : +225 (Côte d'Ivoire)."
-                        : "Provider: Africa's Talking. Required vars: AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optional). Default country code: +225 (Côte d'Ivoire)."}
+                      {lang === "fr" ? "Fournisseur : Africa's Talking. Variables requises : AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optionnel). Indicatif par défaut : +225 (Côte d'Ivoire)." : "Provider: Africa's Talking. Required vars: AT_USERNAME, AT_API_KEY, AT_SENDER_ID (optional). Default country code: +225 (Côte d'Ivoire)."}
                     </p>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── ADHERENTS ────────────────────────────────────────── */}
         {page === "adherents" && (

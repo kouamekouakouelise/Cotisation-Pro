@@ -742,6 +742,27 @@ button:disabled {
   }
 }
 
+/* ── Accueil premium : grilles responsives ─────────────────────── */
+@media (max-width: 900px) {
+  .home-stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .home-bottom-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 640px) {
+  .home-stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .home-mid-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .home-bottom-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ── Modaux : toujours centrés sur mobile, tablette ET mode bureau sur téléphone ─ */
 /* (max-width 1024px) OU (appareil tactile, quelle que soit la taille du viewport) */
 @media (max-width: 1024px), (pointer: coarse) {
