@@ -1344,6 +1344,14 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [payQRUrls, setPayQRUrls] = useState({});
   const [cardFlipped, setCardFlipped] = useState(false);
   const memberContentRef = useRef(null);
+  // Demandes de paiement Mobile Money
+  const [mesDemandes, setMesDemandes] = useState([]);
+  const [showPayMM, setShowPayMM] = useState(false);
+  const [payMMCot, setPayMMCot] = useState(null);
+  const [payMMForm, setPayMMForm] = useState({ montant: "", numero_transaction: "" });
+  const [payMMError, setPayMMError] = useState("");
+  const [payMMSuccess, setPayMMSuccess] = useState("");
+  const [payMMLoading, setPayMMLoading] = useState(false);
 
   const t2 = (fr, en) => lang === "fr" ? fr : en;
 
@@ -1357,6 +1365,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       apiFetch(`${API_BASE}/me/membres`).then((r) => r.json()).then((d) => setMembres(Array.isArray(d) ? d : [])),
       apiFetch(`${API_BASE}/me/toutes-cotisations`).then((r) => r.json()).then((d) => setToutesCotisations(Array.isArray(d) ? d : [])),
       apiFetch(`${API_BASE}/me/historique`).then((r) => r.json()).then((d) => setMeHistorique(Array.isArray(d) ? d : [])).catch(() => {}),
+      apiFetch(`${API_BASE}/me/demandes-paiement`).then((r) => r.json()).then((d) => setMesDemandes(Array.isArray(d) ? d : [])).catch(() => {}),
       apiFetch(`${API_BASE}/mobile-money/config`).then(r => r.json()).then(d => {
         if (d && !d.error) setUserMMConfig({ om_numero: d.om_numero || "", om_nom: d.om_nom || "", wave_numero: d.wave_numero || "", wave_nom: d.wave_nom || "", mtn_numero: d.mtn_numero || "", mtn_nom: d.mtn_nom || "" });
       }).catch(() => {}),
@@ -1946,6 +1955,32 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           const pAmt = (v) => Number(String(v || "").replace(/[^0-9.-]/g, "")) || 0;
           const fAmt = (v) => `${v.toLocaleString("fr-FR")} F`;
 
+          const handlePayMM = async () => {
+            setPayMMError("");
+            setPayMMSuccess("");
+            if (!payMMForm.montant || isNaN(Number(payMMForm.montant)) || Number(payMMForm.montant) <= 0) {
+              setPayMMError(t2("Montant invalide.", "Invalid amount."));
+              return;
+            }
+            setPayMMLoading(true);
+            try {
+              const r = await apiFetch(`${API_BASE}/me/demandes-paiement`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cotisation_id: payMMCot.cotisationId, montant: payMMForm.montant, numero_transaction: payMMForm.numero_transaction }),
+              });
+              const d = await r.json();
+              if (!r.ok) { setPayMMError(d.error || "Erreur"); }
+              else {
+                setPayMMSuccess(t2("Demande envoyée ! En attente de validation par le trésorier.", "Request sent! Awaiting treasurer validation."));
+                const updated = await apiFetch(`${API_BASE}/me/demandes-paiement`).then(x => x.json());
+                setMesDemandes(Array.isArray(updated) ? updated : []);
+                setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "" }); }, 2500);
+              }
+            } catch { setPayMMError(t2("Erreur réseau.", "Network error.")); }
+            setPayMMLoading(false);
+          };
+
           // Extraire l'année depuis une période "Mois AAAA"
           const getYear = (periode) => {
             const parts = (periode || "").trim().split(" ");
@@ -2086,13 +2121,27 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                             {t2("Aucune cotisation pour cette année.", "No contributions for this year.")}
                           </div>
                         ) : (
-                          cotisationsAnnee.map((c, i) => (
+                          cotisationsAnnee.map((c, i) => {
+                            const demandeEnAttente = mesDemandes.find(d => d.cotisation_id === c.cotisationId && d.statut === "en_attente");
+                            const demandeRejetee  = mesDemandes.find(d => d.cotisation_id === c.cotisationId && d.statut === "rejete");
+                            const canPay = c.statut !== "Payé" && !demandeEnAttente;
+                            return (
                             <div key={i} style={{ border: `1.5px solid ${statutColor(c.statut)}44`, borderRadius: "10px", padding: "14px 18px", background: statutBg(c.statut) + "44", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
                               <div>
                                 <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px" }}>{c.periode}</div>
                                 {c.dernierPaiement && <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Dernier paiement", "Last payment")}: {c.dernierPaiement}</div>}
+                                {demandeEnAttente && (
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginTop: "5px", background: "#fff8e1", border: "1px solid #f59e0b", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", color: "#b45309", fontWeight: "600" }}>
+                                    <Icon name="clock" size={12} /> {t2("En attente de validation", "Awaiting validation")} — {Number(demandeEnAttente.montant).toLocaleString("fr-FR")} F
+                                  </div>
+                                )}
+                                {demandeRejetee && (
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginTop: "5px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", color: "#dc2626", fontWeight: "600" }}>
+                                    <Icon name="alert-triangle" size={12} /> {t2("Demande rejetée", "Request rejected")}{demandeRejetee.note_refus ? ` — ${demandeRejetee.note_refus}` : ""}
+                                  </div>
+                                )}
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                                 <div style={{ textAlign: "right" }}>
                                   <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{t2("Payé", "Paid")}</div>
                                   <div style={{ fontWeight: "700", color: "#27ae60", fontSize: "15px" }}>{c.soldePaye}</div>
@@ -2104,9 +2153,18 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                                 <span style={{ background: statutColor(c.statut), color: "white", padding: "5px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", whiteSpace: "nowrap" }}>
                                   {statutLabel(c.statut)}
                                 </span>
+                                {canPay && (
+                                  <button
+                                    onClick={() => { setPayMMCot(c); setPayMMForm({ montant: pAmt(c.reste) > 0 ? String(pAmt(c.reste)) : "", numero_transaction: "" }); setPayMMError(""); setPayMMSuccess(""); setShowPayMM(true); }}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap" }}
+                                  >
+                                    <Icon name="phone" size={13} /> {t2("Payer", "Pay")}
+                                  </button>
+                                )}
                               </div>
                             </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </>
@@ -2116,6 +2174,87 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
             </div>
           );
         })()}
+
+        {/* ── MODAL PAIEMENT MOBILE MONEY ── */}
+        {showPayMM && payMMCot && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+               onClick={() => setShowPayMM(false)}>
+            <div style={{ background: "white", borderRadius: "16px", padding: "28px", width: "100%", maxWidth: "420px", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}
+                 onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                <h3 style={{ margin: 0, fontSize: "17px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Icon name="phone" size={17} /> {t2("Payer par Mobile Money", "Pay via Mobile Money")}
+                </h3>
+                <button onClick={() => setShowPayMM(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>✕</button>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "14px", color: "#475569" }}>
+                <strong style={{ color: "#1e293b" }}>{payMMCot.periode}</strong>
+                <div style={{ display: "flex", gap: "16px", marginTop: "6px", fontSize: "13px" }}>
+                  <span>{t2("Dû", "Due")}: <strong>{payMMCot.montantDu}</strong></span>
+                  <span>{t2("Reste", "Remaining")}: <strong style={{ color: "#dc2626" }}>{payMMCot.reste}</strong></span>
+                </div>
+              </div>
+
+              {/* Choix opérateur */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "8px" }}>{t2("Opérateur Mobile Money", "Mobile Money Operator")}</label>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {[
+                    { value: "Orange Money",  img: imgOrange, border: "#ff6600", bg: "#fff3ea" },
+                    { value: "Wave",          img: imgWave,   border: "#00b4d8", bg: "#e8f8fc" },
+                    { value: "MTN MoMo",      img: imgMTN,    border: "#ffcc00", bg: "#fffbe6" },
+                  ].map(({ value, img, border, bg }) => {
+                    const sel = payMMForm.operateur === value;
+                    return (
+                      <button key={value} type="button"
+                        onClick={() => setPayMMForm(f => ({ ...f, operateur: value }))}
+                        style={{ border: sel ? `2px solid ${border}` : "1.5px solid #e2e8f0", borderRadius: "10px", background: sel ? bg : "white", padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", boxShadow: sel ? `0 0 0 2px ${border}33` : "none", transition: "all 0.15s" }}>
+                        <img src={img} alt={value} style={{ height: "28px", width: "auto", maxWidth: "64px", objectFit: "contain" }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "14px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{t2("Montant à payer (F)", "Amount to pay (F)")}</label>
+                <input
+                  type="number"
+                  value={payMMForm.montant}
+                  onChange={(e) => setPayMMForm(f => ({ ...f, montant: e.target.value }))}
+                  placeholder={t2("Ex. 5000", "E.g. 5000")}
+                  style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "15px", boxSizing: "border-box", fontWeight: "700" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{t2("Numéro de transaction (optionnel)", "Transaction number (optional)")}</label>
+                <input
+                  type="text"
+                  value={payMMForm.numero_transaction}
+                  onChange={(e) => setPayMMForm(f => ({ ...f, numero_transaction: e.target.value }))}
+                  placeholder={t2("Ex. CI240512XXXXXX", "E.g. CI240512XXXXXX")}
+                  style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "14px", boxSizing: "border-box" }}
+                />
+              </div>
+
+              {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", fontSize: "13px" }}>{payMMError}</div>}
+              {payMMSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", fontSize: "13px", fontWeight: "600" }}>{payMMSuccess}</div>}
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={handlePayMM} disabled={payMMLoading}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "11px", background: payMMLoading ? "#94a3b8" : "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "9px", cursor: payMMLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px" }}>
+                  <Icon name="phone" size={15} /> {payMMLoading ? t2("Envoi…", "Sending…") : t2("Envoyer la demande", "Submit request")}
+                </button>
+                <button onClick={() => setShowPayMM(false)}
+                  style={{ padding: "11px 18px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600", fontSize: "14px" }}>
+                  {t2("Annuler", "Cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── PAGE MEMBRES ── */}
         {page === "membres" && (
@@ -3361,7 +3500,14 @@ function App() {
     } catch {}
   };
 
-  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); loadServerStatus(); loadProfil(); loadComptaResume(); } }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadDemandesPaiement = async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/demandes-paiement`);
+      if (r.ok) { const d = await r.json(); setDemandesPaiement(Array.isArray(d) ? d : []); }
+    } catch {}
+  };
+
+  useEffect(() => { if (compte) { loadAdherents(); loadPeriodes(); loadHistorique(); loadMessages(); loadServerStatus(); loadProfil(); loadComptaResume(); loadDemandesPaiement(); } }, [compte]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── SSE — rafraîchissement temps réel quand un rôle change ───
   useEffect(() => {
@@ -3594,6 +3740,9 @@ function App() {
   const [selectedPeriode, setSelectedPeriode] = useState(null);
   const [selectedStatutFilter, setSelectedStatutFilter] = useState("tous");
   const [cotisationSearchTerm, setCotisationSearchTerm] = useState("");
+  const [demandesPaiement, setDemandesPaiement] = useState([]);
+  const [rejectModalId, setRejectModalId] = useState(null);
+  const [rejectNote, setRejectNote] = useState("");
   const [rappelLoading, setRappelLoading] = useState(false);
   const [showRappelModal, setShowRappelModal] = useState(false);
   const [rappelResult, setRappelResult] = useState(null);
@@ -6264,6 +6413,80 @@ function App() {
                         </div>
                       </div>
 
+                      {/* ── Demandes Mobile Money en attente ── */}
+                      {(() => {
+                        const all = demandesPaiement;
+                        if (!canActAsTresorier || all.length === 0) return null;
+                        return (
+                          <div style={{ background: "#fffbeb", border: "1.5px solid #f59e0b", borderRadius: "12px", padding: "16px 18px", marginBottom: "18px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", fontWeight: "700", color: "#b45309", fontSize: "14px" }}>
+                              <Icon name="clock" size={15} /> {lang === "fr" ? `${all.length} demande${all.length > 1 ? "s" : ""} Mobile Money en attente de validation` : `${all.length} pending Mobile Money payment${all.length > 1 ? "s" : ""}`}
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              {all.map((d) => (
+                                <div key={d.id} style={{ background: "white", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                                  <div>
+                                    <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "14px" }}>{d.prenom} {d.nom} <span style={{ color: "#94a3b8", fontSize: "12px" }}>({d.matricule})</span></div>
+                                    <div style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>
+                                      {d.periode} — <strong style={{ color: "#b45309" }}>{Number(d.montant).toLocaleString("fr-FR")} F</strong>
+                                      {d.numero_transaction && <> · N° {d.numero_transaction}</>}
+                                    </div>
+                                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{new Date(d.date_demande).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <button
+                                      onClick={async () => {
+                                        const r = await apiFetch(`${API_BASE}/demandes-paiement/${d.id}/approuver`, { method: "PUT" });
+                                        if (r.ok) { await Promise.all([loadDemandesPaiement(), loadPeriodes(selectedPeriode)]); }
+                                        else { const e = await r.json(); alert(e.error || "Erreur"); }
+                                      }}
+                                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 14px", background: "#16a34a", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px" }}>
+                                      <Icon name="check-circle" size={13} /> {lang === "fr" ? "Approuver" : "Approve"}
+                                    </button>
+                                    <button
+                                      onClick={() => { setRejectModalId(d.id); setRejectNote(""); }}
+                                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 14px", background: "#dc2626", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px" }}>
+                                      <Icon name="trash" size={13} /> {lang === "fr" ? "Rejeter" : "Reject"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Modal refus */}
+                      {rejectModalId && (
+                        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+                             onClick={() => setRejectModalId(null)}>
+                          <div style={{ background: "white", borderRadius: "14px", padding: "24px", width: "100%", maxWidth: "380px" }} onClick={(e) => e.stopPropagation()}>
+                            <h3 style={{ margin: "0 0 14px", fontSize: "16px", color: "#1e293b" }}>{lang === "fr" ? "Motif du refus (optionnel)" : "Rejection reason (optional)"}</h3>
+                            <input
+                              value={rejectNote}
+                              onChange={(e) => setRejectNote(e.target.value)}
+                              placeholder={lang === "fr" ? "Ex. : Numéro de transaction incorrect" : "E.g.: Wrong transaction number"}
+                              style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "14px", boxSizing: "border-box", marginBottom: "16px" }}
+                            />
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              <button
+                                onClick={async () => {
+                                  const r = await apiFetch(`${API_BASE}/demandes-paiement/${rejectModalId}/rejeter`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note_refus: rejectNote }) });
+                                  if (r.ok) { await loadDemandesPaiement(); setRejectModalId(null); }
+                                  else { const e = await r.json(); alert(e.error || "Erreur"); }
+                                }}
+                                style={{ flex: 1, padding: "10px", background: "#dc2626", color: "white", border: "none", borderRadius: "9px", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>
+                                {lang === "fr" ? "Confirmer le refus" : "Confirm rejection"}
+                              </button>
+                              <button onClick={() => setRejectModalId(null)}
+                                style={{ padding: "10px 16px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600" }}>
+                                {lang === "fr" ? "Annuler" : "Cancel"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* ── Toolbar : recherche + filtres ── */}
                       <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
                         <div style={{ position: "relative", flex: "1 1 200px", maxWidth: "320px" }}>
@@ -6347,9 +6570,6 @@ function App() {
                               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                                 {[
                                   { value: "Espèces", label: t("cash"), icon: "💵", color: "#27ae60", selBg: "#eafaf1", selBorder: "#27ae60" },
-                                  { value: "Virement", label: t("transfer"), icon: "🏦", color: "#2980b9", selBg: "#eaf2fb", selBorder: "#2980b9" },
-                                  { value: "Chèque", label: t("check"), icon: "📄", color: "#8e44ad", selBg: "#f5eef8", selBorder: "#8e44ad" },
-                                  { value: "Autre", label: t("other"), icon: "💳", color: "#7f8c8d", selBg: "#f4f6f7", selBorder: "#7f8c8d" },
                                 ].map(({ value, label, icon, color, selBg, selBorder }) => {
                                   const sel = addPaiementFormData.modePaiement === value;
                                   return (

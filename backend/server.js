@@ -258,6 +258,22 @@ async function initDB() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS demandes_paiement (
+      id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      adherent_id     INT UNSIGNED NOT NULL,
+      cotisation_id   INT UNSIGNED NOT NULL,
+      montant         DECIMAL(15,2) NOT NULL,
+      numero_transaction VARCHAR(100),
+      statut          ENUM('en_attente','approuve','rejete') NOT NULL DEFAULT 'en_attente',
+      date_demande    DATETIME DEFAULT CURRENT_TIMESTAMP,
+      date_traitement DATETIME,
+      note_refus      VARCHAR(255),
+      FOREIGN KEY (adherent_id)   REFERENCES adherents(id)   ON DELETE CASCADE,
+      FOREIGN KEY (cotisation_id) REFERENCES cotisations(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       compte_id  INT UNSIGNED NOT NULL,
@@ -1335,7 +1351,7 @@ app.get("/api/me/cotisations", authMiddleware, async (req, res) => {
       adherentId = adm.id;
     }
     const [rows] = await pool.query(
-      `SELECT c.libelle as periode, c.montant_du,
+      `SELECT c.id as cotisation_id, c.libelle as periode, c.montant_du,
               p.solde_paye, p.reste, p.statut,
               (SELECT MAX(t.date_paiement) FROM transactions t WHERE t.paiement_id = p.id) as dernier_paiement
        FROM cotisations c
@@ -1345,6 +1361,7 @@ app.get("/api/me/cotisations", authMiddleware, async (req, res) => {
       [adherentId, req.compteId]
     );
     res.json(rows.map((r) => ({
+      cotisationId: r.cotisation_id,
       periode: r.periode,
       montantDu: Number(r.montant_du).toLocaleString("fr-FR") + " F",
       soldePaye: r.solde_paye != null ? Number(r.solde_paye).toLocaleString("fr-FR") + " F" : "0 F",
@@ -1928,6 +1945,181 @@ app.get("/api/me/historique", authMiddleware, async (req, res) => {
       statut:       r.statut,
       modePaiement: r.mode_paiement || "-",
     })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ROUTES — DEMANDES DE PAIEMENT MOBILE MONEY (membres)
+// ═══════════════════════════════════════════════════════════════
+
+// Membre : soumettre une demande de paiement Mobile Money
+app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
+  try {
+    if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
+    const { cotisation_id, montant, numero_transaction } = req.body;
+    if (!cotisation_id || !montant) return res.status(400).json({ error: "cotisation_id et montant requis." });
+
+    // Vérifier que la cotisation appartient à cette association et que l'adhérent y est associé
+    const [[cot]] = await pool.query(
+      `SELECT c.id, c.montant_du FROM cotisations c WHERE c.id = ? AND c.compte_id = ?`,
+      [cotisation_id, req.compteId]
+    );
+    if (!cot) return res.status(404).json({ error: "Cotisation introuvable." });
+
+    const mt = parseFloat(montant);
+    if (isNaN(mt) || mt <= 0) return res.status(400).json({ error: "Montant invalide." });
+    if (mt > parseFloat(cot.montant_du)) return res.status(400).json({ error: "Montant supérieur au montant dû." });
+
+    // Vérifier qu'il n'y a pas déjà une demande en attente pour cette cotisation
+    const [[existing]] = await pool.query(
+      `SELECT id FROM demandes_paiement WHERE adherent_id = ? AND cotisation_id = ? AND statut = 'en_attente'`,
+      [req.adherentId, cotisation_id]
+    );
+    if (existing) return res.status(409).json({ error: "Vous avez déjà une demande en attente pour cette cotisation." });
+
+    // Vérifier que la cotisation n'est pas déjà totalement payée
+    const [[paie]] = await pool.query(
+      `SELECT statut FROM paiements WHERE adherent_id = ? AND cotisation_id = ?`,
+      [req.adherentId, cotisation_id]
+    );
+    if (paie && paie.statut === "Payé") return res.status(409).json({ error: "Cette cotisation est déjà payée." });
+
+    await pool.query(
+      `INSERT INTO demandes_paiement (adherent_id, cotisation_id, montant, numero_transaction) VALUES (?, ?, ?, ?)`,
+      [req.adherentId, cotisation_id, mt, numero_transaction ? numero_transaction.trim() : null]
+    );
+    res.json({ success: true, message: "Demande de paiement soumise. En attente de validation par le trésorier." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Membre : récupérer ses demandes en cours
+app.get("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
+  try {
+    if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
+    const [rows] = await pool.query(
+      `SELECT dp.id, dp.cotisation_id, dp.montant, dp.numero_transaction, dp.statut,
+              dp.date_demande, dp.date_traitement, dp.note_refus,
+              c.libelle AS periode
+       FROM demandes_paiement dp
+       JOIN cotisations c ON c.id = dp.cotisation_id
+       WHERE dp.adherent_id = ?
+       ORDER BY dp.date_demande DESC`,
+      [req.adherentId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trésorier/Admin : lister toutes les demandes en attente
+app.get("/api/demandes-paiement", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT dp.id, dp.montant, dp.numero_transaction, dp.statut,
+              dp.date_demande, dp.date_traitement, dp.note_refus,
+              c.libelle AS periode, c.id AS cotisation_id, c.montant_du,
+              a.id AS adherent_id, a.nom, a.prenom, a.matricule
+       FROM demandes_paiement dp
+       JOIN cotisations c  ON c.id  = dp.cotisation_id
+       JOIN adherents  a  ON a.id  = dp.adherent_id
+       WHERE c.compte_id = ? AND dp.statut = 'en_attente'
+       ORDER BY dp.date_demande ASC`,
+      [req.compteId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trésorier/Admin : approuver une demande → crée le paiement réel
+app.put("/api/demandes-paiement/:id/approuver", authMiddleware, trésorierMiddleware, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const [[dp]] = await conn.query(
+      `SELECT dp.*, c.montant_du, c.compte_id
+       FROM demandes_paiement dp
+       JOIN cotisations c ON c.id = dp.cotisation_id
+       WHERE dp.id = ? AND dp.statut = 'en_attente'`,
+      [req.params.id]
+    );
+    if (!dp) return res.status(404).json({ error: "Demande introuvable ou déjà traitée." });
+    if (dp.compte_id !== req.compteId) return res.status(403).json({ error: "Accès refusé." });
+
+    await conn.beginTransaction();
+
+    const montantDu = parseFloat(dp.montant_du);
+    const montantPaye = parseFloat(dp.montant);
+
+    // Upsert paiement
+    let [[paiement]] = await conn.query(
+      `SELECT id, solde_paye, reste FROM paiements WHERE adherent_id = ? AND cotisation_id = ?`,
+      [dp.adherent_id, dp.cotisation_id]
+    );
+    let paiementId;
+    if (!paiement) {
+      const [ins] = await conn.query(
+        `INSERT INTO paiements (adherent_id, cotisation_id, solde_paye, reste, statut) VALUES (?, ?, 0, ?, 'Impayé')`,
+        [dp.adherent_id, dp.cotisation_id, montantDu]
+      );
+      paiementId = ins.insertId;
+      paiement = { solde_paye: 0, reste: montantDu };
+    } else {
+      paiementId = paiement.id;
+    }
+
+    const nouveauSolde = parseFloat(paiement.solde_paye) + montantPaye;
+    const nouveauReste = Math.max(montantDu - nouveauSolde, 0);
+    const nouveauStatut = nouveauReste <= 0 ? "Payé" : nouveauSolde > 0 ? "Partiel" : "Impayé";
+
+    await conn.query(
+      `UPDATE paiements SET solde_paye = ?, reste = ?, statut = ? WHERE id = ?`,
+      [nouveauSolde, nouveauReste, nouveauStatut, paiementId]
+    );
+
+    // Générer numéro de reçu
+    const recu = `MMRECU${Date.now()}`;
+    await conn.query(
+      `INSERT INTO transactions (paiement_id, numero_recu, montant_paye, mode_paiement, date_paiement) VALUES (?, ?, ?, 'Mobile Money', CURDATE())`,
+      [paiementId, recu, montantPaye]
+    );
+
+    await conn.query(
+      `UPDATE demandes_paiement SET statut = 'approuve', date_traitement = NOW() WHERE id = ?`,
+      [dp.id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, message: "Paiement validé.", nouveauStatut });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
+// Trésorier/Admin : rejeter une demande
+app.put("/api/demandes-paiement/:id/rejeter", authMiddleware, trésorierMiddleware, async (req, res) => {
+  try {
+    const { note_refus } = req.body;
+    const [[dp]] = await pool.query(
+      `SELECT dp.*, c.compte_id FROM demandes_paiement dp JOIN cotisations c ON c.id = dp.cotisation_id WHERE dp.id = ? AND dp.statut = 'en_attente'`,
+      [req.params.id]
+    );
+    if (!dp) return res.status(404).json({ error: "Demande introuvable ou déjà traitée." });
+    if (dp.compte_id !== req.compteId) return res.status(403).json({ error: "Accès refusé." });
+
+    await pool.query(
+      `UPDATE demandes_paiement SET statut = 'rejete', date_traitement = NOW(), note_refus = ? WHERE id = ?`,
+      [note_refus ? note_refus.trim() : null, dp.id]
+    );
+    res.json({ success: true, message: "Demande rejetée." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
