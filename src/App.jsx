@@ -54,7 +54,16 @@ const ICON_PATHS = {
   'rotate-cw': <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></>,
   badge:       <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>,
   info:        <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
-  save:        <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>,
+  save:              <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>,
+  bell:              <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>,
+  'alert-triangle':  <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+  smartphone:        <><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></>,
+  bank:              <><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></>,
+  'trending-up':     <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+  trash:             <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></>,
+  search:            <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+  plus:              <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+  download:          <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
 };
 
 const Icon = ({ name, size = 15, style = {} }) => (
@@ -1298,6 +1307,7 @@ const authSt = {
 function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [profile, setProfile] = useState(null);
   const [cotisations, setCotisations] = useState([]);
+  const [selectedAnnee, setSelectedAnnee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState("profil");
   const [editMode, setEditMode] = useState(false);
@@ -1332,6 +1342,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [carteDownloading, setCarteDownloading] = useState(false);
   const [userMMConfig, setUserMMConfig] = useState({ om_numero: "", om_nom: "", wave_numero: "", wave_nom: "", mtn_numero: "", mtn_nom: "" });
   const [payQRUrls, setPayQRUrls] = useState({});
+  const [cardFlipped, setCardFlipped] = useState(false);
+  const memberContentRef = useRef(null);
 
   const t2 = (fr, en) => lang === "fr" ? fr : en;
 
@@ -1361,6 +1373,15 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   useEffect(() => {
     if (page === "carte" && profile && !carteQRUrl) generateCarteQR(profile);
   }, [page, profile]);
+
+  // Transition de page membre : animation fade+slide
+  useEffect(() => {
+    const el = memberContentRef.current;
+    if (!el) return;
+    el.classList.remove("page-enter");
+    void el.offsetWidth;
+    el.classList.add("page-enter");
+  }, [page]);
 
   useEffect(() => {
     if (page === "payer" && Object.values(payQRUrls).length === 0) {
@@ -1618,7 +1639,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       </div>
 
       {/* ── CONTENU ── */}
-      <div style={{ maxWidth: "820px", margin: "0 auto", padding: "28px 16px" }}>
+      <div ref={memberContentRef} style={{ maxWidth: "820px", margin: "0 auto", padding: "28px 16px" }} className="page-enter">
 
         {/* Badge rôle */}
         <div style={{ background: "#eaf6fd", border: "1px solid #3498db", borderRadius: "8px", padding: "8px 16px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#2c3e50" }}>
@@ -1750,68 +1771,79 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
               {t2("Voici votre carte membre digitale. Présentez-la ou partagez-la pour justifier de votre appartenance à l'association.", "This is your digital member card. Present or share it to prove your membership.")}
             </p>
 
-            {/* Carte visuelle */}
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "28px" }}>
-              <div style={{
-                width: "342px", height: "216px",
-                background: "linear-gradient(135deg, #1a2a3a 0%, #2c3e50 60%, #1a3a4a 100%)",
-                borderRadius: "14px",
-                position: "relative",
-                overflow: "hidden",
-                boxShadow: "0 8px 32px rgba(26,42,58,0.45)",
-                fontFamily: "Arial, sans-serif",
-                flexShrink: 0,
-              }}>
-                {/* Bande décorative gauche */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: "10px", height: "100%", background: "#16a085" }} />
-                {/* Bande du haut */}
-                <div style={{ position: "absolute", left: "10px", top: 0, right: 0, height: "38px", background: "rgba(52,73,94,0.8)", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
-                  <span style={{ color: "white", fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {compte.nom_association}
-                  </span>
-                  <span style={{ color: "#a8d8cc", fontSize: "9px", fontWeight: "600", letterSpacing: "1px" }}>CARTE MEMBRE</span>
-                </div>
-                {/* Photo membre */}
-                <div style={{ position: "absolute", left: "22px", top: "56px", width: "72px", height: "72px", borderRadius: "50%", overflow: "hidden", border: "3px solid #16a085", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {profile.photo
-                    ? <img src={profile.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <span style={{ fontSize: "28px", color: "#a8d8cc", fontWeight: "700" }}>{((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase()}</span>
-                  }
-                </div>
-                {/* Infos membre */}
-                <div style={{ position: "absolute", left: "108px", top: "50px", right: "118px" }}>
-                  <div style={{ color: "white", fontWeight: "700", fontSize: "15px", marginBottom: "5px", lineHeight: 1.2 }}>
-                    {profile.nom} {profile.prenom}
+            {/* Carte visuelle — flip 3D */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "20px" }}>
+              <div className="card-flip-scene" onClick={() => setCardFlipped(f => !f)} title={t2("Cliquer pour retourner", "Click to flip")}>
+                <div className={`card-flip-inner${cardFlipped ? " flipped" : ""}`}>
+
+                  {/* ── FACE AVANT ── */}
+                  <div className="card-flip-front" style={{
+                    background: "linear-gradient(135deg, #1a2a3a 0%, #2c3e50 60%, #1a3a4a 100%)",
+                    boxShadow: "0 10px 40px rgba(26,42,58,0.55)",
+                    fontFamily: "Arial, sans-serif",
+                  }}>
+                    <div style={{ position: "absolute", left: 0, top: 0, width: "10px", height: "100%", background: "#16a085" }} />
+                    <div style={{ position: "absolute", left: "10px", top: 0, right: 0, height: "38px", background: "rgba(52,73,94,0.8)", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
+                      <span style={{ color: "white", fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compte.nom_association}</span>
+                      <span style={{ color: "#a8d8cc", fontSize: "9px", fontWeight: "600", letterSpacing: "1px" }}>CARTE MEMBRE</span>
+                    </div>
+                    <div style={{ position: "absolute", left: "22px", top: "56px", width: "72px", height: "72px", borderRadius: "50%", overflow: "hidden", border: "3px solid #16a085", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {profile.photo
+                        ? <img src={profile.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <span style={{ fontSize: "28px", color: "#a8d8cc", fontWeight: "700" }}>{((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase()}</span>
+                      }
+                    </div>
+                    <div style={{ position: "absolute", left: "108px", top: "50px", right: "118px" }}>
+                      <div style={{ color: "white", fontWeight: "700", fontSize: "15px", marginBottom: "5px", lineHeight: 1.2 }}>{profile.nom} {profile.prenom}</div>
+                      <div style={{ color: "#a8d8ea", fontSize: "11px", marginBottom: "8px" }}>N° {profile.matricule || "N/A"}</div>
+                      {profile.poste && <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 10px", borderRadius: "10px", marginBottom: "7px" }}>{profile.poste}</div>}
+                      {profile.date_inscription && <div style={{ color: "#7fafc4", fontSize: "10px" }}>{t2("Membre depuis", "Member since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}</div>}
+                    </div>
+                    <div style={{ position: "absolute", right: "14px", top: "46px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                      {carteQRUrl
+                        ? <img src={carteQRUrl} alt="QR" style={{ width: "88px", height: "88px", display: "block" }} />
+                        : <div style={{ width: "88px", height: "88px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
+                      }
+                      <div style={{ textAlign: "center", fontSize: "8px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Scanner", "Scan")}</div>
+                    </div>
+                    <div style={{ position: "absolute", left: "10px", bottom: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
+                      <span style={{ color: "white", fontWeight: "700", fontSize: "10px", letterSpacing: "1px" }}>COTISATION PRO</span>
+                      <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "9px" }}>{compte.nom_association}</span>
+                    </div>
+                    <div style={{ position: "absolute", right: "-18px", bottom: "24px", width: "80px", height: "80px", borderRadius: "50%", border: "20px solid rgba(22,160,133,0.12)", pointerEvents: "none" }} />
+                    <div style={{ position: "absolute", right: "-6px", bottom: "-6px", width: "48px", height: "48px", borderRadius: "50%", border: "14px solid rgba(52,152,219,0.15)", pointerEvents: "none" }} />
                   </div>
-                  <div style={{ color: "#a8d8ea", fontSize: "11px", marginBottom: "8px" }}>N° {profile.matricule || "N/A"}</div>
-                  {profile.poste && (
-                    <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 10px", borderRadius: "10px", marginBottom: "7px" }}>
-                      {profile.poste}
+
+                  {/* ── FACE ARRIÈRE (QR code large) ── */}
+                  <div className="card-flip-back" style={{
+                    background: "linear-gradient(135deg, #0d1b2a 0%, #1a3a4a 100%)",
+                    boxShadow: "0 10px 40px rgba(26,42,58,0.55)",
+                    fontFamily: "Arial, sans-serif",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "6px", background: "linear-gradient(90deg,#16a085,#3498db,#16a085)", backgroundSize: "200% 100%", animation: "lp-shimmerBar 2.5s linear infinite" }} />
+                    <div style={{ background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
+                      {carteQRUrl
+                        ? <img src={carteQRUrl} alt="QR Code" style={{ width: "120px", height: "120px", display: "block" }} />
+                        : <div style={{ width: "120px", height: "120px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7" }}>…</div>
+                      }
                     </div>
-                  )}
-                  {profile.date_inscription && (
-                    <div style={{ color: "#7fafc4", fontSize: "10px" }}>
-                      {t2("Membre depuis", "Member since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ color: "#a8d8cc", fontSize: "11px", fontWeight: "700", letterSpacing: "1px" }}>{profile.nom} {profile.prenom}</div>
+                      <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "9px", marginTop: "2px" }}>{t2("Scanner pour vérifier", "Scan to verify")}</div>
                     </div>
-                  )}
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ color: "white", fontSize: "9px", fontWeight: "700", letterSpacing: "1.5px" }}>COTISATION PRO — {compte.nom_association}</span>
+                    </div>
+                  </div>
+
                 </div>
-                {/* QR Code */}
-                <div style={{ position: "absolute", right: "14px", top: "46px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
-                  {carteQRUrl
-                    ? <img src={carteQRUrl} alt="QR Code" style={{ width: "88px", height: "88px", display: "block" }} />
-                    : <div style={{ width: "88px", height: "88px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
-                  }
-                  <div style={{ textAlign: "center", fontSize: "8px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Scanner", "Scan")}</div>
-                </div>
-                {/* Barre du bas */}
-                <div style={{ position: "absolute", left: "10px", bottom: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
-                  <span style={{ color: "white", fontWeight: "700", fontSize: "10px", letterSpacing: "1px" }}>COTISATION PRO</span>
-                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "9px" }}>{compte.nom_association}</span>
-                </div>
-                {/* Décoration cercles */}
-                <div style={{ position: "absolute", right: "-18px", bottom: "24px", width: "80px", height: "80px", borderRadius: "50%", border: "20px solid rgba(22,160,133,0.12)", pointerEvents: "none" }} />
-                <div style={{ position: "absolute", right: "-6px", bottom: "-6px", width: "48px", height: "48px", borderRadius: "50%", border: "14px solid rgba(52,152,219,0.15)", pointerEvents: "none" }} />
               </div>
+              <p className="card-flip-hint">{t2("Cliquez sur la carte pour la retourner", "Click the card to flip it")}</p>
             </div>
 
             {/* Info QR code */}
@@ -1909,39 +1941,181 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         )}
 
         {/* ── PAGE COTISATIONS ── */}
-        {page === "cotisations" && (
-          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
-            <h2 style={{ margin: "0 0 24px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
-              <Icon name="dollar" size={18} /> {t2("Mes Cotisations", "My Contributions")}
-            </h2>
-            {cotisations.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0", fontSize: "15px" }}>
-                {t2("Aucune cotisation enregistrée.", "No contributions recorded.")}
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {cotisations.map((c, i) => (
-                  <div key={i} style={{ border: `2px solid ${statutColor(c.statut)}33`, borderRadius: "10px", padding: "16px 20px", background: statutBg(c.statut) + "55" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                      <div>
-                        <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "16px" }}>{c.periode}</div>
-                        {c.dernierPaiement && <div style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Dernier paiement", "Last payment")}: {c.dernierPaiement}</div>}
+        {page === "cotisations" && (() => {
+          const FR_MOIS_USER = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+          const pAmt = (v) => Number(String(v || "").replace(/[^0-9.-]/g, "")) || 0;
+          const fAmt = (v) => `${v.toLocaleString("fr-FR")} F`;
+
+          // Extraire l'année depuis une période "Mois AAAA"
+          const getYear = (periode) => {
+            const parts = (periode || "").trim().split(" ");
+            return parts[parts.length - 1];
+          };
+
+          // Années disponibles (triées décroissant)
+          const anneesDispos = [...new Set(cotisations.map((c) => getYear(c.periode)))].sort((a, b) => b - a);
+          const anneeActive = selectedAnnee || anneesDispos[0] || null;
+
+          // Cotisations de l'année sélectionnée
+          const cotisationsAnnee = cotisations.filter((c) => getYear(c.periode) === anneeActive);
+
+          // Totaux annuels
+          const totalDuAnnuel   = cotisationsAnnee.reduce((s, c) => s + pAmt(c.montantDu), 0);
+          const totalPayeAnnuel = cotisationsAnnee.reduce((s, c) => s + pAmt(c.soldePaye), 0);
+          const totalResteAnnuel = cotisationsAnnee.reduce((s, c) => s + pAmt(c.reste), 0);
+          const pctAnnuel = totalDuAnnuel > 0 ? Math.min((totalPayeAnnuel / totalDuAnnuel) * 100, 100) : 0;
+          const barColorAnnuel = pctAnnuel >= 100 ? "#27ae60" : pctAnnuel >= 50 ? "#f39c12" : "#e74c3c";
+
+          // Map mois → cotisation pour la grille calendrier
+          const moisMap = {};
+          cotisationsAnnee.forEach((c) => {
+            const mois = (c.periode || "").split(" ")[0];
+            moisMap[mois] = c;
+          });
+
+          return (
+            <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+              {/* ── En-tête ── */}
+              <h2 style={{ margin: "0 0 20px", color: "#2c3e50", fontSize: "20px", paddingBottom: "16px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", gap: "10px" }}>
+                <Icon name="dollar" size={18} /> {t2("Mes Cotisations", "My Contributions")}
+              </h2>
+
+              {cotisations.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#7f8c8d", padding: "30px 0", fontSize: "15px" }}>
+                  {t2("Aucune cotisation enregistrée.", "No contributions recorded.")}
+                </div>
+              ) : (
+                <>
+                  {/* ── Sélecteur d'année ── */}
+                  {anneesDispos.length > 0 && (
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+                      {anneesDispos.map((a) => (
+                        <button
+                          key={a}
+                          onClick={() => setSelectedAnnee(a)}
+                          style={{
+                            padding: "8px 22px",
+                            border: `2px solid ${anneeActive === a ? "#3498db" : "#dde3ea"}`,
+                            borderRadius: "10px",
+                            background: anneeActive === a ? "#3498db" : "white",
+                            color: anneeActive === a ? "white" : "#5a6a7a",
+                            fontWeight: "700",
+                            fontSize: "14px",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          {a}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {anneeActive && (
+                    <>
+                      {/* ── Cartes bilan annuel ── */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "18px" }}>
+                        {[
+                          { label: t2("Total attendu", "Expected total"),    value: fAmt(totalDuAnnuel),    color: "#2980b9", bg: "linear-gradient(135deg,#eaf4fb,#d6eaf8)", border: "#a9cce3", icon: "dollar" },
+                          { label: t2("Total payé", "Total paid"),           value: fAmt(totalPayeAnnuel),  color: "#27ae60", bg: "linear-gradient(135deg,#eafaf1,#d5f5e3)", border: "#a9dfbf", icon: "check-circle" },
+                          { label: t2("Reste à payer", "Remaining"),         value: fAmt(totalResteAnnuel), color: "#e74c3c", bg: "linear-gradient(135deg,#fdedec,#fadbd8)", border: "#f1948a", icon: "alert-triangle" },
+                          { label: t2("Mois cotisés", "Months with data"),   value: `${cotisationsAnnee.length} / 12`, color: "#8e44ad", bg: "linear-gradient(135deg,#f5eef8,#e8daef)", border: "#c39bd3", icon: "clock" },
+                        ].map(({ label, value, color, bg, border, icon }) => (
+                          <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "12px", padding: "14px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", color, fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                              <Icon name={icon} size={13} style={{ color }} /> {label}
+                            </div>
+                            <div style={{ fontSize: "20px", fontWeight: "800", color }}>{value}</div>
+                          </div>
+                        ))}
                       </div>
-                      <span style={{ background: statutColor(c.statut), color: "white", padding: "4px 14px", borderRadius: "12px", fontSize: "12px", fontWeight: "700" }}>
-                        {statutLabel(c.statut)}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", gap: "24px", marginTop: "12px", flexWrap: "wrap" }}>
-                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Montant dû", "Amount due")}: <strong style={{ color: "#2c3e50" }}>{c.montantDu}</strong></div>
-                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Payé", "Paid")}: <strong style={{ color: "#27ae60" }}>{c.soldePaye}</strong></div>
-                      <div style={{ fontSize: "13px", color: "#7f8c8d" }}>{t2("Reste", "Remaining")}: <strong style={{ color: "#e74c3c" }}>{c.reste}</strong></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+
+                      {/* ── Barre de progression annuelle ── */}
+                      <div style={{ background: "#f8fafc", border: "1px solid #e8ecf0", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#7f8c8d", marginBottom: "8px", fontWeight: "600" }}>
+                          <span>{t2("Avancement annuel", "Annual progress")} {anneeActive}</span>
+                          <strong style={{ color: barColorAnnuel }}>{pctAnnuel.toFixed(1)} %</strong>
+                        </div>
+                        <div style={{ background: "#e0e6ed", borderRadius: "10px", height: "10px", overflow: "hidden" }}>
+                          <div style={{ width: pctAnnuel + "%", height: "100%", background: `linear-gradient(90deg, ${barColorAnnuel}, ${barColorAnnuel}bb)`, borderRadius: "10px", transition: "width 0.8s ease" }} />
+                        </div>
+                      </div>
+
+                      {/* ── Grille calendrier 12 mois ── */}
+                      <div style={{ marginBottom: "22px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: "700", color: "#5a6a7a", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          {t2("Aperçu mois par mois", "Month by month overview")} — {anneeActive}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "8px" }}>
+                          {FR_MOIS_USER.map((mois) => {
+                            const cot = moisMap[mois];
+                            const statut = cot ? cot.statut : null;
+                            const bgC = statut === "Payé" ? "#27ae60" : statut === "Partiel" ? "#f39c12" : statut === "Impayé" ? "#e74c3c" : "#e8ecf0";
+                            const textC = statut ? "white" : "#aab2c0";
+                            const abbrev = mois.slice(0, 3);
+                            return (
+                              <div key={mois} title={cot ? `${mois} : ${cot.statut} — Payé ${cot.soldePaye} / Reste ${cot.reste}` : `${mois} : ${t2("Aucune cotisation", "No contribution")}`}
+                                style={{ background: bgC, borderRadius: "10px", padding: "10px 6px", textAlign: "center", cursor: cot ? "default" : "default" }}>
+                                <div style={{ fontSize: "11px", fontWeight: "700", color: textC, lineHeight: 1.2 }}>{abbrev}</div>
+                                {statut && (
+                                  <div style={{ fontSize: "9px", color: textC, opacity: 0.85, marginTop: "3px", fontWeight: "600" }}>
+                                    {statut === "Payé" ? "✓" : statut === "Partiel" ? "~" : "✗"}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Légende */}
+                        <div style={{ display: "flex", gap: "14px", marginTop: "10px", flexWrap: "wrap" }}>
+                          {[["#27ae60", t2("Payé", "Paid")], ["#f39c12", t2("Partiel", "Partial")], ["#e74c3c", t2("Impayé", "Unpaid")], ["#e8ecf0", t2("Aucune cotisation", "No data")]].map(([c, l]) => (
+                            <div key={l} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "#7f8c8d" }}>
+                              <div style={{ width: "12px", height: "12px", borderRadius: "3px", background: c }} /> {l}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── Liste mensuelle détaillée ── */}
+                      <div style={{ fontSize: "13px", fontWeight: "700", color: "#5a6a7a", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        {t2("Détail mensuel", "Monthly detail")} — {anneeActive}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {cotisationsAnnee.length === 0 ? (
+                          <div style={{ textAlign: "center", color: "#7f8c8d", padding: "20px 0" }}>
+                            {t2("Aucune cotisation pour cette année.", "No contributions for this year.")}
+                          </div>
+                        ) : (
+                          cotisationsAnnee.map((c, i) => (
+                            <div key={i} style={{ border: `1.5px solid ${statutColor(c.statut)}44`, borderRadius: "10px", padding: "14px 18px", background: statutBg(c.statut) + "44", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                              <div>
+                                <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px" }}>{c.periode}</div>
+                                {c.dernierPaiement && <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Dernier paiement", "Last payment")}: {c.dernierPaiement}</div>}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{t2("Payé", "Paid")}</div>
+                                  <div style={{ fontWeight: "700", color: "#27ae60", fontSize: "15px" }}>{c.soldePaye}</div>
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{t2("Reste", "Remaining")}</div>
+                                  <div style={{ fontWeight: "700", color: "#e74c3c", fontSize: "15px" }}>{c.reste}</div>
+                                </div>
+                                <span style={{ background: statutColor(c.statut), color: "white", padding: "5px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", whiteSpace: "nowrap" }}>
+                                  {statutLabel(c.statut)}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── PAGE MEMBRES ── */}
         {page === "membres" && (
@@ -2421,6 +2595,7 @@ function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const accountMenuRef = useRef(null);
+  const contentRef = useRef(null);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const plusMenuRef = useRef(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
@@ -3250,6 +3425,15 @@ function App() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showAccountMenu]);
 
+  // Transition de page : animation fade+slide sur le contenu
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.classList.remove("page-enter");
+    void el.offsetWidth;
+    el.classList.add("page-enter");
+  }, [page]);
+
   // Fermer le menu Plus au clic en dehors
   useEffect(() => {
     if (!showPlusMenu) return;
@@ -3401,10 +3585,15 @@ function App() {
   const [selectedAdherentId, setSelectedAdherentId] = useState(null);
   const [selectedAdherentCotisations, setSelectedAdherentCotisations] = useState([]);
   const [selectedAdherentCotisationsLoading, setSelectedAdherentCotisationsLoading] = useState(false);
+  const [fichePosteSelected, setFichePosteSelected] = useState("");
+  const [fichePosteLoading, setFichePosteLoading] = useState(false);
+  const [fichePosteSuccess, setFichePosteSuccess] = useState("");
+  const [fichePosteError, setFichePosteError] = useState("");
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedPeriode, setSelectedPeriode] = useState(null);
   const [selectedStatutFilter, setSelectedStatutFilter] = useState("tous");
+  const [cotisationSearchTerm, setCotisationSearchTerm] = useState("");
   const [rappelLoading, setRappelLoading] = useState(false);
   const [showRappelModal, setShowRappelModal] = useState(false);
   const [rappelResult, setRappelResult] = useState(null);
@@ -4258,6 +4447,14 @@ function App() {
   const nonCreatorPresidentExists = adherents.some(
     (a) => a.poste && a.poste.toLowerCase().includes("président") && a.email !== compte?.email
   );
+  // Trésorier différent du créateur (un membre a le poste Trésorier)
+  const nonCreatorTresorierExists = adherents.some(
+    (a) => a.poste && a.poste.toLowerCase().includes("trésorier") && a.email !== compte?.email
+  );
+  // L'admin conserve les droits trésorier tant qu'aucun trésorier n'est assigné à un membre
+  const canActAsTresorier = isAdmin ? !nonCreatorTresorierExists : isTresorier;
+  // L'admin conserve les droits président tant qu'aucun président externe n'est assigné
+  const canActAsPresident = isAdmin ? !nonCreatorPresidentExists : isPresident;
   // Le créateur peut attribuer des postes si aucun président externe n'existe encore,
   // OU si le créateur lui-même est président, OU si c'est un membre président
   const creatorIsPresident = isAdmin && !!(profilData?.poste?.toLowerCase().includes("président"));
@@ -4389,16 +4586,16 @@ function App() {
               onClick={() => setShowPlusMenu(v => !v)}
             >
               {lang === "fr" ? "Plus" : "More"} {showPlusMenu ? "▲" : "▾"}
-              {adminMsgUnread > 0 && <span className="nav-badge">{adminMsgUnread}</span>}
+              {adminMsgUnread > 0 && <span className="nav-badge badge-pulse-red">{adminMsgUnread}</span>}
             </button>
             {showPlusMenu && (
               <div className="nav-dropdown-panel">
                 <button className={`nav-dropdown-item${page === "messages" ? " nav-dropdown-active" : ""}`}
                   onClick={() => { setShowPlusMenu(false); setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
                   <Icon name="mail" size={14} /> {lang === "fr" ? "Messages" : "Messages"}
-                  {adminMsgUnread > 0 && <span className="nav-badge">{adminMsgUnread}</span>}
+                  {adminMsgUnread > 0 && <span className="nav-badge badge-pulse-red">{adminMsgUnread}</span>}
                 </button>
-                {(isAdmin || isTresorier) && (
+                {canActAsTresorier && (
                   <button className={`nav-dropdown-item${page === "comptabilite" ? " nav-dropdown-active" : ""}`}
                     onClick={() => { setShowPlusMenu(false); setPage("comptabilite"); loadComptabilite(); }}>
                     <Icon name="bar-chart" size={14} /> {lang === "fr" ? "Comptabilité" : "Accounting"}
@@ -4438,19 +4635,45 @@ function App() {
                   <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
                   <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{compte.email}</div>
                 </div>
-                {[
-                  { icon: "user",    label: lang === "fr" ? "Mon profil" : "My Profile", action: () => { setShowAccountMenu(false); loadProfil(); setPage("profil"); } },
-                  { icon: "dollar",  label: lang === "fr" ? "Mes cotisations" : "My Contributions", action: () => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); } },
-                  { icon: "key",     label: t("changePassword"), action: () => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); } },
-                  { icon: "mail",    label: t("changeEmail"), action: () => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); } },
-                  ...(isAdmin ? [{ icon: "list", label: t("helpMenu"), action: () => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); } }] : []),
-                  { icon: "building", label: t("aboutMenu"), action: () => { setShowAccountMenu(false); setShowAbout(true); } },
-                ].map(({ icon, label, action }) => (
-                  <button key={label} className="nav-account-item" onClick={action} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                    <Icon name={icon} size={14} style={{ opacity: 0.6 }} /> {label}
+                {/* ─── Mon compte ─── */}
+                <div style={{ padding: "6px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                  {lang === "fr" ? "Mon compte" : "My account"}
+                </div>
+                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadProfil(); setPage("profil"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="user" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mon profil" : "My Profile"}
+                </button>
+                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="dollar" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mes cotisations" : "My Contributions"}
+                </button>
+
+                {/* ─── Sécurité ─── */}
+                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 4px" }} />
+                <div style={{ padding: "2px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                  {lang === "fr" ? "Sécurité" : "Security"}
+                </div>
+                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="key" size={14} style={{ opacity: 0.6 }} /> {t("changePassword")}
+                </button>
+                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="mail" size={14} style={{ opacity: 0.6 }} /> {t("changeEmail")}
+                </button>
+
+                {/* ─── Assistance ─── */}
+                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 4px" }} />
+                <div style={{ padding: "2px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                  {lang === "fr" ? "Assistance" : "Support"}
+                </div>
+                {isAdmin && (
+                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="list" size={14} style={{ opacity: 0.6 }} /> {t("helpMenu")}
                   </button>
-                ))}
-                <div style={{ height: "1px", background: "#ecf0f1", margin: "2px 0" }} />
+                )}
+                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setShowAbout(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                  <Icon name="info" size={14} style={{ opacity: 0.6 }} /> {t("aboutMenu")}
+                </button>
+
+                {/* ─── Déconnexion ─── */}
+                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 2px" }} />
                 <button className="nav-account-item nav-account-logout" onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                   <Icon name="logout" size={14} style={{ opacity: 0.7 }} /> {t("logout")}
                 </button>
@@ -4460,7 +4683,7 @@ function App() {
         </div>
       </header>
 
-      <div style={styles.content} className="app-content">
+      <div style={styles.content} className="app-content" ref={contentRef}>
 
         {/* ── MON PROFIL (membres uniquement) ─────────────────── */}
         {page === "profil" && (
@@ -4886,12 +5109,12 @@ function App() {
                 <div>
                   <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>{lang === "fr" ? "Bonjour," : "Hello,"}</div>
                   <div style={{ color: "#fff", fontSize: "22px", fontWeight: "800", lineHeight: "1.2", marginBottom: "8px" }}>
-                    {profilData.prenom || profilData.nom ? `${profilData.prenom} ${profilData.nom}` : compte?.email?.split("@")[0]} 👋
+                    {profilData.prenom || profilData.nom ? `${profilData.prenom} ${profilData.nom}` : compte?.email?.split("@")[0]}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                     <span style={{ background: roleColor, color: "#fff", fontSize: "11px", fontWeight: "700", padding: "3px 10px", borderRadius: "20px" }}>{roleLabel}</span>
                     <span style={{ color: "rgba(255,255,255,0.4)" }}>·</span>
-                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>🏛️ {compte?.nom_association}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "5px", color: "rgba(255,255,255,0.6)", fontSize: "12px" }}><Icon name="shield" size={11} style={{ color: "rgba(52,152,219,0.85)" }} /> {compte?.nom_association}</span>
                   </div>
                 </div>
               </div>
@@ -4899,27 +5122,40 @@ function App() {
             </div>
 
             {/* ② STATS CARDS avec animation compteur */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: "14px" }} className="home-stat-grid">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: "16px" }} className="home-stat-grid">
               {[
-                { icon: "👥", label: lang === "fr" ? "Total adhérents" : "Total members",   value: adherents.length,             suffix: "",   color: "#3498db", bg: "linear-gradient(135deg,#eaf4fb,#d6ecf8)" },
-                { icon: "💰", label: lang === "fr" ? "Cotisations reçues" : "Contributions", value: totalEncaissePeriodeCourante, suffix: " F", color: "#27ae60", bg: "linear-gradient(135deg,#eafaf1,#d5f5e3)" },
-                { icon: "❌", label: lang === "fr" ? "Non payés" : "Unpaid",                 value: currentPeriodeNotPaidCount,   suffix: "",   color: "#e74c3c", bg: "linear-gradient(135deg,#fef0f0,#fad7d7)" },
-                { icon: "🏦", label: lang === "fr" ? "Solde net" : "Net balance",            value: Math.abs(comptaResume.solde), suffix: " F", color: comptaResume.solde >= 0 ? "#9b59b6" : "#e74c3c", bg: comptaResume.solde >= 0 ? "linear-gradient(135deg,#f5eefb,#e8d5f5)" : "linear-gradient(135deg,#fef0f0,#fad7d7)", prefix: comptaResume.solde < 0 ? "-" : "" },
-              ].map(({ icon, label, value, suffix, color, bg, prefix: pfx = "" }) => (
-                <div key={label} style={{ background: bg, borderRadius: "14px", padding: "20px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: `1px solid ${color}22`, position: "relative", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", top: "-12px", right: "-12px", fontSize: "52px", opacity: "0.12", userSelect: "none", pointerEvents: "none" }}>{icon}</div>
-                  <div style={{ fontSize: "28px", marginBottom: "6px" }}>{icon}</div>
-                  <div style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{label}</div>
-                  <CountUp target={Math.round(value)} color={color} prefix={pfx} suffix={suffix} />
-                </div>
+                { iconName: "users",    label: lang === "fr" ? "Total adhérents" : "Total members",    value: adherents.length,             suffix: "",   bg: "linear-gradient(135deg,#0f3460 0%,#1a6b9e 100%)",   glow: "rgba(52,152,219,0.40)" },
+                { iconName: "dollar",   label: lang === "fr" ? "Cotisations reçues" : "Contributions", value: totalEncaissePeriodeCourante, suffix: " F", bg: "linear-gradient(135deg,#0d3b22 0%,#1e8449 100%)",   glow: "rgba(39,174,96,0.40)" },
+                { iconName: "x-circle", label: lang === "fr" ? "Non payés" : "Unpaid",                 value: currentPeriodeNotPaidCount,   suffix: "",   bg: "linear-gradient(135deg,#3b0f0f 0%,#a93226 100%)",   glow: "rgba(231,76,60,0.40)" },
+                { iconName: "bank",     label: lang === "fr" ? "Solde net" : "Net balance",             value: Math.abs(comptaResume.solde), suffix: " F", bg: comptaResume.solde >= 0 ? "linear-gradient(135deg,#2e1a4a 0%,#7d3c98 100%)" : "linear-gradient(135deg,#3b0f0f 0%,#a93226 100%)", glow: comptaResume.solde >= 0 ? "rgba(155,89,182,0.40)" : "rgba(231,76,60,0.40)", prefix: comptaResume.solde < 0 ? "-" : "" },
+              ].map(({ iconName, label, value, suffix, bg, glow, prefix: pfx = "" }, idx) => (
+                <InView key={label} delay={idx * 0.09}>
+                  <div style={{ background: bg, borderRadius: "18px", padding: "22px 20px 20px", boxShadow: `0 8px 36px ${glow}`, position: "relative", overflow: "hidden", cursor: "default" }} className="home-stat-card">
+                    <div style={{ position: "absolute", right: "-10px", bottom: "-10px", opacity: 0.1, color: "#fff", pointerEvents: "none", userSelect: "none" }}>
+                      <Icon name={iconName} size={90} />
+                    </div>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05))", borderRadius: "18px 18px 0 0" }} />
+                    <div className="home-stat-icon" style={{ width: "44px", height: "44px", borderRadius: "13px", background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "18px", color: "#fff" }}>
+                      <Icon name={iconName} size={21} />
+                    </div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.65)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: "8px" }}>{label}</div>
+                    <CountUp target={Math.round(value)} color="#fff" prefix={pfx} suffix={suffix} />
+                  </div>
+                </InView>
               ))}
             </div>
 
             {/* ③ ACTIVITÉS + ALERTES */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }} className="home-mid-grid">
-              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>🕒 {lang === "fr" ? "Activités récentes" : "Recent activities"}</h3>
+              <InView delay={0.1}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#3498db,#2980b9)" }}>
+                      <Icon name="clock" size={15} />
+                    </div>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Activités récentes" : "Recent activities"}</span>
+                  </div>
                   <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => setPage("historique")}>{lang === "fr" ? "Voir tout" : "View all"}</button>
                 </div>
                 {cinqDerniersPaiements.length === 0 ? (
@@ -4927,12 +5163,12 @@ function App() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {cinqDerniersPaiements.map((pay, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", background: "#f8fbff", borderRadius: "8px", border: "1px solid #e8f4fd" }}>
-                        <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: "#f8fbff", borderRadius: "10px", border: "1px solid #e8f4fd" }}>
+                        <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg,#3498db,#2980b9)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           <Icon name="dollar" size={14} style={{ color: "#fff" }} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: "700", fontSize: "13px", color: "#2c3e50", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pay.nom} {pay.prenom}</div>
+                          <div style={{ fontWeight: "700", fontSize: "13px", color: "#1a2742", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pay.nom} {pay.prenom}</div>
                           <div style={{ fontSize: "11px", color: "#95a5a6" }}>{pay.datePaiement} · {periodeLabel(pay.periode)}</div>
                         </div>
                         <span style={{ fontWeight: "700", fontSize: "13px", color: "#27ae60", flexShrink: 0 }}>{pay.montantPaye}</span>
@@ -4941,13 +5177,20 @@ function App() {
                   </div>
                 )}
               </div>
+              </InView>
 
-              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
-                <h3 style={{ margin: "0 0 14px", fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>⚠️ {lang === "fr" ? "Alertes importantes" : "Important alerts"}</h3>
+              <InView delay={0.18}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "16px" }}>
+                  <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#f39c12,#e67e22)" }}>
+                    <Icon name="alert-triangle" size={14} />
+                  </div>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Alertes importantes" : "Important alerts"}</span>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {currentPeriodeNotPaidCount > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "10px", padding: "12px 14px" }}>
-                      <span style={{ background: "#e74c3c", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{currentPeriodeNotPaidCount}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "12px", padding: "12px 14px" }}>
+                      <span style={{ background: "#e74c3c", color: "#fff", borderRadius: "50%", minWidth: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{currentPeriodeNotPaidCount}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: "700", fontSize: "13px", color: "#c0392b" }}>{lang === "fr" ? "Membres non payés" : "Unpaid members"}</div>
                         <div style={{ fontSize: "11px", color: "#e74c3c" }}>{currentPeriode ? periodeLabel(currentPeriode.libelle) : ""}</div>
@@ -4956,8 +5199,8 @@ function App() {
                     </div>
                   )}
                   {adminMsgUnread > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "10px", padding: "12px 14px" }}>
-                      <span style={{ background: "#f39c12", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{adminMsgUnread}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "12px", padding: "12px 14px" }}>
+                      <span style={{ background: "#f39c12", color: "#fff", borderRadius: "50%", minWidth: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>{adminMsgUnread}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: "700", fontSize: "13px", color: "#d35400" }}>{lang === "fr" ? "Nouveaux messages" : "New messages"}</div>
                       </div>
@@ -4965,8 +5208,10 @@ function App() {
                     </div>
                   )}
                   {comptaResume.solde < 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "10px", padding: "12px 14px" }}>
-                      <span style={{ fontSize: "20px" }}>🏦</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef0f0", border: "1px solid #fad7d7", borderRadius: "12px", padding: "12px 14px" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#e74c3c", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                        <Icon name="bank" size={14} />
+                      </div>
                       <div>
                         <div style={{ fontWeight: "700", fontSize: "13px", color: "#c0392b" }}>{lang === "fr" ? "Solde négatif" : "Negative balance"}</div>
                         <div style={{ fontSize: "11px", color: "#e74c3c" }}>{formatAmount(comptaResume.solde)}</div>
@@ -4974,50 +5219,64 @@ function App() {
                     </div>
                   )}
                   {currentPeriodeNotPaidCount === 0 && adminMsgUnread === 0 && comptaResume.solde >= 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#eafaf1", border: "1px solid #a9dfbf", borderRadius: "10px", padding: "12px 14px" }}>
-                      <span style={{ fontSize: "20px" }}>✅</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#eafaf1", border: "1px solid #a9dfbf", borderRadius: "12px", padding: "12px 14px" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#27ae60", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                        <Icon name="check" size={14} />
+                      </div>
                       <div style={{ fontWeight: "700", fontSize: "13px", color: "#1e8449" }}>{lang === "fr" ? "Tout est à jour !" : "All up to date!"}</div>
                     </div>
                   )}
                 </div>
               </div>
+              </InView>
             </div>
 
             {/* ④ GRAPHIQUE + MESSAGES */}
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }} className="home-bottom-grid">
-              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>📈 {lang === "fr" ? "Cotisations — 6 derniers mois" : "Contributions — last 6 months"}</h3>
+              <InView delay={0.12}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#27ae60,#1e8449)" }}>
+                      <Icon name="bar-chart" size={15} />
+                    </div>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Cotisations — 6 derniers mois" : "Contributions — last 6 months"}</span>
+                  </div>
                   <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => { setPage("comptabilite"); loadComptabilite(); }}>{lang === "fr" ? "Détail" : "Detail"}</button>
                 </div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", height: "120px" }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", height: "130px" }}>
                   {monthlyData.map(({ label, total }, i) => {
                     const pct = total / maxMonth * 100;
                     const isLast = i === monthlyData.length - 1;
                     return (
                       <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%" }}>
-                        <div style={{ fontSize: "9px", color: "#3498db", fontWeight: "700", minHeight: "12px" }}>{total > 0 ? `${Math.round(total / 1000)}k` : ""}</div>
+                        <div style={{ fontSize: "9px", color: "#3498db", fontWeight: "700", minHeight: "13px" }}>{total > 0 ? `${Math.round(total / 1000)}k` : ""}</div>
                         <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
-                          <div style={{ width: "100%", height: `${Math.max(pct, 3)}%`, background: isLast ? "linear-gradient(to top,#2980b9,#3498db)" : "linear-gradient(to top,#a8d8ea,#c5e8f7)", borderRadius: "4px 4px 0 0", minHeight: "4px" }} />
+                          <div className="home-chart-bar" style={{ animationDelay: `${i * 0.07}s`, width: "100%", height: `${Math.max(pct, 4)}%`, background: isLast ? "linear-gradient(to top,#1a6b9e,#3498db)" : "linear-gradient(to top,#b8d9f0,#d6ecf8)", borderRadius: "5px 5px 0 0", minHeight: "4px", boxShadow: isLast ? "0 0 10px rgba(52,152,219,0.35)" : "none" }} />
                         </div>
                         <div style={{ fontSize: "10px", color: "#95a5a6", fontWeight: "600", textTransform: "capitalize" }}>{label}</div>
                       </div>
                     );
                   })}
                 </div>
-                <div style={{ display: "flex", gap: "16px", marginTop: "12px", borderTop: "1px solid #f0f0f0", paddingTop: "10px", flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "12px", height: "12px", borderRadius: "2px", background: "#3498db" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois actuel" : "Current month"}</span></div>
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "12px", height: "12px", borderRadius: "2px", background: "#c5e8f7" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois précédents" : "Previous months"}</span></div>
+                <div style={{ display: "flex", gap: "16px", marginTop: "14px", borderTop: "1px solid #f0f4f8", paddingTop: "12px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "10px", height: "10px", borderRadius: "3px", background: "#3498db" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois actuel" : "Current month"}</span></div>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}><div style={{ width: "10px", height: "10px", borderRadius: "3px", background: "#d6ecf8" }} /><span style={{ fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Mois précédents" : "Previous months"}</span></div>
                   <div style={{ marginLeft: "auto", fontSize: "11px", color: "#7f8c8d" }}>{lang === "fr" ? "Période : " : "Period: "}<strong style={{ color: "#27ae60" }}>{formatAmount(totalEncaissePeriodeCourante)}</strong></div>
                 </div>
               </div>
+              </InView>
 
-              <div style={{ background: "#fff", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e0e6ed" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", color: "#2c3e50", fontWeight: "700" }}>
-                    📨 Messages
-                    {adminMsgUnread > 0 && <span style={{ marginLeft: "6px", background: "#e74c3c", color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: "700" }}>{adminMsgUnread}</span>}
-                  </h3>
+              <InView delay={0.2}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#9b59b6,#8e44ad)" }}>
+                      <Icon name="mail" size={14} />
+                    </div>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>Messages</span>
+                    {adminMsgUnread > 0 && <span style={{ background: "#e74c3c", color: "#fff", borderRadius: "10px", padding: "1px 7px", fontSize: "10px", fontWeight: "700" }}>{adminMsgUnread}</span>}
+                  </div>
                   <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>{lang === "fr" ? "Voir" : "View"}</button>
                 </div>
                 {derniersMsgs.length === 0 ? (
@@ -5025,36 +5284,43 @@ function App() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {derniersMsgs.map((m, i) => (
-                      <div key={i} style={{ padding: "10px 12px", background: m.is_mine ? "#eaf4fb" : "#f8f9fa", borderRadius: "8px", border: `1px solid ${m.is_mine ? "#c5e8f7" : "#e0e6ed"}` }}>
+                      <div key={i} style={{ padding: "10px 12px", background: m.is_mine ? "#f0f8ff" : "#f8f9fa", borderRadius: "10px", border: `1px solid ${m.is_mine ? "#d6ecf8" : "#eaecef"}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                           <span style={{ fontSize: "10px", fontWeight: "700", color: m.is_mine ? "#3498db" : "#7f8c8d" }}>{m.is_mine ? (lang === "fr" ? "Vous" : "You") : (m.auteur_prenom || "Admin")}</span>
                           <span style={{ fontSize: "10px", color: "#bdc3c7" }}>{m.created_at ? new Date(m.created_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short" }) : ""}</span>
                         </div>
-                        <div style={{ fontSize: "12px", color: "#2c3e50", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.content}</div>
+                        <div style={{ fontSize: "12px", color: "#1a2742", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.content}</div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+              </InView>
             </div>
 
             {/* ⑤ Admin : statut notifications */}
             {isAdmin && (
-              <div style={{ background: "white", borderRadius: "14px", border: "1px solid #e0e6ed", padding: "22px 26px" }}>
-                <h3 style={{ margin: "0 0 16px", fontSize: "15px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "8px" }}>
-                  🔔 {lang === "fr" ? "Statut des notifications" : "Notification status"}
-                </h3>
+              <InView delay={0.1}>
+              <div style={{ background: "#fff", borderRadius: "18px", border: "1px solid #e8edf3", padding: "24px 28px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }} className="home-panel">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
+                  <div className="home-icon-badge" style={{ width: "32px", height: "32px", background: "linear-gradient(135deg,#f39c12,#e67e22)" }}>
+                    <Icon name="bell" size={16} />
+                  </div>
+                  <span style={{ fontSize: "15px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Statut des notifications" : "Notification status"}</span>
+                </div>
                 <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "20px" }}>
                   {[
-                    { icon: "📧", label: "Email (Gmail)", ok: serverStatus?.email, desc: lang === "fr" ? "Confirmation paiement, rappels" : "Payment confirmation, reminders" },
-                    { icon: "📱", label: "SMS (Africa's Talking)", ok: serverStatus?.sms, desc: lang === "fr" ? "Compte créé, paiement, rappels" : "Account created, payment, reminders" },
-                  ].map(({ icon, label, ok, desc }) => (
-                    <div key={label} style={{ flex: "1", minWidth: "200px", background: ok ? "#eafaf1" : "#f8f9fa", border: `1.5px solid ${ok ? "#a9dfbf" : "#e0e6ed"}`, borderRadius: "10px", padding: "14px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                      <span style={{ fontSize: "22px" }}>{icon}</span>
+                    { iconName: "mail",       label: "Email (Gmail)",        ok: serverStatus?.email, desc: lang === "fr" ? "Confirmation paiement, rappels" : "Payment confirmation, reminders" },
+                    { iconName: "smartphone", label: "SMS (Africa's Talking)", ok: serverStatus?.sms,   desc: lang === "fr" ? "Compte créé, paiement, rappels" : "Account created, payment, reminders" },
+                  ].map(({ iconName, label, ok, desc }) => (
+                    <div key={label} style={{ flex: "1", minWidth: "200px", background: ok ? "#eafaf1" : "#f8f9fa", border: `1.5px solid ${ok ? "#a9dfbf" : "#e0e6ed"}`, borderRadius: "12px", padding: "14px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                      <div style={{ width: "38px", height: "38px", borderRadius: "11px", background: ok ? "linear-gradient(135deg,#1e8449,#27ae60)" : "linear-gradient(135deg,#5d6d7e,#7f8c8d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                        <Icon name={iconName} size={18} />
+                      </div>
                       <div>
-                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#1a2742", display: "flex", alignItems: "center", gap: "6px" }}>
                           {label}
-                          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: ok ? "#27ae60" : "#e74c3c", color: "white" }}>
+                          <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: ok ? "#27ae60" : "#e74c3c", color: "white" }}>
                             {ok ? (lang === "fr" ? "Actif" : "Active") : (lang === "fr" ? "Inactif" : "Inactive")}
                           </span>
                         </div>
@@ -5071,8 +5337,11 @@ function App() {
                   ))}
                 </div>
                 {serverStatus?.sms && (
-                  <div style={{ borderTop: "1px solid #e0e6ed", paddingTop: "18px" }}>
-                    <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>📱 {lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}</p>
+                  <div style={{ borderTop: "1px solid #e8edf3", paddingTop: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+                      <Icon name="smartphone" size={13} style={{ color: "#7f8c8d" }} />
+                      <span style={{ fontSize: "13px", color: "#7f8c8d", fontWeight: "600" }}>{lang === "fr" ? "Tester l'envoi SMS" : "Test SMS sending"}</span>
+                    </div>
                     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                       <input value={testSmsPhone} onChange={e => { setTestSmsPhone(e.target.value); setTestSmsResult(null); }} placeholder="Ex: +2250701234567" style={{ flex: "1", minWidth: "180px", padding: "9px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "13px", outline: "none", fontFamily: "monospace" }} />
                       <button onClick={handleTestSms} disabled={testSmsLoading || !testSmsPhone.trim()} style={{ padding: "9px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: testSmsLoading || !testSmsPhone.trim() ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", opacity: testSmsLoading || !testSmsPhone.trim() ? 0.6 : 1 }}>
@@ -5080,8 +5349,9 @@ function App() {
                       </button>
                     </div>
                     {testSmsResult && (
-                      <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", background: testSmsResult.ok ? "#eafaf1" : "#fef0f0", color: testSmsResult.ok ? "#27ae60" : "#c0392b", fontWeight: "600" }}>
-                        {testSmsResult.ok ? `✅ ${testSmsResult.message}` : `❌ ${testSmsResult.error}`}
+                      <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", background: testSmsResult.ok ? "#eafaf1" : "#fef0f0", color: testSmsResult.ok ? "#27ae60" : "#c0392b", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
+                        {testSmsResult.ok ? <Icon name="check-circle" size={14} /> : <Icon name="x-circle" size={14} />}
+                        {testSmsResult.ok ? testSmsResult.message : testSmsResult.error}
                       </div>
                     )}
                     <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#bdc3c7" }}>
@@ -5090,6 +5360,7 @@ function App() {
                   </div>
                 )}
               </div>
+              </InView>
             )}
           </div>
           );
@@ -5173,16 +5444,16 @@ function App() {
 
                 <div style={styles.toolbarSection}>
                   <div style={styles.toolbarTop} className="toolbar-top">
-                    {(isAdmin || isTresorier) && (
+                    {canActAsTresorier && (
                       <button style={styles.addBtn} className="toolbar-btn" onClick={() => { setEditingIndex(null); setFormData({ matricule: "", nom: "", prenom: "", telephone: "", email: "", date: "", paid: false }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>
-                        {t("addMemberBtn")}
+                        <Icon name="plus" size={14} /> {t("addMemberBtn")}
                       </button>
                     )}
                     <div style={styles.statsBox} className="stats-box">
-                      <span>{t("totalLabel")} <strong>{adherents.length}</strong></span>
+                      <Icon name="users" size={14} /> <strong>{adherents.length}</strong> {lang === "fr" ? "membre(s)" : "member(s)"}
                     </div>
-                    <button style={{ ...styles.addBtn, background: "#27ae60", marginLeft: "10px" }} className="toolbar-btn" onClick={exportExcel}>
-                      {t("exportExcel")}
+                    <button style={{ ...styles.addBtn, background: "#16a34a", marginLeft: "auto" }} className="toolbar-btn" onClick={exportExcel}>
+                      <Icon name="download" size={14} /> {t("exportExcel")}
                     </button>
                   </div>
                   <div style={styles.filtersSection}>
@@ -5304,7 +5575,7 @@ function App() {
                       </thead>
                       <tbody>
                         {filteredAdherents.map((a, i) => (
-                          <tr key={a.id ?? a.originalIndex} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                          <tr key={a.id ?? a.originalIndex} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }} className="anim-row">
                             <td style={styles.td}><strong>{a.matricule}</strong></td>
                             <td style={styles.td}>
                               {a.nom}
@@ -5315,9 +5586,9 @@ function App() {
                             <td style={styles.td}>{a.email || "-"}</td>
                             <td style={styles.td}>{a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-"}</td>
                             <td style={styles.td}>
-                              <button style={styles.detailsBtn} onClick={() => { setSelectedAdherentId(a.id); loadAdherentCotisations(a.id); }}><EyeOpen /></button>
-                              {(isAdmin || isTresorier || isPresident || a.email === compte?.email) && <button style={styles.actionBtn} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}>✏️</button>}
-                              {(isAdmin || isTresorier) && <button style={styles.actionDeleteBtn} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}>🗑️</button>}
+                              <button style={styles.detailsBtn} onClick={() => { setSelectedAdherentId(a.id); loadAdherentCotisations(a.id); setFichePosteSelected(a.poste || ""); setFichePosteSuccess(""); setFichePosteError(""); }}><EyeOpen /></button>
+                              {(canActAsPresident || a.email === compte?.email) && <button style={styles.actionBtn} title={lang === "fr" ? "Modifier" : "Edit"} onClick={() => { const ad = adherents[a.originalIndex]; setEditingIndex(a.originalIndex); setFormData({ ...ad, photo: ad.photo || "", photoName: ad.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); }}><Icon name="edit" size={15} /></button>}
+                              {canActAsTresorier && <button style={styles.actionDeleteBtn} title={lang === "fr" ? "Supprimer" : "Delete"} onClick={() => { setDeleteIndex(a.id); setShowDeleteConfirm(true); }}><Icon name="trash" size={15} /></button>}
                             </td>
                           </tr>
                         ))}
@@ -5369,16 +5640,16 @@ function App() {
                         </div>
 
                         {/* Boutons d'action */}
-                        {(isAdmin || isTresorier || isPresident || adherent.email === compte?.email) && (
-                          <div style={{ background: "white", padding: "14px 28px", display: "flex", gap: "10px", flexWrap: "wrap", borderBottom: "1px solid #f0f4f8" }}>
-                            <button style={{ padding: "9px 20px", background: "#3498db", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                        {(canActAsPresident || adherent.email === compte?.email) && (
+                          <div style={{ background: "#fafbfc", padding: "12px 24px", display: "flex", gap: "8px", flexWrap: "wrap", borderBottom: "1px solid #f0f4f8" }}>
+                            <button style={{ ...styles.addBtn, background: "#2563eb" }}
                               onClick={() => { setEditingIndex(adherents.findIndex((a) => a.id === selectedAdherentId)); setFormData({ ...adherent, photo: adherent.photo || "", photoName: adherent.photo ? "Photo existante" : "" }); setSearchTerm(""); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowForm(true); setSelectedAdherentId(null); }}>
-                              {t("editBtn")}
+                              <Icon name="edit" size={14} /> {t("editBtn")}
                             </button>
-                            {(isAdmin || isTresorier) && (
-                              <button style={{ padding: "9px 20px", background: "#e74c3c", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                            {canActAsTresorier && (
+                              <button style={{ ...styles.addBtn, background: "#dc2626" }}
                                 onClick={() => { setDeleteIndex(adherent.id); setShowDeleteConfirm(true); setSelectedAdherentId(null); }}>
-                                {t("deleteIconBtn")}
+                                <Icon name="trash" size={14} /> {t("deleteIconBtn")}
                               </button>
                             )}
                           </div>
@@ -5404,6 +5675,119 @@ function App() {
                           </div>
                         </div>
                       </div>
+
+                      {/* ── Section Désignation de Poste ── */}
+                      {canAssignPoste && adherent.email !== compte?.email && (
+                        <div style={{ borderRadius: "18px", overflow: "hidden", boxShadow: "0 4px 20px rgba(44,62,80,0.12)", background: "white", marginBottom: "20px" }}>
+                          {/* En-tête */}
+                          <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)", padding: "18px 28px", display: "flex", alignItems: "center", gap: "14px" }}>
+                            <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: "10px", padding: "9px", display: "flex" }}>
+                              <Icon name="badge" size={20} style={{ color: "white" }} />
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: "700", color: "white", fontSize: "15px" }}>{lang === "fr" ? "Désignation de Poste" : "Role Assignment"}</div>
+                              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)", marginTop: "2px" }}>
+                                {lang === "fr" ? "Attribuez un rôle officiel à ce membre" : "Assign an official role to this member"}
+                              </div>
+                            </div>
+                            {adherent.poste && (
+                              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "20px", padding: "4px 14px", fontSize: "11px", fontWeight: "700", color: "white", whiteSpace: "nowrap" }}>
+                                {adherent.poste}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Corps */}
+                          <div style={{ padding: "22px 28px" }}>
+                            {/* Feedback */}
+                            {fichePosteSuccess && (
+                              <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: "9px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #bbf7d0" }}>
+                                <Icon name="check-circle" size={14} style={{ flexShrink: 0 }} /> {fichePosteSuccess}
+                              </div>
+                            )}
+                            {fichePosteError && (
+                              <div style={{ background: "#fef2f2", color: "#991b1b", padding: "10px 14px", borderRadius: "9px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #fecaca" }}>
+                                <Icon name="x-circle" size={14} style={{ flexShrink: 0 }} /> {fichePosteError}
+                              </div>
+                            )}
+
+                            {/* Grille de cartes postes */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "9px", marginBottom: "18px" }}>
+                              {[
+                                { label: "Président(e)",           color: "#7c3aed", icon: "shield",       bg: "#f5f3ff" },
+                                { label: "Vice-Président(e)",       color: "#1d4ed8", icon: "badge",        bg: "#eff6ff" },
+                                { label: "Secrétaire Général(e)",   color: "#15803d", icon: "edit",         bg: "#f0fdf4" },
+                                { label: "Secrétaire Adjoint(e)",   color: "#0e7490", icon: "edit",         bg: "#ecfeff" },
+                                { label: "Trésorier(e)",            color: "#c2410c", icon: "dollar",       bg: "#fff7ed" },
+                                { label: "Trésorier(e) Adjoint(e)", color: "#b45309", icon: "receipt",      bg: "#fffbeb" },
+                                { label: "Commissaire aux comptes", color: "#b91c1c", icon: "check-circle", bg: "#fef2f2" },
+                                { label: "Conseiller(e)",           color: "#475569", icon: "info",         bg: "#f8fafc" },
+                              ].map(p => {
+                                const sel = fichePosteSelected === p.label;
+                                return (
+                                  <button key={p.label} onClick={() => setFichePosteSelected(sel ? "" : p.label)} style={{
+                                    padding: "10px 12px", border: `2px solid ${sel ? p.color : "#e2e8f0"}`,
+                                    borderRadius: "11px", background: sel ? p.bg : "white",
+                                    cursor: "pointer", display: "flex", alignItems: "center", gap: "9px",
+                                    textAlign: "left", transition: "all 0.15s ease",
+                                    boxShadow: sel ? `0 0 0 3px ${p.color}22` : "none",
+                                  }}>
+                                    <div style={{ background: sel ? p.color : "#e2e8f0", borderRadius: "7px", padding: "5px", display: "flex", color: sel ? "white" : "#94a3b8", flexShrink: 0 }}>
+                                      <Icon name={p.icon} size={13} />
+                                    </div>
+                                    <span style={{ fontSize: "12px", fontWeight: "700", color: sel ? p.color : "#334155", flex: 1, lineHeight: "1.3" }}>{p.label}</span>
+                                    {sel && <Icon name="check" size={12} style={{ color: p.color, flexShrink: 0 }} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Bouton retirer + confirmer */}
+                            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                              {adherent.poste && (
+                                <button
+                                  disabled={fichePosteLoading}
+                                  onClick={async () => {
+                                    setFichePosteError(""); setFichePosteSuccess(""); setFichePosteLoading(true);
+                                    try {
+                                      const r = await apiFetch(`${API_BASE}/adherents/${adherent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nom: adherent.nom, prenom: adherent.prenom, telephone: adherent.telephone || null, email: adherent.email || null, poste: null }) });
+                                      if (!r.ok) { const d = await r.json(); setFichePosteError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                                      setAdherents(prev => prev.map(a => a.id === adherent.id ? { ...a, poste: null } : a));
+                                      setFichePosteSelected(""); setFichePosteSuccess(lang === "fr" ? "Poste retiré." : "Role removed.");
+                                    } catch { setFichePosteError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                                    finally { setFichePosteLoading(false); }
+                                  }}
+                                  style={{ padding: "9px 18px", background: "white", color: "#b91c1c", border: "1.5px solid #fecaca", borderRadius: "9px", fontSize: "13px", cursor: "pointer", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <Icon name="x-circle" size={13} /> {lang === "fr" ? "Retirer le poste" : "Remove role"}
+                                </button>
+                              )}
+                              <button
+                                disabled={fichePosteLoading || !fichePosteSelected}
+                                onClick={async () => {
+                                  setFichePosteError(""); setFichePosteSuccess(""); setFichePosteLoading(true);
+                                  try {
+                                    const r = await apiFetch(`${API_BASE}/adherents/${adherent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nom: adherent.nom, prenom: adherent.prenom, telephone: adherent.telephone || null, email: adherent.email || null, poste: fichePosteSelected }) });
+                                    if (!r.ok) { const d = await r.json(); setFichePosteError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                                    setAdherents(prev => prev.map(a => a.id === adherent.id ? { ...a, poste: fichePosteSelected } : a));
+                                    setFichePosteSuccess(lang === "fr" ? `Poste "${fichePosteSelected}" attribué avec succès !` : `Role "${fichePosteSelected}" assigned!`);
+                                  } catch { setFichePosteError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                                  finally { setFichePosteLoading(false); }
+                                }}
+                                style={{
+                                  padding: "9px 22px",
+                                  background: fichePosteLoading || !fichePosteSelected ? "#cbd5e1" : "linear-gradient(135deg, #1a1a2e, #0f3460)",
+                                  color: "white", border: "none", borderRadius: "9px", fontSize: "13px",
+                                  cursor: fichePosteLoading || !fichePosteSelected ? "not-allowed" : "pointer",
+                                  fontWeight: "700", display: "flex", alignItems: "center", gap: "7px",
+                                  boxShadow: fichePosteLoading || !fichePosteSelected ? "none" : "0 4px 12px rgba(15,52,96,0.3)",
+                                }}>
+                                <Icon name="badge" size={13} />
+                                {fichePosteLoading ? (lang === "fr" ? "Attribution…" : "Assigning…") : (lang === "fr" ? "Attribuer ce poste" : "Assign this role")}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* ── Section Cotisations ── */}
                       <div style={{ borderRadius: "18px", overflow: "hidden", boxShadow: "0 4px 20px rgba(44,62,80,0.12)", background: "white" }}>
@@ -5500,7 +5884,25 @@ function App() {
         {/* ── COTISATIONS ─────────────────────────────────────── */}
         {page === "cotisations" && (
           <div>
-            <h1>{t("cotisationsTitle")}</h1>
+            {/* ── En-tête moderne ── */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "14px" }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "24px", color: "#2c3e50", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Icon name="dollar" size={22} /> {t("cotisationsTitle")}
+                </h1>
+                <p style={{ margin: "5px 0 0", color: "#7f8c8d", fontSize: "14px" }}>
+                  {periodes.length} {lang === "fr" ? "période(s) configurée(s)" : "configured period(s)"}
+                </p>
+              </div>
+              {canActAsTresorier && (
+                <button
+                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "11px 22px", background: "linear-gradient(135deg, #3498db, #2980b9)", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", boxShadow: "0 4px 12px rgba(52,152,219,0.35)", transition: "all 0.2s" }}
+                  onClick={() => { setCotisationFormData({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" }); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowCotisationForm(true); }}
+                >
+                  <Icon name="dollar" size={14} /> {t("newContributionBtn")}
+                </button>
+              )}
+            </div>
 
             {apiError && (
               <div style={styles.errorMessage}>
@@ -5543,19 +5945,6 @@ function App() {
                 </div>
               </div>
             )}
-
-            <div style={styles.toolbarSection}>
-              <div style={styles.toolbarTop}>
-                {isTresorier && (
-                  <button style={styles.addBtn} onClick={() => { setCotisationFormData({ montantDu: "", mois: "", annee: String(ANNEE_COURANTE), periode: "" }); setModalPos({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }); setShowCotisationForm(true); }}>
-                    {t("newContributionBtn")}
-                  </button>
-                )}
-                <div style={styles.statsBox}>
-                  <span>{t("periodsLabel")} <strong>{periodes.length}</strong></span>
-                </div>
-              </div>
-            </div>
 
             {/* Modal nouvelle cotisation */}
             {showCotisationForm && (
@@ -5622,13 +6011,14 @@ function App() {
               </div>
             )}
 
-            {/* Liste déroulante des périodes */}
+            {/* ── Sélecteur de période + boutons ── */}
             {periodes.length > 0 && (
-              <div style={{ marginTop: "24px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <label style={{ color: "#2c3e50", fontWeight: "600", fontSize: "15px", whiteSpace: "nowrap" }}>
-                      {t("periodPreview")}
+              <div>
+                <div style={{ background: "white", borderRadius: "14px", padding: "14px 20px", marginBottom: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.07)", border: "1px solid #e8ecf0", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Icon name="list" size={17} style={{ color: "#7f8c8d" }} />
+                    <label style={{ color: "#7f8c8d", fontWeight: "600", fontSize: "13px", whiteSpace: "nowrap" }}>
+                      {lang === "fr" ? "Période :" : "Period:"}
                     </label>
                     <div style={{ position: "relative", display: "inline-block" }}>
                       <select
@@ -5637,20 +6027,21 @@ function App() {
                           const val = e.target.value;
                           setSelectedPeriode(val || null);
                           setSelectedStatutFilter("tous");
+                          setCotisationSearchTerm("");
                           setShowAddPaiementForm(false);
                           setShowSuccessMessage(false);
                           setShowRecuPrompt(false);
                         }}
                         style={{
-                          padding: "10px 44px 10px 18px",
-                          background: "#2c3e50",
+                          padding: "9px 40px 9px 16px",
+                          background: "linear-gradient(135deg, #2c3e50, #34495e)",
                           color: "white",
                           border: "none",
-                          borderRadius: "20px",
+                          borderRadius: "10px",
                           cursor: "pointer",
                           fontWeight: "600",
                           fontSize: "14px",
-                          boxShadow: "0 3px 8px rgba(0,0,0,0.3)",
+                          boxShadow: "0 3px 8px rgba(0,0,0,0.2)",
                           appearance: "none",
                           WebkitAppearance: "none",
                           MozAppearance: "none",
@@ -5664,29 +6055,21 @@ function App() {
                           </option>
                         ))}
                       </select>
-                      <span style={{
-                        position: "absolute",
-                        right: "14px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                        color: "white",
-                        fontSize: "11px",
-                      }}>▼</span>
+                      <span style={{ position: "absolute", right: "13px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "white", fontSize: "11px" }}>▼</span>
                     </div>
                   </div>
                   {selectedPeriode && selectedPeriodeObj && (
-                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                      {isTresorier && (
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {canActAsTresorier && (
                         <button
-                          style={{ ...styles.addBtn, background: "#8e44ad", width: "auto", minWidth: "190px" }}
+                          style={{ ...styles.addBtn, background: "#7c3aed" }}
                           onClick={() => { setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" }); setSelectedAdherentForPayment(null); setShowAddPaiementForm(true); setShowSuccessMessage(false); setShowRecuPrompt(false); }}
                         >
-                          {t("addPaymentBtn")}
+                          <Icon name="plus" size={14} /> {t("addPaymentBtn")}
                         </button>
                       )}
                       <button
-                        style={{ ...styles.addBtn, background: "#27ae60", width: "auto", minWidth: "190px" }}
+                        style={{ ...styles.addBtn, background: "#16a34a" }}
                         onClick={() => {
                           const rawEligibleExport = selectedPeriodeObj.eligibleAdherentIds;
                           const eligibleSetExport = rawEligibleExport != null
@@ -5702,14 +6085,14 @@ function App() {
                           exportPeriodeExcel([...l, ...sp], selectedPeriode, selectedPeriodeObj);
                         }}
                       >
-                        {t("exportExcel")}
+                        <Icon name="download" size={14} /> {t("exportExcel")}
                       </button>
-                      {(isAdmin || isTresorier) && (
+                      {canActAsTresorier && (
                         <button
-                          style={{ ...styles.addBtn, background: "#2980b9", width: "auto", minWidth: "190px" }}
+                          style={{ ...styles.addBtn, background: "#2563eb" }}
                           onClick={() => { setRappelResult(null); setShowRappelModal(true); }}
                         >
-                          📧 {lang === "fr" ? "Envoyer rappels" : "Send reminders"}
+                          <Icon name="mail" size={14} /> {lang === "fr" ? "Rappels" : "Reminders"}
                         </button>
                       )}
                     </div>
@@ -5821,20 +6204,94 @@ function App() {
                   const nbPartiel = liste.filter((p) => p.statut === "Partiel").length;
                   const nbImpaye = liste.filter((p) => p.statut === "Impayé").length + sansPaiement.length;
 
-                  // Liste filtrée complète
-                  const filtres =
+                  const duParPersonne = parseAmount(selectedPeriodeObj.montantDu);
+                  const totalCollecte = liste.reduce((sum, p) => sum + parseAmount(p.soldePaye), 0);
+                  const totalPeriode = liste.length + sansPaiement.length;
+                  const totalDu = duParPersonne * totalPeriode;
+                  const resteACollecter = Math.max(totalDu - totalCollecte, 0);
+                  const pct = totalDu > 0 ? Math.min((totalCollecte / totalDu) * 100, 100) : 0;
+                  const barColor = pct >= 100 ? "#27ae60" : pct >= 50 ? "#f39c12" : "#3498db";
+                  const nbPayeComplet = liste.filter((p) => p.statut === "Payé").length;
+
+                  // Liste filtrée par statut puis par recherche
+                  const filtresBase =
                     selectedStatutFilter === "tous"
                       ? [...liste, ...sansPaiement]
                       : selectedStatutFilter === "Impayé"
                       ? [...liste.filter((p) => p.statut === "Impayé"), ...sansPaiement]
                       : liste.filter((p) => p.statut === selectedStatutFilter);
 
+                  const filtres = cotisationSearchTerm
+                    ? filtresBase.filter((c) => {
+                        const q = cotisationSearchTerm.toLowerCase();
+                        return (
+                          (c.nom && c.nom.toLowerCase().includes(q)) ||
+                          (c.prenom && c.prenom.toLowerCase().includes(q)) ||
+                          (c.matricule && c.matricule.toLowerCase().includes(q)) ||
+                          (c.email && c.email.toLowerCase().includes(q)) ||
+                          (c.telephone && c.telephone.toLowerCase().includes(q))
+                        );
+                      })
+                    : filtresBase;
+
                   return (
                     <div>
-                      <h3 style={{ color: "#2c3e50", marginBottom: "14px" }}>
-                        📊 {periodeLabel(selectedPeriode)} — {t("amountDueRow")}{" "}
-                        <span style={{ color: "#e74c3c" }}>{selectedPeriodeObj.montantDu} F</span>
-                      </h3>
+                      {/* ── Cartes statistiques ── */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "18px" }}>
+                        {[
+                          { label: t("collectedAmount"), value: formatAmount(totalCollecte), color: "#27ae60", bg: "linear-gradient(135deg, #eafaf1, #d5f5e3)", border: "#a9dfbf", icon: "check-circle" },
+                          { label: t("expectedTotal"),   value: formatAmount(totalDu),       color: "#2980b9", bg: "linear-gradient(135deg, #eaf4fb, #d6eaf8)", border: "#a9cce3", icon: "dollar" },
+                          { label: t("remainingToCollect"), value: formatAmount(resteACollecter), color: "#e74c3c", bg: "linear-gradient(135deg, #fdedec, #fadbd8)", border: "#f1948a", icon: "alert-triangle" },
+                          { label: t("fullPayers"),     value: `${nbPayeComplet} / ${totalPeriode}`, color: "#8e44ad", bg: "linear-gradient(135deg, #f5eef8, #e8daef)", border: "#c39bd3", icon: "users" },
+                        ].map(({ label, value, color, bg, border, icon }) => (
+                          <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "14px", padding: "16px 18px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "7px", color, fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                              <Icon name={icon} size={14} style={{ color }} /> {label}
+                            </div>
+                            <div style={{ fontSize: "22px", fontWeight: "800", color }}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* ── Barre de progression ── */}
+                      <div style={{ background: "white", border: "1px solid #e8ecf0", borderRadius: "12px", padding: "14px 18px", marginBottom: "18px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#7f8c8d", marginBottom: "8px", fontWeight: "600" }}>
+                          <span>{t("collectionProgress")}</span>
+                          <strong style={{ color: barColor }}>{pct.toFixed(1)} %</strong>
+                        </div>
+                        <div style={{ background: "#e8ecf0", borderRadius: "10px", height: "10px", overflow: "hidden" }}>
+                          <div style={{ width: pct + "%", height: "100%", background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`, borderRadius: "10px", transition: "width 0.7s ease" }} />
+                        </div>
+                      </div>
+
+                      {/* ── Toolbar : recherche + filtres ── */}
+                      <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
+                        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: "320px" }}>
+                          <Icon name="list" size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#aab" }} />
+                          <input
+                            type="text"
+                            placeholder={lang === "fr" ? "Rechercher un membre…" : "Search member…"}
+                            value={cotisationSearchTerm}
+                            onChange={(e) => setCotisationSearchTerm(e.target.value)}
+                            style={{ width: "100%", padding: "9px 12px 9px 36px", border: "1.5px solid #e0e6ed", borderRadius: "9px", fontSize: "13px", outline: "none", boxSizing: "border-box", background: "white" }}
+                          />
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          {[
+                            ["tous",    t("filterAll"),     "#7f8c8d", nbPaye + nbPartiel + nbImpaye],
+                            ["Payé",    t("filterPaid"),    "#27ae60", nbPaye],
+                            ["Impayé",  t("filterUnpaid"),  "#e74c3c", nbImpaye],
+                            ["Partiel", t("filterPartial"), "#f39c12", nbPartiel],
+                          ].map(([val, label, color, count]) => {
+                            const active = selectedStatutFilter === val;
+                            return (
+                              <button key={val} onClick={() => setSelectedStatutFilter(val)} style={{ padding: "8px 14px", background: active ? color : "white", color: active ? "white" : "#5a6a7a", border: `1.5px solid ${active ? color : "#dde3ea"}`, borderRadius: "8px", cursor: "pointer", fontWeight: active ? "700" : "500", fontSize: "13px", transition: "all 0.15s" }}>
+                                {label} <span style={{ opacity: 0.8, fontSize: "12px" }}>({count})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
 
                       {/* Modal ajouter un paiement */}
                       {showAddPaiementForm && selectedPeriodeObj && (
@@ -5977,105 +6434,78 @@ function App() {
                         </div>
                       )}
 
-                      {/* Filtres avec compteurs */}
-                      <div style={{ display: "flex", gap: "8px", marginBottom: "15px", flexWrap: "wrap" }}>
-                        {[
-                          ["tous",    t("filterAll"),     "#7f8c8d", nbPaye + nbPartiel + nbImpaye],
-                          ["Payé",    t("filterPaid"),    "#27ae60", nbPaye],
-                          ["Impayé",  t("filterUnpaid"),  "#e74c3c", nbImpaye],
-                          ["Partiel", t("filterPartial"), "#f39c12", nbPartiel],
-                        ].map(([val, label, color, count]) => (
-                          <button key={val} onClick={() => setSelectedStatutFilter(val)} style={{ padding: "7px 16px", background: selectedStatutFilter === val ? color : "#ecf0f1", color: selectedStatutFilter === val ? "white" : "#2c3e50", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: selectedStatutFilter === val ? "bold" : "normal" }}>
-                            {label} ({count})
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* ── Récapitulatif collecte ── */}
-                      {(() => {
-                        const duParPersonne = parseAmount(selectedPeriodeObj.montantDu);
-                        const totalCollecte = liste.reduce((sum, p) => sum + parseAmount(p.soldePaye), 0);
-                        const totalPeriode = liste.length + sansPaiement.length;
-                        const totalDu = duParPersonne * totalPeriode;
-                        const resteACollecter = Math.max(totalDu - totalCollecte, 0);
-                        const pct = totalDu > 0 ? Math.min((totalCollecte / totalDu) * 100, 100) : 0;
-                        const barColor = pct >= 100 ? "#27ae60" : pct >= 50 ? "#f39c12" : "#3498db";
-                        const nbPayeComplet = liste.filter((p) => p.statut === "Payé").length;
-                        return (
-                          <div style={{ background: "#e0f3fc", border: "1px solid #bbdff0", borderRadius: "10px", padding: "16px 20px", marginBottom: "15px" }}>
-                            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "space-around", marginBottom: "14px" }}>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("collectedAmount")}</div>
-                                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#27ae60" }}>{formatAmount(totalCollecte)}</div>
-                              </div>
-                              <div style={{ width: "1px", background: "#bbdff0" }} />
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("expectedTotal")}</div>
-                                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2c3e50" }}>{formatAmount(totalDu)}</div>
-                              </div>
-                              <div style={{ width: "1px", background: "#bbdff0" }} />
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("remainingToCollect")}</div>
-                                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#e74c3c" }}>{formatAmount(resteACollecter)}</div>
-                              </div>
-                              <div style={{ width: "1px", background: "#bbdff0" }} />
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontSize: "11px", color: "#1a4a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", fontWeight: "600" }}>{t("fullPayers")}</div>
-                                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#3498db" }}>{nbPayeComplet} / {totalPeriode}</div>
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#1a4a6e", marginBottom: "5px", fontWeight: "600" }}>
-                                <span>{t("collectionProgress")}</span>
-                                <strong style={{ color: barColor }}>{pct.toFixed(1)} %</strong>
-                              </div>
-                              <div style={{ background: "#bbdff0", borderRadius: "10px", height: "12px", overflow: "hidden" }}>
-                                <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "10px", transition: "width 0.6s ease" }} />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Tableau paiements */}
-                      <div style={styles.tableContainer}>
-                        <table style={{ ...styles.table, tableLayout: "auto" }}>
+                      {/* ── Tableau moderne avec colonne actions ── */}
+                      <div style={{ borderRadius: "14px", overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.09)", border: "1px solid #e8ecf0" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "auto" }}>
                           <thead>
-                            <tr>
-                              <th style={styles.th}>{t("matricule")}</th><th style={styles.th}>{t("nameTh")}</th><th style={styles.th}>{t("surnameTh")}</th>
-                              <th style={styles.th}>{t("telephoneTh")}</th><th style={styles.th}>{t("emailTh")}</th>
-                              <th style={styles.th}>{t("balancePaid")}</th><th style={styles.th}>{t("remaining")}</th>
-                              <th style={styles.th}>{t("totalDue")}</th><th style={styles.th}>{t("statusTh")}</th>
+                            <tr style={{ background: "linear-gradient(135deg, #2c3e50 0%, #34495e 100%)" }}>
+                              <th style={{ padding: "13px 14px", textAlign: "left", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px", whiteSpace: "nowrap" }}>{t("matricule")}</th>
+                              <th style={{ padding: "13px 14px", textAlign: "left", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{lang === "fr" ? "Membre" : "Member"}</th>
+                              <th style={{ padding: "13px 14px", textAlign: "left", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{t("telephoneTh")}</th>
+                              <th style={{ padding: "13px 14px", textAlign: "right", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px", whiteSpace: "nowrap" }}>{t("balancePaid")}</th>
+                              <th style={{ padding: "13px 14px", textAlign: "right", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px", whiteSpace: "nowrap" }}>{t("remaining")}</th>
+                              <th style={{ padding: "13px 14px", textAlign: "center", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{t("statusTh")}</th>
+                              {canActAsTresorier && <th style={{ padding: "13px 14px", textAlign: "center", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{t("actionsTh")}</th>}
                             </tr>
                           </thead>
                           <tbody>
                             {filtres.length === 0 ? (
                               <tr>
-                                <td colSpan="9" style={{ ...styles.td, textAlign: "center", padding: "20px", color: "#7f8c8d" }}>
-                                  {adherents.length === 0 ? t("noMemberRegistered") : t("noResultsFilter")}
+                                <td colSpan={canActAsTresorier ? 7 : 6} style={{ textAlign: "center", padding: "36px 20px", color: "#aab2c0", fontSize: "14px" }}>
+                                  {cotisationSearchTerm ? (lang === "fr" ? "Aucun résultat pour cette recherche." : "No results for this search.") : adherents.length === 0 ? t("noMemberRegistered") : t("noResultsFilter")}
                                 </td>
                               </tr>
                             ) : (
                               filtres.map((c, i) => (
-                                <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
-                                  <td style={styles.td}><strong>{c.matricule}</strong></td>
-                                  <td style={styles.td}>{c.nom}</td>
-                                  <td style={styles.td}>{c.prenom}</td>
-                                  <td style={styles.td}>{c.telephone}</td>
-                                  <td style={styles.td}>{c.email}</td>
-                                  <td style={styles.td}>{c.soldePaye}</td>
-                                  <td style={styles.td}>{c.reste}</td>
-                                  <td style={styles.td}>{selectedPeriodeObj.montantDu} F</td>
-                                  <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
-                                    <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
+                                <tr key={i} className="anim-row" style={{ borderBottom: "1px solid #f0f4f8", background: i % 2 === 0 ? "white" : "#fafbfc", transition: "background 0.15s" }}>
+                                  <td style={{ padding: "13px 14px", fontSize: "13px" }}>
+                                    <span style={{ fontFamily: "monospace", fontWeight: "700", color: "#5a6a7a", fontSize: "12px", background: "#f0f4f8", padding: "3px 8px", borderRadius: "6px" }}>{c.matricule}</span>
+                                  </td>
+                                  <td style={{ padding: "13px 14px" }}>
+                                    <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "14px" }}>{c.nom} {c.prenom}</div>
+                                    <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "2px" }}>{c.email !== "-" ? c.email : ""}</div>
+                                  </td>
+                                  <td style={{ padding: "13px 14px", fontSize: "13px", color: "#5a6a7a" }}>{c.telephone}</td>
+                                  <td style={{ padding: "13px 14px", textAlign: "right", fontWeight: "700", color: "#27ae60", fontSize: "14px" }}>{c.soldePaye}</td>
+                                  <td style={{ padding: "13px 14px", textAlign: "right", fontWeight: "700", color: parseAmount(c.reste) > 0 ? "#e74c3c" : "#27ae60", fontSize: "14px" }}>{c.reste}</td>
+                                  <td style={{ padding: "13px 14px", textAlign: "center" }}>
+                                    <span style={{ padding: "5px 14px", borderRadius: "20px", color: "white", fontWeight: "700", fontSize: "12px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
                                       {statutLabel(c.statut)}
                                     </span>
                                   </td>
+                                  {canActAsTresorier && (
+                                    <td style={{ padding: "13px 14px", textAlign: "center" }}>
+                                      {c.statut !== "Payé" && (
+                                        <button
+                                          onClick={() => {
+                                            setAddPaiementFormData({ adherentId: String(c.adherent_id), montantPaye: "", modePaiement: "Espèces" });
+                                            const found = adherents.find((a) => a.id === c.adherent_id);
+                                            setSelectedAdherentForPayment(found || null);
+                                            setShowAddPaiementForm(true);
+                                            setShowSuccessMessage(false);
+                                            setShowRecuPrompt(false);
+                                          }}
+                                          style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "6px 14px", background: "#7c3aed", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "12px", whiteSpace: "nowrap" }}
+                                        >
+                                          <Icon name="dollar" size={12} /> {lang === "fr" ? "Payer" : "Pay"}
+                                        </button>
+                                      )}
+                                      {c.statut === "Payé" && (
+                                        <span style={{ color: "#27ae60", fontWeight: "700", fontSize: "13px" }}>✓ {lang === "fr" ? "Soldé" : "Paid"}</span>
+                                      )}
+                                    </td>
+                                  )}
                                 </tr>
                               ))
                             )}
                           </tbody>
                         </table>
+                        {filtres.length > 0 && (
+                          <div style={{ padding: "12px 16px", background: "#f8fafc", borderTop: "1px solid #e8ecf0", fontSize: "13px", color: "#7f8c8d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>{filtres.length} {lang === "fr" ? "membre(s) affiché(s)" : "member(s) displayed"}</span>
+                            <span style={{ fontWeight: "700", color: "#2c3e50" }}>{t("totalDue")} : {selectedPeriodeObj.montantDu} F / {lang === "fr" ? "pers." : "pers."}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -6288,7 +6718,6 @@ function App() {
                           {/* Supprimer (admin uniquement) */}
                           {isAdmin && (
                             <button
-                              style={{ padding: "5px 12px", background: "#fdecea", color: "#c0392b", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
                               onClick={async () => {
                                 if (!window.confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
                                 try {
@@ -6296,7 +6725,7 @@ function App() {
                                   setAdminMessages(prev => prev.filter(x => x.id !== m.id));
                                 } catch {}
                               }}
-                            >{lang === "fr" ? "🗑️ Supprimer" : "🗑️ Delete"}</button>
+                            style={styles.actionDeleteBtn}><Icon name="trash" size={14} /></button>
                           )}
                         </div>
                       </div>
@@ -6367,7 +6796,7 @@ function App() {
                       </thead>
                       <tbody>
                         {nonRegles.map((c, i) => (
-                          <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                          <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }} className="anim-row">
                             <td style={styles.td}>{i + 1}</td>
                             <td style={styles.td}><strong>{c.matricule}</strong></td>
                             <td style={styles.td}><strong>{c.nom}</strong></td>
@@ -6441,7 +6870,7 @@ function App() {
                         (tx.numeroRecu || "").toLowerCase().includes(q)
                       );
                     }).map((tx, i) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                      <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }} className="anim-row">
                         <td style={{ ...styles.td, fontSize: "12px", color: "#7f8c8d" }}>{tx.numeroRecu}</td>
                         <td style={styles.td}>{tx.datePaiement}</td>
                         <td style={styles.td}><strong>{tx.nom} {tx.prenom}</strong></td>
@@ -6593,7 +7022,7 @@ function App() {
         )}
 
         {/* ═══════════════════════════════════ COMPTABILITÉ ═══ */}
-        {page === "comptabilite" && (isAdmin || isTresorier) && (
+        {page === "comptabilite" && canActAsTresorier && (
           <div>
             {/* En-tête */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "10px" }}>
@@ -6826,8 +7255,8 @@ function App() {
                                 <td style={{ ...styles.td, fontSize: "13px", color: "#7f8c8d", maxWidth: "220px", wordBreak: "break-word" }}>{d.description || "—"}</td>
                                 <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
                                   <button onClick={() => { setDepenseEditId(d.id); setDepenseForm({ libelle: d.libelle, montant: String(d.montant), categorie: d.categorie, date_depense: d.date_depense, description: d.description || "" }); setDepenseFormVisible(true); setDepenseError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                                    style={{ padding: "5px 10px", background: "#eaf4fb", color: "#2980b9", border: "1px solid #2980b933", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", marginRight: "6px" }}>✏️</button>
-                                  <button onClick={() => handleDeleteDepense(d.id)} style={{ padding: "5px 12px", background: "#fef0f0", color: "#e74c3c", border: "1px solid #e74c3c44", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>🗑️</button>
+                                    style={{ ...styles.actionBtn, marginRight: "6px" }}><Icon name="edit" size={14} /></button>
+                                  <button onClick={() => handleDeleteDepense(d.id)} style={styles.actionDeleteBtn}><Icon name="trash" size={14} /></button>
                                 </td>
                               </tr>
                             );
@@ -6862,8 +7291,8 @@ function App() {
                       </div>
                     </div>
                     <button onClick={exportExcelFinancier}
-                      style={{ padding: "9px 20px", background: "#27ae60", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📥 {lang === "fr" ? "Exporter Excel" : "Export Excel"}
+                      style={{ ...styles.addBtn, background: "#16a34a" }}>
+                      <Icon name="download" size={14} /> {lang === "fr" ? "Exporter Excel" : "Export Excel"}
                     </button>
                   </div>
                   {livreData.length === 0 ? (
@@ -7050,10 +7479,10 @@ function App() {
                             </div>
                             <div style={{ display: "flex", gap: "8px" }}>
                               <button onClick={() => { setBudgetEditId(b.id); setBudgetForm({ libelle: b.libelle, montant_prevu: String(b.montant_prevu), date_debut: b.date_debut||"", date_fin: b.date_fin||"" }); setBudgetFormVisible(true); setBudgetError(""); }}
-                                style={{ padding:"5px 14px",background:"#eaf4fb",color:"#2980b9",border:"1px solid #2980b933",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:"600" }}>
-                                ✏️ {lang==="fr"?"Modifier":"Edit"}
+                                style={styles.actionBtn}>
+                                <Icon name="edit" size={14} />
                               </button>
-                              <button onClick={() => handleDeleteBudget(b.id)} style={{ padding:"5px 12px",background:"#fef0f0",color:"#e74c3c",border:"1px solid #e74c3c44",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:"600" }}>🗑️</button>
+                              <button onClick={() => handleDeleteBudget(b.id)} style={styles.actionDeleteBtn}><Icon name="trash" size={14} /></button>
                             </div>
                           </div>
                           <div style={{ height: "10px", background: "#ecf0f1", borderRadius: "5px", overflow: "hidden", marginBottom: "8px" }}>
@@ -7101,12 +7530,12 @@ function App() {
                 {/* Boutons d'export */}
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "24px" }}>
                   <button onClick={genererRapportPDF}
-                    style={{ padding: "12px 28px", background: "#e74c3c", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 3px 10px rgba(231,76,60,0.3)" }}>
-                    📄 {lang==="fr"?"Télécharger le rapport PDF":"Download PDF report"}
+                    style={{ padding: "11px 22px", background: "#dc2626", color: "white", border: "none", borderRadius: "9px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "7px" }}>
+                    <Icon name="save" size={14} /> {lang==="fr"?"Télécharger le rapport PDF":"Download PDF report"}
                   </button>
                   <button onClick={exportExcelFinancier}
-                    style={{ padding: "12px 28px", background: "#27ae60", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 3px 10px rgba(39,174,96,0.3)" }}>
-                    📥 {lang==="fr"?"Exporter en Excel (4 feuilles)":"Export to Excel (4 sheets)"}
+                    style={{ ...styles.addBtn, background: "#16a34a" }}>
+                    <Icon name="download" size={14} /> {lang==="fr"?"Exporter en Excel (4 feuilles)":"Export to Excel (4 sheets)"}
                   </button>
                 </div>
 
@@ -7571,7 +8000,7 @@ function App() {
         <button className={`bnav-item${page === "historique" ? " bnav-active" : ""}`} onClick={() => setPage("historique")}>
           <span className="bnav-label">{t("history")}</span>
         </button>
-        {(isAdmin || isTresorier) && (
+        {canActAsTresorier && (
           <button className={`bnav-item${page === "comptabilite" ? " bnav-active" : ""}`} onClick={() => { setPage("comptabilite"); loadComptabilite(); }}>
             <span className="bnav-label">{lang === "fr" ? "Compta" : "Accounting"}</span>
           </button>
@@ -7606,65 +8035,218 @@ function App() {
               <option value="fr" style={{ background: "#1e2d3d" }}>🇫🇷 Français</option>
               <option value="en" style={{ background: "#1e2d3d" }}>🇬🇧 English</option>
             </select>
+            {/* ─── Mon compte ─── */}
+            <div style={{ padding: "10px 20px 4px", fontSize: "10px", fontWeight: "800", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+              {lang === "fr" ? "Mon compte" : "My account"}
+            </div>
+            <button className="mobile-sheet-btn" onClick={() => { loadProfil(); setPage("profil"); setMobileAccountOpen(false); }}>
+              <Icon name="user" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{lang === "fr" ? "Mon profil" : "My Profile"}
+            </button>
+            <button className="mobile-sheet-btn" onClick={() => { loadMesCotisations(); setPage("mes-cotisations"); setMobileAccountOpen(false); }}>
+              <Icon name="dollar" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{lang === "fr" ? "Mes cotisations" : "My Contributions"}
+            </button>
+
+            {/* ─── Sécurité ─── */}
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn" onClick={() => { loadProfil(); setPage("profil"); setMobileAccountOpen(false); }}><Icon name="user" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{lang === "fr" ? "Mon profil" : "My Profile"}</button>
-            <button className="mobile-sheet-btn" onClick={() => { loadMesCotisations(); setPage("mes-cotisations"); setMobileAccountOpen(false); }}><Icon name="dollar" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{lang === "fr" ? "Mes cotisations" : "My Contributions"}</button>
+            <div style={{ padding: "10px 20px 4px", fontSize: "10px", fontWeight: "800", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+              {lang === "fr" ? "Sécurité" : "Security"}
+            </div>
+            <button className="mobile-sheet-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileAccountOpen(false); }}>
+              <Icon name="key" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{t("changePassword")}
+            </button>
+            <button className="mobile-sheet-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileAccountOpen(false); }}>
+              <Icon name="mail" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{t("changeEmail")}
+            </button>
+
+            {/* ─── Assistance ─── */}
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn" onClick={() => { setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); setMobileAccountOpen(false); }}><Icon name="key" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("changePassword")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); setMobileAccountOpen(false); }}><Icon name="mail" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("changeEmail")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileAccountOpen(false); }}><Icon name="list" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("helpMenu")}</button>
-            <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}><Icon name="info" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("aboutMenu")}</button>
+            <div style={{ padding: "10px 20px 4px", fontSize: "10px", fontWeight: "800", color: "#7f8c8d", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+              {lang === "fr" ? "Assistance" : "Support"}
+            </div>
+            <button className="mobile-sheet-btn" onClick={() => { setHelpSection(null); setShowHelp(true); setMobileAccountOpen(false); }}>
+              <Icon name="list" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{t("helpMenu")}
+            </button>
+            <button className="mobile-sheet-btn" onClick={() => { setShowAbout(true); setMobileAccountOpen(false); }}>
+              <Icon name="info" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{t("aboutMenu")}
+            </button>
+
+            {/* ─── Déconnexion ─── */}
             <div className="mobile-sheet-divider" />
-            <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}><Icon name="logout" size={15} style={{ marginRight: "8px", opacity: 0.7 }} />{t("logout")}</button>
+            <button className="mobile-sheet-btn mobile-sheet-logout" onClick={() => { setShowLogoutConfirm(true); setMobileAccountOpen(false); }}>
+              <Icon name="logout" size={15} style={{ marginRight: "10px", opacity: 0.7 }} />{t("logout")}
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── MODAL TRANSFERT DE RÔLE ─────────────────────────── */}
+      {/* ── MODAL DÉSIGNATION DE POSTE ─────────────────────────── */}
       {showRoleTransfer && (
         <div style={styles.modalOverlay} onClick={() => setShowRoleTransfer(false)}>
-          <div style={{ background: "white", borderRadius: "14px", padding: "28px 32px", width: "460px", maxWidth: "94vw", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, fontSize: "17px", color: "#2c3e50", display: "flex", alignItems: "center", gap: "8px" }}><Icon name="rotate-cw" size={16} /> {lang === "fr" ? "Transférer un rôle" : "Transfer a Role"}</h3>
-              <button onClick={() => setShowRoleTransfer(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#7f8c8d" }}>✕</button>
-            </div>
-            <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#7f8c8d", lineHeight: "1.5" }}>
-              {lang === "fr" ? "Attribuez un poste à un membre. Ce membre aura les droits liés à ce rôle." : "Assign a role to a member. That member will receive the related permissions."}
-            </p>
-            {isAdmin && !nonCreatorPresidentExists && (
-              <div style={{ background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "8px", padding: "9px 14px", marginBottom: "14px", fontSize: "12px", color: "#7b6000", lineHeight: "1.5" }}>
-                ⚠️ {lang === "fr"
-                  ? "Une fois un Président désigné, seul ce dernier pourra attribuer des postes."
-                  : "Once a President is designated, only that person will be able to assign roles."}
+          <div style={{ background: "white", borderRadius: "20px", width: "580px", maxWidth: "96vw", maxHeight: "92vh", overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+
+            {/* ── En-tête gradient ── */}
+            <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%)", padding: "26px 30px 22px", color: "white", position: "relative", flexShrink: 0 }}>
+              <button onClick={() => setShowRoleTransfer(false)} style={{ position: "absolute", top: "14px", right: "14px", background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: "30px", height: "30px", color: "white", fontSize: "15px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: "13px", padding: "11px", display: "flex" }}>
+                  <Icon name="badge" size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", letterSpacing: "0.2px" }}>
+                    {lang === "fr" ? "Désignation de Poste" : "Role Assignment"}
+                  </h3>
+                  <p style={{ margin: "3px 0 0", fontSize: "12px", opacity: 0.65 }}>
+                    {lang === "fr" ? "Attribuez un rôle officiel à un membre de l'association" : "Assign an official role to an association member"}
+                  </p>
+                </div>
               </div>
-            )}
-            {roleTransferError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>⚠️ {roleTransferError}</div>}
-            {roleTransferSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>✅ {roleTransferSuccess}</div>}
-            <div style={{ marginBottom: "14px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Rôle à transférer" : "Role to transfer"}</label>
-              <select value={roleTransferPoste} onChange={e => setRoleTransferPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                {["Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
             </div>
-            <div style={{ marginBottom: "14px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Attribuer à" : "Assign to"}</label>
-              <select value={roleTransferTargetId} onChange={e => setRoleTransferTargetId(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                <option value="">{lang === "fr" ? "— Sélectionner un membre —" : "— Select a member —"}</option>
-                {adherents.filter(a => a.email !== compte?.email).map(a => <option key={a.id} value={a.id}>{a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}</option>)}
-              </select>
+
+            {/* ── Corps scrollable ── */}
+            <div style={{ padding: "22px 28px", overflowY: "auto", flex: 1 }}>
+
+              {/* Avertissement créateur */}
+              {isAdmin && !nonCreatorPresidentExists && (
+                <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "10px", padding: "11px 15px", marginBottom: "20px", fontSize: "12.5px", color: "#92400e", display: "flex", gap: "9px", alignItems: "flex-start" }}>
+                  <Icon name="alert-triangle" size={15} style={{ flexShrink: 0, marginTop: "1px", color: "#d97706" }} />
+                  <span>{lang === "fr" ? "Une fois un Président désigné, seul ce dernier pourra attribuer des postes." : "Once a President is designated, only that person will be able to assign roles."}</span>
+                </div>
+              )}
+
+              {/* Feedback */}
+              {roleTransferError && (
+                <div style={{ background: "#fef2f2", color: "#991b1b", padding: "11px 15px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #fecaca" }}>
+                  <Icon name="x-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferError}
+                </div>
+              )}
+              {roleTransferSuccess && (
+                <div style={{ background: "#f0fdf4", color: "#166534", padding: "11px 15px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #bbf7d0" }}>
+                  <Icon name="check-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferSuccess}
+                </div>
+              )}
+
+              {/* ── ÉTAPE 1 : Choix du poste ── */}
+              <div style={{ marginBottom: "22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <div style={{ background: "#0f3460", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>1</div>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                    {lang === "fr" ? "Choisir le poste" : "Choose the role"}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+                  {[
+                    { label: "Président(e)",            color: "#7c3aed", icon: "shield",       bg: "#f5f3ff" },
+                    { label: "Vice-Président(e)",        color: "#1d4ed8", icon: "badge",        bg: "#eff6ff" },
+                    { label: "Secrétaire Général(e)",    color: "#15803d", icon: "edit",         bg: "#f0fdf4" },
+                    { label: "Secrétaire Adjoint(e)",    color: "#0e7490", icon: "edit",         bg: "#ecfeff" },
+                    { label: "Trésorier(e)",             color: "#c2410c", icon: "dollar",       bg: "#fff7ed" },
+                    { label: "Trésorier(e) Adjoint(e)",  color: "#b45309", icon: "receipt",      bg: "#fffbeb" },
+                    { label: "Commissaire aux comptes",  color: "#b91c1c", icon: "check-circle", bg: "#fef2f2" },
+                    { label: "Conseiller(e)",            color: "#475569", icon: "info",         bg: "#f8fafc" },
+                  ].map(p => {
+                    const selected = roleTransferPoste === p.label;
+                    return (
+                      <button key={p.label} onClick={() => setRoleTransferPoste(p.label)} style={{
+                        padding: "10px 12px", border: `2px solid ${selected ? p.color : "#e2e8f0"}`,
+                        borderRadius: "11px", background: selected ? p.bg : "white",
+                        cursor: "pointer", display: "flex", alignItems: "center", gap: "9px",
+                        textAlign: "left", transition: "all 0.15s ease",
+                        boxShadow: selected ? `0 0 0 3px ${p.color}22` : "none",
+                      }}>
+                        <div style={{ background: selected ? p.color : "#e2e8f0", borderRadius: "7px", padding: "5px", display: "flex", color: selected ? "white" : "#94a3b8", flexShrink: 0, transition: "all 0.15s" }}>
+                          <Icon name={p.icon} size={13} />
+                        </div>
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: selected ? p.color : "#334155", lineHeight: "1.3", flex: 1 }}>{p.label}</span>
+                        {selected && <Icon name="check" size={13} style={{ color: p.color, flexShrink: 0 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── ÉTAPE 2 : Choix du membre ── */}
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <div style={{ background: "#0f3460", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>2</div>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                    {lang === "fr" ? "Choisir le membre" : "Choose the member"}
+                  </span>
+                </div>
+                <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", maxHeight: "210px", overflowY: "auto" }}>
+                  {adherents.filter(a => a.email !== compte?.email).length === 0 && (
+                    <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
+                      {lang === "fr" ? "Aucun autre membre" : "No other members"}
+                    </div>
+                  )}
+                  {adherents.filter(a => a.email !== compte?.email).map((a, i, arr) => {
+                    const initials = `${(a.prenom || "")[0] || ""}${(a.nom || "")[0] || ""}`.toUpperCase();
+                    const selected = String(a.id) === String(roleTransferTargetId);
+                    const colors = ["#7c3aed","#1d4ed8","#15803d","#0e7490","#c2410c","#b45309","#b91c1c","#475569"];
+                    const avatarColor = colors[i % colors.length];
+                    return (
+                      <div key={a.id} onClick={() => setRoleTransferTargetId(String(a.id))} style={{
+                        padding: "11px 16px", display: "flex", alignItems: "center", gap: "13px",
+                        cursor: "pointer", background: selected ? "#eff6ff" : (i % 2 === 0 ? "#fafafa" : "white"),
+                        borderBottom: i < arr.length - 1 ? "1px solid #f1f5f9" : "none",
+                        borderLeft: selected ? "3px solid #1d4ed8" : "3px solid transparent",
+                        transition: "all 0.12s ease",
+                      }}>
+                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: selected ? "#1d4ed8" : avatarColor, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "13px", flexShrink: 0, boxShadow: selected ? "0 2px 8px rgba(29,78,216,0.35)" : "none" }}>
+                          {initials || "?"}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: "700", fontSize: "13px", color: selected ? "#1e40af" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {a.prenom} {a.nom}
+                          </div>
+                          {a.poste ? (
+                            <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>
+                              {lang === "fr" ? "Poste actuel : " : "Current role: "}
+                              <span style={{ color: "#c2410c", fontWeight: "600" }}>{a.poste}</span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: "11px", color: "#cbd5e1", marginTop: "1px" }}>
+                              {lang === "fr" ? "Aucun poste attribué" : "No role assigned"}
+                            </div>
+                          )}
+                        </div>
+                        {selected && <Icon name="check-circle" size={17} style={{ color: "#1d4ed8", flexShrink: 0 }} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── ÉTAPE 3 : Votre nouveau poste ── */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                  <div style={{ background: "#94a3b8", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>3</div>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                    {lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}
+                  </span>
+                </div>
+                <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 13px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13.5px", outline: "none", color: "#334155", background: "white", cursor: "pointer" }}>
+                  <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
+                  {["Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
             </div>
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}</label>
-              <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
-                {["Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-              <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: "600" }}>{lang === "fr" ? "Annuler" : "Cancel"}</button>
+
+            {/* ── Pied de page ── */}
+            <div style={{ padding: "16px 28px 22px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "10px", justifyContent: "flex-end", flexShrink: 0 }}>
+              <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "white", color: "#475569", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13.5px", cursor: "pointer", fontWeight: "600" }}>
+                {lang === "fr" ? "Annuler" : "Cancel"}
+              </button>
               <button
-                disabled={roleTransferLoading || !roleTransferTargetId}
-                style={{ padding: "10px 22px", background: roleTransferLoading || !roleTransferTargetId ? "#95a5a6" : "#e67e22", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", cursor: roleTransferLoading || !roleTransferTargetId ? "not-allowed" : "pointer", fontWeight: "700" }}
+                disabled={roleTransferLoading || !roleTransferTargetId || !roleTransferPoste}
+                style={{
+                  padding: "10px 24px",
+                  background: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "#cbd5e1" : "linear-gradient(135deg, #1a1a2e, #0f3460)",
+                  color: "white", border: "none", borderRadius: "10px", fontSize: "13.5px",
+                  cursor: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "not-allowed" : "pointer",
+                  fontWeight: "700", display: "flex", alignItems: "center", gap: "8px",
+                  boxShadow: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "none" : "0 4px 14px rgba(15,52,96,0.35)",
+                  transition: "all 0.15s ease",
+                }}
                 onClick={async () => {
                   setRoleTransferError(""); setRoleTransferSuccess("");
                   const targetAdherent = adherents.find(a => String(a.id) === String(roleTransferTargetId));
@@ -7678,7 +8260,6 @@ function App() {
                     });
                     if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
                     setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
-                    // Mettre à jour le propre poste si un nouveau poste est choisi
                     if (roleTransferMyPoste !== undefined) {
                       await apiFetch(`${API_BASE}/me`, {
                         method: "PUT",
@@ -7691,13 +8272,14 @@ function App() {
                       sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
                       setCompte(updatedCompte);
                     }
-                    setRoleTransferSuccess(lang === "fr" ? `Rôle "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
+                    setRoleTransferSuccess(lang === "fr" ? `Poste "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
                     setTimeout(() => setShowRoleTransfer(false), 2500);
                   } catch { setRoleTransferError(lang === "fr" ? "Erreur réseau." : "Network error."); }
                   finally { setRoleTransferLoading(false); }
                 }}
               >
-                {roleTransferLoading ? (lang === "fr" ? "Transfert…" : "Transferring…") : (lang === "fr" ? "Confirmer le transfert" : "Confirm Transfer")}
+                <Icon name="badge" size={14} />
+                {roleTransferLoading ? (lang === "fr" ? "Attribution…" : "Assigning…") : (lang === "fr" ? "Confirmer la désignation" : "Confirm Assignment")}
               </button>
             </div>
           </div>
@@ -7739,11 +8321,11 @@ const styles = {
   content: { padding: "20px" },
   cards: { display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" },
   card: { padding: "20px", background: "#e0f3fc", textAlign: "center", minWidth: "180px", borderRadius: "8px" },
-  addBtn: { padding: "10px 20px", background: "green", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
+  addBtn: { display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 18px", background: "#2563eb", color: "white", border: "none", borderRadius: "9px", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap", letterSpacing: "0.2px" },
   alertButton: { marginLeft: "12px", padding: "8px 14px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" },
-  cancelBtn: { padding: "10px 20px", background: "red", color: "white", border: "none", borderRadius: "5px", width: "150px", minWidth: "150px", height: "45px", cursor: "pointer" },
-  actionBtn: { padding: "0", background: "#3498db", color: "white", border: "none", borderRadius: "6px", width: "42px", height: "42px", marginRight: "8px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },
-  actionDeleteBtn: { padding: "0", background: "#e74c3c", color: "white", border: "none", borderRadius: "6px", width: "42px", height: "42px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },
+  cancelBtn: { display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 18px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600", fontSize: "13px", whiteSpace: "nowrap" },
+  actionBtn: { padding: "0", background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: "8px", width: "34px", height: "34px", marginRight: "6px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" },
+  actionDeleteBtn: { padding: "0", background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: "8px", width: "34px", height: "34px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" },
   errorMessage: { color: "#b02a2a", background: "#ffecec", padding: "12px", borderRadius: "8px", margin: "12px 0", display: "flex", alignItems: "center" },
   infoMessage: { color: "#2c3e50", background: "#ecf0f1", padding: "12px", borderRadius: "8px", margin: "12px 0" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
@@ -7760,9 +8342,9 @@ const styles = {
   alerts: { display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" },
   alert: { background: "#ffecec", color: "#b02a2a", padding: "12px 15px", borderRadius: "8px", fontWeight: "600" },
   welcomeText: { margin: "30px 0 40px", color: "#1a2d40", fontSize: "clamp(20px, 2.1vw, 36px)", fontWeight: "bold", width: "100%", boxSizing: "border-box", lineHeight: "1.4", backgroundColor: "#e0f3fc", padding: "20px 28px", borderRadius: "10px", boxShadow: "0 3px 10px rgba(0,0,0,0.10)" },
-  toolbarSection: { background: "#eaf6fd", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #c5e8f7" },
-  toolbarTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0", gap: "15px", flexWrap: "wrap" },
-  statsBox: { display: "flex", gap: "20px", background: "#eaf6fd", padding: "12px 20px", borderRadius: "8px", boxShadow: "0 1px 4px rgba(0,0,0,0.10)" },
+  toolbarSection: { background: "white", padding: "14px 0", marginBottom: "16px", borderBottom: "1.5px solid #f1f5f9" },
+  toolbarTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0", gap: "10px", flexWrap: "wrap" },
+  statsBox: { display: "inline-flex", alignItems: "center", gap: "6px", background: "#f1f5f9", padding: "8px 16px", borderRadius: "9px", fontSize: "13px", fontWeight: "600", color: "#475569", border: "1px solid #e2e8f0" },
   filtersSection: { display: "flex", flexDirection: "column", gap: "10px" },
   searchInput: { width: "100%", padding: "10px 15px", fontSize: "14px", border: "1px solid #bdc3c7", borderRadius: "5px", boxSizing: "border-box" },
   detailsBtn: { padding: "0", background: "#9b59b6", color: "white", border: "none", borderRadius: "6px", width: "42px", height: "42px", marginRight: "8px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },

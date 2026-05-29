@@ -430,10 +430,21 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-// Trésorier : admin OU membre avec poste Trésorier
-function trésorierMiddleware(req, res, next) {
-  if (req.role === "admin") return next();
+// Trésorier : admin SI aucun trésorier n'est encore assigné, OU membre avec poste Trésorier
+async function trésorierMiddleware(req, res, next) {
   if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("trésorier")) return next();
+  if (req.role === "admin") {
+    try {
+      const [[{ cnt }]] = await pool.query(
+        "SELECT COUNT(*) as cnt FROM adherents WHERE compte_id = ? AND est_supprime = 0 AND poste LIKE '%trésorier%'",
+        [req.compteId]
+      );
+      if (cnt === 0) return next(); // Pas encore de trésorier → l'admin conserve ce rôle
+      return res.status(403).json({ error: "Accès réservé au trésorier." });
+    } catch {
+      return res.status(500).json({ error: "Erreur serveur." });
+    }
+  }
   return res.status(403).json({ error: "Accès réservé au trésorier." });
 }
 
@@ -443,10 +454,21 @@ function hautMembreMiddleware(req, res, next) {
   return res.status(403).json({ error: "Accès réservé aux membres ayant un poste." });
 }
 
-// Président : admin OU membre avec poste Président
-function presidentMiddleware(req, res, next) {
-  if (req.role === "admin") return next();
+// Président : admin SI aucun président n'est encore assigné, OU membre avec poste Président
+async function presidentMiddleware(req, res, next) {
   if (req.role === "user" && req.poste && req.poste.toLowerCase().includes("président")) return next();
+  if (req.role === "admin") {
+    try {
+      const [[{ cnt }]] = await pool.query(
+        "SELECT COUNT(*) as cnt FROM adherents WHERE compte_id = ? AND est_supprime = 0 AND poste LIKE '%résident%'",
+        [req.compteId]
+      );
+      if (cnt === 0) return next(); // Pas encore de président → l'admin conserve ce rôle
+      return res.status(403).json({ error: "Accès réservé au président." });
+    } catch {
+      return res.status(500).json({ error: "Erreur serveur." });
+    }
+  }
   return res.status(403).json({ error: "Accès réservé au président." });
 }
 
@@ -672,6 +694,43 @@ app.post("/api/auth/register", async (req, res) => {
         JWT_SECRET,
         { expiresIn: "7d" }
       );
+
+      // Email de bienvenue (non bloquant)
+      sendEmail({
+        to: emailKey,
+        subject: "Bienvenue sur Cotisation Pro !",
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:12px;overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 24px;text-align:center;">
+              <h1 style="color:white;margin:0;font-size:24px;">Bienvenue sur Cotisation Pro !</h1>
+            </div>
+            <div style="padding:28px 24px;background:white;">
+              <p style="color:#374151;font-size:16px;">Bonjour <strong>${prenom.trim()} ${nom.trim()}</strong>,</p>
+              <p style="color:#374151;font-size:15px;">Votre compte administrateur pour l'association <strong>${nom_association.trim()}</strong> a bien été créé.</p>
+              <p style="color:#374151;font-size:15px;">Vous pouvez dès maintenant vous connecter et commencer à gérer vos cotisations.</p>
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${process.env.FRONTEND_URL || 'https://cotisation-pro.up.railway.app'}"
+                   style="background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+                  Accéder à mon espace
+                </a>
+              </div>
+              <p style="color:#6b7280;font-size:13px;">Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.</p>
+            </div>
+            <div style="padding:16px 24px;background:#f1f5f9;text-align:center;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;">© ${new Date().getFullYear()} Cotisation Pro — Tous droits réservés</p>
+            </div>
+          </div>
+        `,
+      }).catch((e) => console.warn("Email bienvenue non envoyé:", e.message));
+
+      // SMS de bienvenue (non bloquant, si numéro fourni)
+      if (telephone) {
+        sendSMS(
+          telephone.trim(),
+          `Bonjour ${prenom.trim()} ! Votre compte Cotisation Pro pour "${nom_association.trim()}" a été créé avec succès. Connectez-vous dès maintenant.`
+        ).catch((e) => console.warn("SMS bienvenue non envoyé:", e.message));
+      }
+
       res.json({ token, nom_association: nom_association.trim(), email: emailKey, role: "admin" });
     } catch (e) {
       await conn.rollback();

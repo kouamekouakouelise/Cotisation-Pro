@@ -763,6 +763,159 @@ button:disabled {
   }
 }
 
+/* ── Dashboard home : animations premium ──────────────── */
+@keyframes dash-bar-grow {
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+@keyframes dash-card-glow {
+  0%, 100% { box-shadow: 0 8px 32px var(--glow, rgba(0,0,0,0.25)); }
+  50%       { box-shadow: 0 14px 48px var(--glow, rgba(0,0,0,0.4)); }
+}
+@keyframes dash-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+
+.home-stat-card {
+  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.28s ease;
+  will-change: transform;
+}
+.home-stat-card:hover {
+  transform: translateY(-5px) scale(1.025);
+  filter: brightness(1.08);
+}
+.home-stat-card:hover .home-stat-icon {
+  animation: dash-icon-pulse 0.6s ease-in-out;
+}
+
+.home-panel {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.home-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.13) !important;
+}
+
+.home-chart-bar {
+  transform-origin: bottom center;
+  animation: dash-bar-grow 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+.home-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ANIMATIONS SITE ENTIER
+══════════════════════════════════════════════════════════ */
+
+/* ── 1. Transition entre pages ── */
+@keyframes page-enter-anim {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-enter {
+  animation: page-enter-anim 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── 2. Badges pulsants (messages non lus, non payés) ── */
+@keyframes badge-pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.65); }
+  60%       { box-shadow: 0 0 0 7px rgba(231,76,60,0); }
+}
+@keyframes badge-pulse-orange {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243,156,18,0.65); }
+  60%       { box-shadow: 0 0 0 7px rgba(243,156,18,0); }
+}
+.badge-pulse-red {
+  animation: badge-pulse-red 1.8s ease-in-out infinite;
+}
+.badge-pulse-orange {
+  animation: badge-pulse-orange 1.8s ease-in-out infinite;
+}
+
+/* ── 3. Lignes tableau en cascade ── */
+@keyframes row-enter {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+.anim-row {
+  animation: row-enter 0.32s ease both;
+}
+.anim-row:nth-child(1)    { animation-delay: 0.04s; }
+.anim-row:nth-child(2)    { animation-delay: 0.09s; }
+.anim-row:nth-child(3)    { animation-delay: 0.14s; }
+.anim-row:nth-child(4)    { animation-delay: 0.19s; }
+.anim-row:nth-child(5)    { animation-delay: 0.24s; }
+.anim-row:nth-child(6)    { animation-delay: 0.29s; }
+.anim-row:nth-child(7)    { animation-delay: 0.34s; }
+.anim-row:nth-child(8)    { animation-delay: 0.38s; }
+.anim-row:nth-child(9)    { animation-delay: 0.42s; }
+.anim-row:nth-child(10)   { animation-delay: 0.46s; }
+.anim-row:nth-child(n+11) { animation-delay: 0.50s; }
+
+/* ── 4. Carte flip 3D ── */
+.card-flip-scene {
+  perspective: 1200px;
+  cursor: pointer;
+  display: inline-block;
+}
+.card-flip-inner {
+  position: relative;
+  transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  width: 342px;
+  height: 216px;
+}
+.card-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.card-flip-front,
+.card-flip-back {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.card-flip-back {
+  transform: rotateY(180deg);
+}
+.card-flip-hint {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #7f8c8d;
+  font-style: italic;
+  animation: page-enter-anim 0.5s ease both;
+}
+
+/* ── 5. Shimmer sur les cartes de stat au survol ── */
+@keyframes shimmer-slide {
+  from { left: -100%; }
+  to   { left: 150%; }
+}
+.home-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transform: skewX(-20deg);
+  transition: none;
+  pointer-events: none;
+}
+.home-stat-card:hover::before {
+  animation: shimmer-slide 0.7s ease forwards;
+}
+
 /* ── Modaux : toujours centrés sur mobile, tablette ET mode bureau sur téléphone ─ */
 /* (max-width 1024px) OU (appareil tactile, quelle que soit la taille du viewport) */
 @media (max-width: 1024px), (pointer: coarse) {
