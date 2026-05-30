@@ -5722,41 +5722,67 @@ function App() {
                     </div>
                   )}
                   {/* ÉTAPE 2 */}
-                  {payMMStep2 === 2 && (
-                    <div>
-                      <div style={{ background: sel2.bg, border: `2px solid ${sel2.color}44`, borderRadius: "14px", padding: "16px", marginBottom: "14px", textAlign: "center" }}>
-                        <img src={sel2.img} alt={payMMForm2.operateur} style={{ height: "38px", width: "auto", maxWidth: "110px", objectFit: "contain", marginBottom: "10px" }} />
-                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{lang === "fr" ? "Numéro du trésorier" : "Treasurer's number"}</div>
-                        <div style={{ fontSize: "28px", fontWeight: "900", color: "#1e293b", letterSpacing: "2px" }}>{sel2.numero}</div>
-                        {sel2.nom && <div style={{ fontSize: "13px", color: "#64748b", fontWeight: "600", marginTop: "3px" }}>{sel2.nom}</div>}
-                        <button onClick={() => navigator.clipboard?.writeText(sel2.numero)}
-                          style={{ marginTop: "10px", padding: "6px 18px", background: "white", border: `1.5px solid ${sel2.color}`, borderRadius: "20px", color: sel2.color, fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>
-                          📋 {lang === "fr" ? "Copier le numéro" : "Copy number"}
-                        </button>
-                      </div>
-                      <div style={{ marginBottom: "14px" }}>
-                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{lang === "fr" ? "Montant à envoyer (FCFA)" : "Amount to send (FCFA)"}</label>
-                        <input type="number" value={payMMForm2.montant}
-                          onChange={(e) => setPayMMForm2(f => ({ ...f, montant: e.target.value }))}
-                          placeholder="Ex. 5000"
-                          style={{ width: "100%", padding: "12px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "20px", boxSizing: "border-box", fontWeight: "800", textAlign: "center" }} />
-                      </div>
-                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px", fontSize: "13px", color: "#92400e" }}>
-                        <div style={{ fontWeight: "700", marginBottom: "6px" }}>📱 {lang === "fr" ? "Comment payer :" : "How to pay:"}</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          <div>1. {lang === "fr" ? `Ouvrez votre application ${payMMForm2.operateur}` : `Open your ${payMMForm2.operateur} app`}</div>
-                          <div>2. {lang === "fr" ? `Envoyez ${payMMForm2.montant || "?"} FCFA au numéro` : `Send ${payMMForm2.montant || "?"} FCFA to number`} <strong>{sel2.numero}</strong></div>
-                          <div>3. {lang === "fr" ? "Notez la référence/ID reçue par SMS" : "Note the reference/ID received by SMS"}</div>
-                          <div>4. {lang === "fr" ? "Cliquez sur « J'ai payé »" : "Click \"I paid\""}</div>
+                  {payMMStep2 === 2 && (() => {
+                    const amt2 = payMMForm2.montant;
+                    const num2 = sel2.numero || "";
+                    const isWave = payMMForm2.operateur === "Wave";
+                    const isOM   = payMMForm2.operateur === "Orange Money";
+                    // Lien de paiement selon opérateur
+                    const payLink2 = isWave
+                      ? `https://pay.wave.com/m/${encodeURIComponent(num2)}${amt2 ? `?amount=${amt2}` : ""}`
+                      : isOM
+                      ? `tel:*144*2*${num2}*${amt2 || ""}%23`
+                      : `tel:*133*1*${num2}*${amt2 || ""}%23`; // MTN
+                    const btnLabel2 = isWave
+                      ? (lang === "fr" ? "💙 Ouvrir Wave et payer" : "💙 Open Wave and pay")
+                      : isOM
+                      ? (lang === "fr" ? "🟠 Initier le paiement Orange Money" : "🟠 Initiate Orange Money payment")
+                      : (lang === "fr" ? "🟡 Initier le paiement MTN MoMo" : "🟡 Initiate MTN MoMo payment");
+                    const desc2 = isWave
+                      ? (lang === "fr" ? "L'application Wave va s'ouvrir automatiquement. Confirmez le montant et validez directement dans l'app." : "The Wave app will open automatically. Confirm the amount and validate directly in the app.")
+                      : (lang === "fr" ? "Votre téléphone va lancer le service de paiement. Vous recevrez un message de confirmation à valider avec votre code secret." : "Your phone will launch the payment service. You'll receive a confirmation message to validate with your secret PIN.");
+                    return (
+                      <div>
+                        {/* Logo opérateur centré */}
+                        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: sel2.bg, border: `2px solid ${sel2.color}33`, borderRadius: "20px", padding: "14px 24px" }}>
+                            <img src={sel2.img} alt={payMMForm2.operateur} style={{ height: "44px", width: "auto", maxWidth: "120px", objectFit: "contain" }} />
+                          </div>
                         </div>
+
+                        {/* Montant */}
+                        <div style={{ marginBottom: "16px" }}>
+                          <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{lang === "fr" ? "Montant (FCFA)" : "Amount (FCFA)"}</label>
+                          <input type="number" value={amt2}
+                            onChange={(e) => setPayMMForm2(f => ({ ...f, montant: e.target.value }))}
+                            placeholder="Ex. 5000"
+                            style={{ width: "100%", padding: "13px 14px", border: `2px solid ${sel2.color}55`, borderRadius: "10px", fontSize: "22px", boxSizing: "border-box", fontWeight: "900", textAlign: "center", color: "#1e293b" }} />
+                        </div>
+
+                        {/* Description */}
+                        <div style={{ background: sel2.bg, border: `1px solid ${sel2.color}33`, borderRadius: "10px", padding: "12px 14px", marginBottom: "16px", fontSize: "13px", color: "#374151", textAlign: "center" }}>
+                          {desc2}
+                        </div>
+
+                        {/* Bouton principal - Lancer le paiement */}
+                        <a href={payLink2}
+                          target={isWave ? "_blank" : "_self"}
+                          rel="noopener noreferrer"
+                          onClick={() => { if (!amt2 || Number(amt2) <= 0) { setPayMMError2(lang === "fr" ? "Veuillez saisir un montant." : "Please enter an amount."); return; } setPayMMError2(""); }}
+                          style={{ display: "block", textDecoration: "none", textAlign: "center", padding: "15px", background: `linear-gradient(135deg, ${sel2.color}, ${sel2.color}bb)`, color: isOM || payMMForm2.operateur === "MTN MoMo" ? "#1a1a00" : "white", borderRadius: "12px", fontWeight: "800", fontSize: "16px", boxShadow: `0 6px 20px ${sel2.color}44`, marginBottom: "12px" }}>
+                          {btnLabel2}
+                        </a>
+
+                        {/* Bouton secondaire - J'ai payé */}
+                        <button onClick={() => { if (!amt2 || Number(amt2) <= 0) { setPayMMError2(lang === "fr" ? "Veuillez saisir un montant." : "Please enter an amount."); return; } setPayMMError2(""); setPayMMStep2(3); }}
+                          style={{ width: "100%", padding: "12px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>
+                          {lang === "fr" ? "✓ J'ai effectué le paiement →" : "✓ I made the payment →"}
+                        </button>
+
+                        {payMMError2 && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginTop: "10px", fontSize: "13px" }}>{payMMError2}</div>}
                       </div>
-                      <button onClick={() => { if (!payMMForm2.montant || Number(payMMForm2.montant) <= 0) { setPayMMError2(lang === "fr" ? "Montant invalide." : "Invalid amount."); return; } setPayMMError2(""); setPayMMStep2(3); }}
-                        style={{ width: "100%", padding: "13px", background: `linear-gradient(135deg, ${sel2.color}, ${sel2.color}cc)`, color: payMMForm2.operateur === "MTN MoMo" ? "#1a1a00" : "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "800", fontSize: "15px", boxShadow: `0 4px 16px ${sel2.color}44` }}>
-                        ✓ {lang === "fr" ? "J'ai effectué le paiement →" : "I made the payment →"}
-                      </button>
-                      {payMMError2 && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginTop: "10px", fontSize: "13px" }}>{payMMError2}</div>}
-                    </div>
-                  )}
+                    );
+                  })()}
                   {/* ÉTAPE 3 */}
                   {payMMStep2 === 3 && (
                     <div>
