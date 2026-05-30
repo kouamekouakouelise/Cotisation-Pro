@@ -357,6 +357,7 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN wave_nom VARCHAR(100) NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN mtn_numero VARCHAR(30) NULL`); } catch (_) {}
   try { await pool.query(`ALTER TABLE comptes ADD COLUMN mtn_nom VARCHAR(100) NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE demandes_paiement ADD COLUMN operateur VARCHAR(50) NULL`); } catch (_) {}
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
@@ -2000,7 +2001,7 @@ app.get("/api/me/historique", authMiddleware, async (req, res) => {
 app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
   try {
     if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
-    const { cotisation_id, montant, numero_transaction } = req.body;
+    const { cotisation_id, montant, numero_transaction, operateur } = req.body;
     if (!cotisation_id || !montant) return res.status(400).json({ error: "cotisation_id et montant requis." });
 
     // Vérifier que la cotisation appartient à cette association et que l'adhérent y est associé
@@ -2029,8 +2030,8 @@ app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
     if (paie && paie.statut === "Payé") return res.status(409).json({ error: "Cette cotisation est déjà payée." });
 
     await pool.query(
-      `INSERT INTO demandes_paiement (adherent_id, cotisation_id, montant, numero_transaction) VALUES (?, ?, ?, ?)`,
-      [req.adherentId, cotisation_id, mt, numero_transaction ? numero_transaction.trim() : null]
+      `INSERT INTO demandes_paiement (adherent_id, cotisation_id, montant, numero_transaction, operateur) VALUES (?, ?, ?, ?, ?)`,
+      [req.adherentId, cotisation_id, mt, numero_transaction ? numero_transaction.trim() : null, operateur ? operateur.trim() : null]
     );
     res.json({ success: true, message: "Demande de paiement soumise. En attente de validation par le trésorier." });
   } catch (err) {
@@ -2043,7 +2044,7 @@ app.get("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
   try {
     if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
     const [rows] = await pool.query(
-      `SELECT dp.id, dp.cotisation_id, dp.montant, dp.numero_transaction, dp.statut,
+      `SELECT dp.id, dp.cotisation_id, dp.montant, dp.numero_transaction, dp.operateur, dp.statut,
               dp.date_demande, dp.date_traitement, dp.note_refus,
               c.libelle AS periode
        FROM demandes_paiement dp
@@ -2062,7 +2063,7 @@ app.get("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
 app.get("/api/demandes-paiement", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT dp.id, dp.montant, dp.numero_transaction, dp.statut,
+      `SELECT dp.id, dp.montant, dp.numero_transaction, dp.operateur, dp.statut,
               dp.date_demande, dp.date_traitement, dp.note_refus,
               c.libelle AS periode, c.id AS cotisation_id, c.montant_du,
               a.id AS adherent_id, a.nom, a.prenom, a.matricule

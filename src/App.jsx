@@ -1352,6 +1352,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [payMMError, setPayMMError] = useState("");
   const [payMMSuccess, setPayMMSuccess] = useState("");
   const [payMMLoading, setPayMMLoading] = useState(false);
+  const [payMMStep, setPayMMStep] = useState(1);
 
   const t2 = (fr, en) => lang === "fr" ? fr : en;
 
@@ -1370,7 +1371,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
       const r = await apiFetch(`${API_BASE}/me/demandes-paiement`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cotisation_id: payMMCot?.cotisationId, montant: payMMForm.montant, numero_transaction: payMMForm.numero_transaction }),
+        body: JSON.stringify({ cotisation_id: payMMCot?.cotisationId, montant: payMMForm.montant, numero_transaction: payMMForm.numero_transaction, operateur: payMMForm.operateur }),
       });
       const d = await r.json();
       if (!r.ok) { setPayMMError(d.error || "Erreur"); }
@@ -1378,7 +1379,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         setPayMMSuccess(t2("Demande envoyée ! En attente de validation par le trésorier.", "Request sent! Awaiting treasurer validation."));
         const updated = await apiFetch(`${API_BASE}/me/demandes-paiement`).then(x => x.json());
         setMesDemandes(Array.isArray(updated) ? updated : []);
-        setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "", operateur: "" }); }, 2500);
+        setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMStep(1); setPayMMForm({ montant: "", numero_transaction: "", operateur: "" }); }, 2500);
       }
     } catch { setPayMMError(t2("Erreur réseau.", "Network error.")); }
     setPayMMLoading(false);
@@ -2172,7 +2173,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                                 {c.dernierPaiement && <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Dernier paiement", "Last payment")}: {c.dernierPaiement}</div>}
                                 {demandeEnAttente && (
                                   <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginTop: "5px", background: "#fff8e1", border: "1px solid #f59e0b", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", color: "#b45309", fontWeight: "600" }}>
-                                    <Icon name="clock" size={12} /> {t2("En attente de validation", "Awaiting validation")} — {Number(demandeEnAttente.montant).toLocaleString("fr-FR")} F
+                                    <Icon name="clock" size={12} /> {t2("En attente de validation", "Awaiting validation")} — {Number(demandeEnAttente.montant).toLocaleString("fr-FR")} F{demandeEnAttente.operateur ? ` · ${demandeEnAttente.operateur}` : ""}
                                   </div>
                                 )}
                                 {demandeRejetee && (
@@ -2195,7 +2196,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                                 </span>
                                 {canPay && (
                                   <button
-                                    onClick={() => { setPayMMCot(c); setPayMMForm({ montant: pAmt(c.reste) > 0 ? String(pAmt(c.reste)) : "", numero_transaction: "", operateur: "" }); setPayMMError(""); setPayMMSuccess(""); setShowPayMM(true); }}
+                                    onClick={() => { setPayMMCot(c); setPayMMForm({ montant: pAmt(c.reste) > 0 ? String(pAmt(c.reste)) : "", numero_transaction: "", operateur: "" }); setPayMMError(""); setPayMMSuccess(""); setPayMMStep(1); setShowPayMM(true); }}
                                     style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap" }}
                                   >
                                     <Icon name="phone" size={13} /> {t2("Payer", "Pay")}
@@ -2216,73 +2217,170 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         })()}
 
         {/* ── MODAL PAIEMENT MOBILE MONEY ── */}
-        {showPayMM && payMMCot && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
-               onClick={() => setShowPayMM(false)}>
-            <div style={{ background: "white", borderRadius: "16px", padding: "20px 18px", width: "100%", maxWidth: "340px", boxShadow: "0 10px 40px rgba(0,0,0,0.22)" }}
-                 onClick={(e) => e.stopPropagation()}>
+        {showPayMM && payMMCot && (() => {
+          const closePayMM = () => { setShowPayMM(false); setPayMMStep(1); setPayMMError(""); setPayMMSuccess(""); };
+          const MM_PROVIDERS = {
+            "Orange Money": { img: imgOrange, color: "#FF6600", bg: "#fff3e6", numero: userMMConfig.om_numero,   nom: userMMConfig.om_nom },
+            "Wave":         { img: imgWave,   color: "#009BDB", bg: "#e6f5fc", numero: userMMConfig.wave_numero, nom: userMMConfig.wave_nom },
+            "MTN MoMo":     { img: imgMTN,    color: "#FFCC00", bg: "#fffbe6", numero: userMMConfig.mtn_numero,  nom: userMMConfig.mtn_nom },
+          };
+          const selProvider = MM_PROVIDERS[payMMForm.operateur] || {};
+          const availableProviders = Object.entries(MM_PROVIDERS).filter(([, p]) => p.numero);
 
-              {/* Header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                <div style={{ fontWeight: "800", fontSize: "15px", color: "#1e293b" }}>{t2("Paiement Mobile Money", "Mobile Money Payment")}</div>
-                <button onClick={() => setShowPayMM(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>✕</button>
-              </div>
+          const stepLabels = [
+            t2("Choisir l'opérateur", "Choose operator"),
+            t2("Instructions de paiement", "Payment instructions"),
+            t2("Confirmer le paiement", "Confirm payment"),
+          ];
 
-              {/* Période + montant restant */}
-              <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "3px" }}>{payMMCot.periode}</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                  <span style={{ fontSize: "12px", color: "#64748b" }}>{t2("Reste :", "Remaining:")}</span>
-                  <span style={{ fontSize: "22px", fontWeight: "800", color: "#dc2626" }}>{payMMCot.reste}</span>
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+                 onClick={closePayMM}>
+              <div style={{ background: "white", borderRadius: "20px", width: "100%", maxWidth: "390px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", overflow: "hidden" }}
+                   onClick={(e) => e.stopPropagation()}>
+
+                {/* Barre de progression */}
+                <div style={{ height: "4px", background: "#e2e8f0" }}>
+                  <div style={{ height: "100%", background: "linear-gradient(90deg,#f59e0b,#22c55e)", width: `${(payMMStep / 3) * 100}%`, transition: "width 0.35s ease" }} />
                 </div>
-              </div>
 
-              {/* Logos opérateurs — petits */}
-              <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "6px" }}>{t2("Opérateur", "Operator")}</div>
-                <div style={{ display: "flex", gap: "6px" }}>
-                  {[
-                    { value: "Orange Money", img: imgOrange, color: "#ff6600", bg: "#fff3ea" },
-                    { value: "Wave",         img: imgWave,   color: "#00b4d8", bg: "#e8f8fc" },
-                    { value: "MTN MoMo",     img: imgMTN,    color: "#ffcc00", bg: "#fffbe6" },
-                  ].map(({ value, img, color, bg }) => {
-                    const sel = payMMForm.operateur === value;
-                    return (
-                      <button key={value} type="button"
-                        onClick={() => setPayMMForm(f => ({ ...f, operateur: value }))}
-                        style={{ flex: 1, padding: "5px 4px", border: sel ? `2px solid ${color}` : "1.5px solid #e2e8f0", borderRadius: "8px", background: sel ? bg : "white", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", transition: "border-color 0.12s, background 0.12s" }}>
-                        <img src={img} alt={value} style={{ height: "16px", width: "auto", maxWidth: "50px", objectFit: "contain", display: "block" }} />
+                {/* En-tête */}
+                <div style={{ padding: "16px 18px 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <div>
+                    {payMMStep > 1 && (
+                      <button onClick={() => { setPayMMStep(s => s - 1); setPayMMError(""); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: "13px", padding: "0 0 6px", fontWeight: "600" }}>
+                        ← {t2("Retour", "Back")}
                       </button>
-                    );
-                  })}
+                    )}
+                    <div style={{ fontWeight: "800", fontSize: "15px", color: "#1e293b" }}>{stepLabels[payMMStep - 1]}</div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{t2(`Étape ${payMMStep} sur 3`, `Step ${payMMStep} of 3`)}</div>
+                  </div>
+                  <button onClick={closePayMM} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", lineHeight: 1, marginTop: "2px" }}>✕</button>
                 </div>
-              </div>
 
-              {/* Montant */}
-              <div style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "5px" }}>{t2("Montant à envoyer (F)", "Amount to send (F)")}</label>
-                <input type="number" value={payMMForm.montant}
-                  onChange={(e) => setPayMMForm(f => ({ ...f, montant: e.target.value }))}
-                  placeholder="Ex. 5000"
-                  style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "15px", boxSizing: "border-box", fontWeight: "700" }} />
-              </div>
+                {/* Résumé cotisation */}
+                <div style={{ margin: "12px 18px 0", background: "#f8fafc", borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>{payMMCot.periode} —</span>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>{t2("Reste :", "Remaining:")}</span>
+                  <span style={{ fontSize: "18px", fontWeight: "800", color: "#dc2626" }}>{payMMCot.reste}</span>
+                </div>
 
-              {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px" }}>{payMMError}</div>}
-              {payMMSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px", fontWeight: "600" }}>{payMMSuccess}</div>}
+                <div style={{ padding: "14px 18px 20px" }}>
 
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={handlePayMM} disabled={payMMLoading}
-                  style={{ flex: 1, padding: "11px", background: payMMLoading ? "#94a3b8" : "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "9px", cursor: payMMLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px" }}>
-                  {payMMLoading ? t2("Envoi…", "Sending…") : t2("Envoyer la demande", "Send request")}
-                </button>
-                <button onClick={() => setShowPayMM(false)}
-                  style={{ padding: "11px 14px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600", fontSize: "13px" }}>
-                  {t2("Annuler", "Cancel")}
-                </button>
+                  {/* ── ÉTAPE 1 : Choix opérateur ── */}
+                  {payMMStep === 1 && (
+                    <div>
+                      {availableProviders.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "30px 0", color: "#7f8c8d" }}>
+                          <div style={{ fontSize: "40px", marginBottom: "10px" }}>📭</div>
+                          <div style={{ fontWeight: "600" }}>{t2("Aucun compte Mobile Money configuré", "No Mobile Money account configured")}</div>
+                          <div style={{ fontSize: "12px", marginTop: "6px" }}>{t2("Le trésorier n'a pas encore renseigné ses comptes.", "The treasurer has not added payment accounts yet.")}</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "2px" }}>{t2("Sélectionnez votre moyen de paiement :", "Select your payment method:")}</div>
+                          {availableProviders.map(([label, p]) => (
+                            <button key={label} type="button"
+                              onClick={() => { setPayMMForm(f => ({ ...f, operateur: label })); setPayMMStep(2); }}
+                              style={{ display: "flex", alignItems: "center", gap: "14px", padding: "14px 16px", background: p.bg, border: `2px solid ${p.color}33`, borderRadius: "12px", cursor: "pointer", textAlign: "left", width: "100%", boxShadow: `0 2px 8px ${p.color}18`, transition: "transform 0.1s, box-shadow 0.1s" }}>
+                              <img src={p.img} alt={label} style={{ height: "34px", width: "auto", maxWidth: "75px", objectFit: "contain", flexShrink: 0 }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{label}</div>
+                                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{p.numero}{p.nom ? ` · ${p.nom}` : ""}</div>
+                              </div>
+                              <span style={{ color: p.color, fontWeight: "900", fontSize: "20px" }}>›</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── ÉTAPE 2 : Instructions de paiement ── */}
+                  {payMMStep === 2 && (
+                    <div>
+                      {/* Numéro du trésorier */}
+                      <div style={{ background: selProvider.bg, border: `2px solid ${selProvider.color}44`, borderRadius: "14px", padding: "16px", marginBottom: "14px", textAlign: "center" }}>
+                        <img src={selProvider.img} alt={payMMForm.operateur} style={{ height: "38px", width: "auto", maxWidth: "110px", objectFit: "contain", marginBottom: "10px" }} />
+                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{t2("Numéro du trésorier", "Treasurer's number")}</div>
+                        <div style={{ fontSize: "28px", fontWeight: "900", color: "#1e293b", letterSpacing: "2px" }}>{selProvider.numero}</div>
+                        {selProvider.nom && <div style={{ fontSize: "13px", color: "#64748b", fontWeight: "600", marginTop: "3px" }}>{selProvider.nom}</div>}
+                        <button onClick={() => { navigator.clipboard?.writeText(selProvider.numero); }}
+                          style={{ marginTop: "10px", padding: "6px 18px", background: "white", border: `1.5px solid ${selProvider.color}`, borderRadius: "20px", color: selProvider.color, fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>
+                          📋 {t2("Copier le numéro", "Copy number")}
+                        </button>
+                      </div>
+
+                      {/* Montant */}
+                      <div style={{ marginBottom: "14px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{t2("Montant à envoyer (FCFA)", "Amount to send (FCFA)")}</label>
+                        <input type="number" value={payMMForm.montant}
+                          onChange={(e) => setPayMMForm(f => ({ ...f, montant: e.target.value }))}
+                          placeholder="Ex. 5000"
+                          style={{ width: "100%", padding: "12px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "20px", boxSizing: "border-box", fontWeight: "800", textAlign: "center" }} />
+                      </div>
+
+                      {/* Instructions étape par étape */}
+                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px", fontSize: "13px", color: "#92400e" }}>
+                        <div style={{ fontWeight: "700", marginBottom: "6px" }}>📱 {t2("Comment payer :", "How to pay:")}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div>1. {t2(`Ouvrez votre application ${payMMForm.operateur}`, `Open your ${payMMForm.operateur} app`)}</div>
+                          <div>2. {t2(`Envoyez ${payMMForm.montant || "?"} FCFA au numéro`, `Send ${payMMForm.montant || "?"} FCFA to number`)} <strong>{selProvider.numero}</strong></div>
+                          <div>3. {t2("Notez la référence/ID du paiement reçue par SMS", "Note the payment reference/ID received by SMS")}</div>
+                          <div>4. {t2("Cliquez sur « J'ai payé » ci-dessous", "Click \"I paid\" below")}</div>
+                        </div>
+                      </div>
+
+                      <button onClick={() => { if (!payMMForm.montant || Number(payMMForm.montant) <= 0) { setPayMMError(t2("Veuillez saisir un montant valide.", "Please enter a valid amount.")); return; } setPayMMError(""); setPayMMStep(3); }}
+                        style={{ width: "100%", padding: "13px", background: `linear-gradient(135deg, ${selProvider.color}, ${selProvider.color}cc)`, color: payMMForm.operateur === "MTN MoMo" ? "#1a1a00" : "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "800", fontSize: "15px", boxShadow: `0 4px 16px ${selProvider.color}44` }}>
+                        ✓ {t2("J'ai effectué le paiement →", "I made the payment →")}
+                      </button>
+                      {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginTop: "10px", fontSize: "13px" }}>{payMMError}</div>}
+                    </div>
+                  )}
+
+                  {/* ── ÉTAPE 3 : Confirmation ── */}
+                  {payMMStep === 3 && (
+                    <div>
+                      <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                        <div style={{ fontSize: "44px", marginBottom: "8px" }}>🎉</div>
+                        <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{t2("Confirmez votre paiement", "Confirm your payment")}</div>
+                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>{t2("Entrez la référence reçue après le paiement", "Enter the reference received after payment")}</div>
+                      </div>
+
+                      {/* Récapitulatif */}
+                      <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "10px", padding: "11px 13px", marginBottom: "14px", fontSize: "13px", color: "#0369a1" }}>
+                        <strong>{t2("Récap :", "Summary:")}</strong> {payMMForm.montant} FCFA {t2("via", "via")} {payMMForm.operateur} → {selProvider.numero}
+                      </div>
+
+                      {/* Référence transaction */}
+                      <div style={{ marginBottom: "14px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>
+                          {t2("Référence de transaction", "Transaction reference")} <span style={{ fontWeight: "400", color: "#94a3b8" }}>({t2("optionnel", "optional")})</span>
+                        </label>
+                        <input type="text" value={payMMForm.numero_transaction}
+                          onChange={(e) => setPayMMForm(f => ({ ...f, numero_transaction: e.target.value }))}
+                          placeholder={t2("Ex. WVCI-20241215-XXXXX", "e.g. WVCI-20241215-XXXXX")}
+                          style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", boxSizing: "border-box" }} />
+                        <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>{t2("Disponible dans votre SMS de confirmation ou l'historique de l'application.", "Found in your confirmation SMS or app history.")}</div>
+                      </div>
+
+                      {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px" }}>{payMMError}</div>}
+                      {payMMSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px", fontWeight: "600" }}>{payMMSuccess}</div>}
+
+                      <button onClick={handlePayMM} disabled={payMMLoading}
+                        style={{ width: "100%", padding: "13px", background: payMMLoading ? "#94a3b8" : "linear-gradient(135deg,#22c55e,#16a34a)", color: "white", border: "none", borderRadius: "10px", cursor: payMMLoading ? "not-allowed" : "pointer", fontWeight: "800", fontSize: "15px", boxShadow: payMMLoading ? "none" : "0 4px 16px #22c55e44" }}>
+                        {payMMLoading ? t2("Envoi en cours…", "Sending…") : t2("✓ Envoyer la demande au trésorier", "✓ Send request to treasurer")}
+                      </button>
+                    </div>
+                  )}
+
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── PAGE MEMBRES ── */}
         {page === "membres" && (
@@ -6787,7 +6885,8 @@ function App() {
                                     <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "14px" }}>{d.prenom} {d.nom} <span style={{ color: "#94a3b8", fontSize: "12px" }}>({d.matricule})</span></div>
                                     <div style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>
                                       {d.periode} — <strong style={{ color: "#b45309" }}>{Number(d.montant).toLocaleString("fr-FR")} F</strong>
-                                      {d.numero_transaction && <> · N° {d.numero_transaction}</>}
+                                      {d.operateur && <> · <span style={{ fontWeight: "700", color: d.operateur === "Wave" ? "#009BDB" : d.operateur === "Orange Money" ? "#FF6600" : "#f59e0b" }}>{d.operateur}</span></>}
+                                      {d.numero_transaction && <> · Réf. {d.numero_transaction}</>}
                                     </div>
                                     <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{new Date(d.date_demande).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                                   </div>
