@@ -21,3 +21,9 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Fichiers locaux uniquement
+lancer-local.bat
+generate_docs.mjs
+Presentation_Cotisation_Pro.pptx
+Rapport_Cotisation_Pro.docx
