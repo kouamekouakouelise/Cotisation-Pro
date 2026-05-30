@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm install --include=dev && npm install --prefix backend && npx vite build"
+
+[deploy]
+startCommand = "node backend/server.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

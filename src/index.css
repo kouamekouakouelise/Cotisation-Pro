@@ -240,92 +240,172 @@ button:disabled {
 }
 
 /* ── Barre de navigation principale ─────────── */
+/* ── Header double niveau ── */
 .app-navbar {
-  background: #1e2d3d;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  padding: 0 20px;
-  min-height: 58px;
-  height: auto;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.22);
   position: sticky;
   top: 0;
   z-index: 500;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+}
+
+/* ── Barre principale : Logo (gauche) + Langue/Compte (droite) ── */
+.app-navbar-brand-row {
+  background: linear-gradient(135deg, #1a2742 0%, #1e3a5f 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  border-bottom: 2px solid;
+  border-image: linear-gradient(90deg, #3498db 0%, #1abc9c 100%) 1;
 }
 
 .app-navbar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
+.app-navbar-brand-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .app-navbar-logo {
-  height: 36px;
-  width: 36px;
+  height: 40px;
+  width: 40px;
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid rgba(52,152,219,0.5);
+  border: 2px solid rgba(52,152,219,0.6);
+  box-shadow: 0 0 12px rgba(52,152,219,0.4);
+  transition: box-shadow 0.25s;
+}
+
+.app-navbar-logo:hover {
+  box-shadow: 0 0 22px rgba(52,152,219,0.75);
 }
 
 .app-navbar-title {
-  color: #fff;
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 800;
   font-size: 15px;
   white-space: nowrap;
   line-height: 1.2;
+  letter-spacing: 0.4px;
+}
+
+.app-navbar-title-accent {
+  color: #5dade2;
 }
 
 .app-navbar-assoc {
-  color: #3498db;
+  color: rgba(255,255,255,0.5);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-/* Onglets */
-.app-navbar-tabs {
-  display: flex;
+.topbar-lang-select {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.topbar-account-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  flex: 1;
-  padding: 0 8px;
-  gap: 2px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  border: 2px solid rgba(255,255,255,0.28);
+  transition: box-shadow 0.2s, opacity 0.2s;
+}
+
+.topbar-account-btn.role-admin {
+  background: linear-gradient(135deg, #7b2d8b, #9b59b6);
+  color: #fff;
+}
+
+.topbar-account-btn.role-tresorier {
+  background: linear-gradient(135deg, #1a6fa8, #3498db);
+  color: #fff;
+}
+
+.topbar-account-btn.role-membre {
+  background: linear-gradient(135deg, #2c4f6e, #4a7fa8);
+  color: #fff;
+}
+
+.topbar-account-btn:hover {
+  opacity: 0.85;
+  box-shadow: 0 0 16px rgba(255,255,255,0.18);
+}
+
+/* ── Barre des onglets de navigation (couleur distincte) ── */
+.app-navbar-tabs-row {
+  background: #f8fafc;
+  border-bottom: 1px solid #dde3ea;
+  padding: 0 24px;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Onglets de navigation */
+.app-navbar-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 48px;
 }
 
 .nav-tab {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 clamp(8px, 1.5vw, 14px);
+  padding: 0 clamp(10px, 1.4vw, 16px);
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
-  color: rgba(255,255,255,0.6);
-  font-size: clamp(12px, 1.2vw, 13px);
+  color: #4a5568;
+  font-size: clamp(12px, 1.1vw, 13px);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   border-radius: 0;
-  min-height: 48px;
-  height: auto;
+  height: 48px;
   position: relative;
 }
 
 .nav-tab:hover {
-  color: #fff;
-  background: rgba(255,255,255,0.07);
+  color: #1e2d3d;
+  background: rgba(52,152,219,0.07);
+  border-radius: 6px 6px 0 0;
 }
 
 .nav-tab-active {
-  color: #fff !important;
+  color: #1565c0 !important;
   border-bottom-color: #3498db;
-  background: rgba(52,152,219,0.1);
+  background: rgba(52,152,219,0.11);
+  border-radius: 6px 6px 0 0;
 }
 
 /* Dropdown Plus */
@@ -343,11 +423,11 @@ button:disabled {
   position: absolute;
   top: calc(100% + 2px);
   left: 0;
-  background: #1e2d3d;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   min-width: 190px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.30);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
   overflow: hidden;
   z-index: 700;
   padding: 4px 0;
@@ -361,7 +441,7 @@ button:disabled {
   padding: 11px 16px;
   background: none;
   border: none;
-  color: rgba(255,255,255,0.75);
+  color: #4a5568;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -372,13 +452,13 @@ button:disabled {
 }
 
 .nav-dropdown-item:hover {
-  background: rgba(52,152,219,0.15);
-  color: #fff;
+  background: #eaf4fb;
+  color: #1e6fa8;
 }
 
 .nav-dropdown-active {
-  color: #3498db !important;
-  background: rgba(52,152,219,0.12);
+  color: #1e6fa8 !important;
+  background: #eaf4fb;
 }
 
 /* Badge notification */
@@ -397,46 +477,7 @@ button:disabled {
   margin-left: 4px;
 }
 
-/* Droite : langue + compte */
-.app-navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
 
-.nav-lang-select {
-  padding: 5px 10px;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-}
-
-.nav-account-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 900;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: -2px;
-  transition: background 0.15s;
-}
-
-.nav-account-btn:hover {
-  background: rgba(255,255,255,0.22);
-}
 
 .nav-account-panel {
   position: absolute;
@@ -487,27 +528,29 @@ button:disabled {
 
 /* Navbar responsive sur mobile */
 @media (max-width: 768px) {
-  .app-navbar {
-    display: flex;
-    padding: 6px 10px;
-    gap: 4px;
+  .app-navbar-brand-row {
+    padding: 0 12px;
+    height: 52px;
   }
-  .app-navbar-brand {
-    padding: 4px 0;
+  .app-navbar-title {
+    font-size: 14px;
+  }
+  .app-navbar-assoc {
+    display: none;
+  }
+  .app-navbar-tabs-row {
+    padding: 0 6px;
   }
   .app-navbar-tabs {
     width: 100%;
-    order: 3;
+    height: auto;
+    flex-wrap: wrap;
     justify-content: center;
-    padding: 4px 0 8px;
-    gap: 4px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-  .app-navbar-right {
-    order: 2;
+    padding: 4px 0;
+    gap: 2px;
   }
   .nav-tab {
-    min-height: 38px;
+    height: 36px;
     padding: 0 10px;
     font-size: 12px;
     border-bottom: none;
@@ -515,7 +558,7 @@ button:disabled {
   }
   .nav-tab-active {
     border-bottom: none !important;
-    background: rgba(52,152,219,0.2) !important;
+    background: #eaf4fb !important;
   }
 }
 
@@ -641,6 +684,14 @@ button:disabled {
 .mobile-sheet-logout:hover,
 .mobile-sheet-logout:active {
   background: rgba(231,76,60,0.18) !important;
+}
+
+/* ── Sous-titres de page : espace entre grand titre et description ── */
+.app-content > div > p {
+  margin-top: 12px;
+}
+.app-content > div > h1 {
+  margin-bottom: 14px;
 }
 
 /* ── Contenu principal ────────────────────────────────── */
@@ -797,6 +848,18 @@ button:disabled {
   box-shadow: 0 10px 32px rgba(0,0,0,0.13) !important;
 }
 
+.quick-action-btn {
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, filter 0.2s ease;
+}
+.quick-action-btn:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.22) !important;
+  filter: brightness(1.1);
+}
+.quick-action-btn:active {
+  transform: scale(0.97);
+}
+
 .home-chart-bar {
   transform-origin: bottom center;
   animation: dash-bar-grow 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -871,7 +934,7 @@ button:disabled {
   transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
   transform-style: preserve-3d;
   width: 342px;
-  height: 216px;
+  height: 228px;
 }
 .card-flip-inner.flipped {
   transform: rotateY(180deg);
@@ -916,8 +979,33 @@ button:disabled {
   animation: shimmer-slide 0.7s ease forwards;
 }
 
-/* ── Modaux : toujours centrés sur mobile, tablette ET mode bureau sur téléphone ─ */
-/* (max-width 1024px) OU (appareil tactile, quelle que soit la taille du viewport) */
+/* ── Overlay universel : couvre l'écran, centre le contenu (flex) ── */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0,0,0,0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+  z-index: 1000 !important;
+  overflow-y: auto !important;
+}
+
+/* ── Contenu des modals non-draggables : enfant flex centré ── */
+.modal-box {
+  position: relative;
+  width: 100%;
+  max-width: min(96vw, 480px);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* ── Les modals draggables gardent position:fixed via inline style ── */
+/* Sur mobile/tactile : on re-centre tout pour supprimer le drag */
 @media (max-width: 1024px), (pointer: coarse) {
   .modal-box {
     position: fixed !important;
@@ -932,4 +1020,251 @@ button:disabled {
     resize: none !important;
     cursor: default !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE MESSAGES — ANIMATIONS & DESIGN
+══════════════════════════════════════════════════════════ */
+
+@keyframes msgSlideUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes msgIconFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33%       { transform: translateY(-7px) rotate(-8deg); }
+  66%       { transform: translateY(-3px) rotate(5deg); }
+}
+@keyframes msgEmptyBounce {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  20%       { transform: scale(1.18) rotate(-12deg); }
+  40%       { transform: scale(0.88) rotate(9deg); }
+  60%       { transform: scale(1.12) rotate(-5deg); }
+  80%       { transform: scale(0.96) rotate(3deg); }
+}
+@keyframes msgBadgePop {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+  50%       { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+@keyframes mmDropIn {
+  from { opacity: 0; transform: translateY(-14px) scaleY(0.8); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes payBtnGlow {
+  0%, 100% { box-shadow: 0 4px 18px rgba(0,154,219,0.45); }
+  50%       { box-shadow: 0 6px 32px rgba(0,154,219,0.8), 0 0 0 5px rgba(0,154,219,0.15); }
+}
+@keyframes sparkleRotate {
+  from { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.1); }
+  to   { transform: rotate(360deg) scale(1); }
+}
+@keyframes msgHeaderShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Message page container entrance */
+.msg-page-enter {
+  animation: msgSlideUp 0.45s cubic-bezier(0.25,0.46,0.45,0.94) both;
+}
+
+/* Floating envelope icon */
+.msg-icon-float {
+  display: inline-block;
+  animation: msgIconFloat 3.5s ease-in-out infinite;
+}
+
+/* Animated badge on unread messages */
+.msg-badge-pop {
+  animation: msgBadgePop 1.8s ease-in-out infinite;
+}
+
+/* Message card with stagger */
+.msg-card {
+  animation: msgSlideUp 0.42s cubic-bezier(0.25,0.46,0.45,0.94) both;
+  animation-delay: calc(var(--i, 0) * 75ms);
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s ease !important;
+  cursor: default;
+}
+.msg-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 10px 32px rgba(44,62,80,0.16) !important;
+}
+
+/* Tab switcher */
+.msg-tabs-row {
+  display: flex;
+  background: #f0f4f8;
+  border-radius: 14px;
+  padding: 5px;
+  gap: 4px;
+  margin-bottom: 22px;
+  margin-top: 8px;
+}
+.msg-tab-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  position: relative;
+  background: transparent;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.msg-tab-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent);
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+}
+.msg-tab-btn:hover::after { opacity: 1; }
+.msg-tab-btn--blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(59,130,246,0.42);
+}
+.msg-tab-btn--orange {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(245,158,11,0.42);
+}
+.msg-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.28);
+  color: inherit;
+}
+.msg-tab-badge--blue-inactive { background: #3b82f6; color: #fff; }
+.msg-tab-badge--orange-inactive { background: #f59e0b; color: #fff; }
+
+/* Empty state animated icon */
+.msg-empty-icon {
+  display: block;
+  font-size: 58px;
+  animation: msgEmptyBounce 3s ease-in-out infinite;
+  line-height: 1;
+  margin: 0 auto 14px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.12));
+}
+
+/* Mobile Money two-tier selector */
+.mm-main-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+}
+.mm-main-btn {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 9px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  text-align: left;
+}
+.mm-main-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.mm-main-btn--cash-active {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  box-shadow: 0 2px 8px rgba(34,197,94,0.14);
+}
+.mm-main-btn--mobile-active {
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+  box-shadow: 0 2px 8px rgba(139,92,246,0.14);
+}
+.mm-dropdown-panel {
+  animation: mmDropIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
+  transform-origin: top center;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: #faf5ff;
+  border-radius: 10px;
+  border: 1.5px solid #c4b5fd;
+}
+.mm-op-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+}
+.mm-op-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.mm-op-btn--wave-active {
+  border-color: #00b4d8;
+  background: linear-gradient(135deg, #e0f9ff, #caf0f8);
+  box-shadow: 0 3px 10px rgba(0,180,216,0.22);
+}
+.mm-op-btn--om-active {
+  border-color: #ff6600;
+  background: linear-gradient(135deg, #fff4ed, #ffe8d6);
+  box-shadow: 0 3px 10px rgba(255,102,0,0.22);
+}
+.mm-op-btn--mtn-active {
+  border-color: #fbbf24;
+  background: linear-gradient(135deg, #fffde7, #fff8cc);
+  box-shadow: 0 3px 10px rgba(251,191,36,0.22);
+}
+
+/* Pay now button on member page */
+.pay-now-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 10px;
+  padding: 11px 20px;
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+  animation: payBtnGlow 2.2s ease-in-out infinite;
+}
+.pay-now-link:hover {
+  transform: translateY(-3px) scale(1.04) !important;
+}
+
+@media (max-width: 768px) {
+  .msg-tabs-row { padding: 4px; gap: 3px; }
+  .msg-tab-btn { padding: 9px 6px; font-size: 12px; }
+  .mm-main-options { gap: 8px; }
+  .mm-main-btn { padding: 12px 8px; gap: 7px; }
+  .mm-op-btn { padding: 12px 6px; }
 }

@@ -1348,7 +1348,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
   const [mesDemandes, setMesDemandes] = useState([]);
   const [showPayMM, setShowPayMM] = useState(false);
   const [payMMCot, setPayMMCot] = useState(null);
-  const [payMMForm, setPayMMForm] = useState({ montant: "", numero_transaction: "" });
+  const [payMMForm, setPayMMForm] = useState({ montant: "", numero_transaction: "", operateur: "" });
   const [payMMError, setPayMMError] = useState("");
   const [payMMSuccess, setPayMMSuccess] = useState("");
   const [payMMLoading, setPayMMLoading] = useState(false);
@@ -1378,7 +1378,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         setPayMMSuccess(t2("Demande envoyée ! En attente de validation par le trésorier.", "Request sent! Awaiting treasurer validation."));
         const updated = await apiFetch(`${API_BASE}/me/demandes-paiement`).then(x => x.json());
         setMesDemandes(Array.isArray(updated) ? updated : []);
-        setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "" }); }, 2500);
+        setTimeout(() => { setShowPayMM(false); setPayMMSuccess(""); setPayMMForm({ montant: "", numero_transaction: "", operateur: "" }); }, 2500);
       }
     } catch { setPayMMError(t2("Erreur réseau.", "Network error.")); }
     setPayMMLoading(false);
@@ -1474,14 +1474,18 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
     const p = prof || profile;
     if (!p) return;
     try {
-      const data = [
-        `COTISATION PRO`,
-        `Association: ${compte.nom_association}`,
-        `Membre: ${p.nom} ${p.prenom}`,
-        `Matricule: ${p.matricule || "N/A"}`,
-        p.poste ? `Poste: ${p.poste}` : "",
-      ].filter(Boolean).join("\n");
-      const url = await QRCode.toDataURL(data, { width: 200, margin: 1, color: { dark: "#1a2a3a", light: "#ffffff" } });
+      const cardPayload = {
+        n: `${p.nom || ""} ${p.prenom || ""}`.trim(),
+        m: p.matricule || "",
+        p: p.poste || "",
+        t: p.telephone || "",
+        e: p.email || "",
+        d: p.date_inscription ? new Date(p.date_inscription).toLocaleDateString("fr-FR") : "",
+        a: compte.nom_association || "",
+      };
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cardPayload))));
+      const scanUrl = `${window.location.origin}/?carte=${encoded}`;
+      const url = await QRCode.toDataURL(scanUrl, { width: 200, margin: 1, color: { dark: "#1a2a3a", light: "#ffffff" } });
       setCarteQRUrl(url);
     } catch {}
   };
@@ -1662,6 +1666,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           <button onClick={() => { setPage("carte"); }} style={navBtnStyle(page === "carte")}>{t2("🪪 Ma Carte", "🪪 My Card")}</button>
           <button onClick={() => setPage("payer")} style={navBtnStyle(page === "payer")}>{t2("📱 Payer", "📱 Pay")}</button>
           <button onClick={() => setPage("membres")} style={navBtnStyle(page === "membres")}>{t2("Membres", "Members")}</button>
+          <button onClick={() => setPage("bureau")} style={navBtnStyle(page === "bureau")}>{t2("🏛️ Bureau", "🏛️ Board")}</button>
           <button onClick={() => setPage("cotisations")} style={navBtnStyle(page === "cotisations")}>{t2("Mes Paiements", "My Payments")}</button>
           <button onClick={() => setPage("historique")} style={navBtnStyle(page === "historique")}>{t2("Historique", "History")}</button>
           <button onClick={() => setPage("apercu")} style={navBtnStyle(page === "apercu")}>{t2("Cotisations", "Contributions")}</button>
@@ -1817,62 +1822,83 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                     boxShadow: "0 10px 40px rgba(26,42,58,0.55)",
                     fontFamily: "Arial, sans-serif",
                   }}>
-                    <div style={{ position: "absolute", left: 0, top: 0, width: "10px", height: "100%", background: "#16a085" }} />
-                    <div style={{ position: "absolute", left: "10px", top: 0, right: 0, height: "38px", background: "rgba(52,73,94,0.8)", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
-                      <span style={{ color: "white", fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compte.nom_association}</span>
-                      <span style={{ color: "#a8d8cc", fontSize: "9px", fontWeight: "600", letterSpacing: "1px" }}>CARTE MEMBRE</span>
+                    {/* Bande gauche colorée */}
+                    <div style={{ position: "absolute", left: 0, top: 0, width: "10px", height: "100%", background: "linear-gradient(180deg,#16a085,#1abc9c)" }} />
+                    {/* Barre haute */}
+                    <div style={{ position: "absolute", left: "10px", top: 0, right: 0, height: "34px", background: "rgba(52,73,94,0.85)", display: "flex", alignItems: "center", padding: "0 12px", justifyContent: "space-between" }}>
+                      <span style={{ color: "white", fontWeight: "700", fontSize: "12px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compte.nom_association}</span>
+                      <span style={{ color: "#a8d8cc", fontSize: "8px", fontWeight: "700", letterSpacing: "1.2px" }}>CARTE MEMBRE</span>
                     </div>
-                    <div style={{ position: "absolute", left: "22px", top: "56px", width: "72px", height: "72px", borderRadius: "50%", overflow: "hidden", border: "3px solid #16a085", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {/* Photo */}
+                    <div style={{ position: "absolute", left: "20px", top: "50px", width: "68px", height: "68px", borderRadius: "50%", overflow: "hidden", border: "3px solid #16a085", background: "#2c3e50", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {profile.photo
                         ? <img src={profile.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : <span style={{ fontSize: "28px", color: "#a8d8cc", fontWeight: "700" }}>{((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase()}</span>
+                        : <span style={{ fontSize: "26px", color: "#a8d8cc", fontWeight: "700" }}>{((profile.nom || "?")[0] + (profile.prenom || "")[0]).toUpperCase()}</span>
                       }
                     </div>
-                    <div style={{ position: "absolute", left: "108px", top: "50px", right: "118px" }}>
-                      <div style={{ color: "white", fontWeight: "700", fontSize: "15px", marginBottom: "5px", lineHeight: 1.2 }}>{profile.nom} {profile.prenom}</div>
-                      <div style={{ color: "#a8d8ea", fontSize: "11px", marginBottom: "8px" }}>N° {profile.matricule || "N/A"}</div>
-                      {profile.poste && <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 10px", borderRadius: "10px", marginBottom: "7px" }}>{profile.poste}</div>}
-                      {profile.date_inscription && <div style={{ color: "#7fafc4", fontSize: "10px" }}>{t2("Membre depuis", "Member since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}</div>}
+                    {/* Infos centrales */}
+                    <div style={{ position: "absolute", left: "100px", top: "44px", right: "110px" }}>
+                      <div style={{ color: "white", fontWeight: "800", fontSize: "13px", lineHeight: 1.2, marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.nom} {profile.prenom}</div>
+                      <div style={{ color: "#a8d8ea", fontSize: "10px", marginBottom: "4px", fontWeight: "600" }}>N° {profile.matricule || "N/A"}</div>
+                      {profile.poste && <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "9px", fontWeight: "700", padding: "2px 8px", borderRadius: "8px", marginBottom: "4px" }}>{profile.poste}</div>}
+                      {profile.telephone && <div style={{ color: "#90c4d8", fontSize: "9.5px", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📞 {profile.telephone}</div>}
+                      {profile.email && <div style={{ color: "#90c4d8", fontSize: "9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "2px" }}>✉️ {profile.email}</div>}
+                      {profile.date_inscription && <div style={{ color: "#6a93aa", fontSize: "9px" }}>{t2("Depuis", "Since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}</div>}
                     </div>
-                    <div style={{ position: "absolute", right: "14px", top: "46px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                    {/* QR code */}
+                    <div style={{ position: "absolute", right: "10px", top: "42px", background: "white", borderRadius: "8px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
                       {carteQRUrl
-                        ? <img src={carteQRUrl} alt="QR" style={{ width: "88px", height: "88px", display: "block" }} />
-                        : <div style={{ width: "88px", height: "88px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
+                        ? <img src={carteQRUrl} alt="QR" style={{ width: "82px", height: "82px", display: "block" }} />
+                        : <div style={{ width: "82px", height: "82px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
                       }
-                      <div style={{ textAlign: "center", fontSize: "8px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Scanner", "Scan")}</div>
+                      <div style={{ textAlign: "center", fontSize: "7px", color: "#7f8c8d", marginTop: "2px" }}>{t2("Scanner", "Scan")}</div>
                     </div>
-                    <div style={{ position: "absolute", left: "10px", bottom: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", padding: "0 14px", justifyContent: "space-between" }}>
-                      <span style={{ color: "white", fontWeight: "700", fontSize: "10px", letterSpacing: "1px" }}>COTISATION PRO</span>
-                      <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "9px" }}>{compte.nom_association}</span>
+                    {/* Barre bas */}
+                    <div style={{ position: "absolute", left: "10px", bottom: 0, right: 0, height: "26px", background: "#16a085", display: "flex", alignItems: "center", padding: "0 12px", justifyContent: "space-between" }}>
+                      <span style={{ color: "white", fontWeight: "700", fontSize: "9px", letterSpacing: "1px" }}>COTISATION PRO</span>
+                      <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{compte.nom_association}</span>
                     </div>
-                    <div style={{ position: "absolute", right: "-18px", bottom: "24px", width: "80px", height: "80px", borderRadius: "50%", border: "20px solid rgba(22,160,133,0.12)", pointerEvents: "none" }} />
-                    <div style={{ position: "absolute", right: "-6px", bottom: "-6px", width: "48px", height: "48px", borderRadius: "50%", border: "14px solid rgba(52,152,219,0.15)", pointerEvents: "none" }} />
+                    <div style={{ position: "absolute", right: "-18px", bottom: "22px", width: "70px", height: "70px", borderRadius: "50%", border: "18px solid rgba(22,160,133,0.10)", pointerEvents: "none" }} />
                   </div>
 
-                  {/* ── FACE ARRIÈRE (QR code large) ── */}
+                  {/* ── FACE ARRIÈRE — infos complètes + QR ── */}
                   <div className="card-flip-back" style={{
                     background: "linear-gradient(135deg, #0d1b2a 0%, #1a3a4a 100%)",
                     boxShadow: "0 10px 40px rgba(26,42,58,0.55)",
                     fontFamily: "Arial, sans-serif",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
                   }}>
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "6px", background: "linear-gradient(90deg,#16a085,#3498db,#16a085)", backgroundSize: "200% 100%", animation: "lp-shimmerBar 2.5s linear infinite" }} />
-                    <div style={{ background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
-                      {carteQRUrl
-                        ? <img src={carteQRUrl} alt="QR Code" style={{ width: "120px", height: "120px", display: "block" }} />
-                        : <div style={{ width: "120px", height: "120px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7" }}>…</div>
-                      }
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "5px", background: "linear-gradient(90deg,#16a085,#3498db,#16a085)", backgroundSize: "200% 100%", animation: "lp-shimmerBar 2.5s linear infinite" }} />
+                    {/* QR code côté gauche */}
+                    <div style={{ position: "absolute", left: "14px", top: "20px", bottom: "30px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                      <div style={{ background: "white", borderRadius: "10px", padding: "6px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+                        {carteQRUrl
+                          ? <img src={carteQRUrl} alt="QR Code" style={{ width: "96px", height: "96px", display: "block" }} />
+                          : <div style={{ width: "96px", height: "96px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7" }}>…</div>
+                        }
+                      </div>
+                      <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "8px", textAlign: "center", letterSpacing: "0.5px" }}>{t2("Scanner pour voir le profil", "Scan to view profile")}</div>
                     </div>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ color: "#a8d8cc", fontSize: "11px", fontWeight: "700", letterSpacing: "1px" }}>{profile.nom} {profile.prenom}</div>
-                      <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "9px", marginTop: "2px" }}>{t2("Scanner pour vérifier", "Scan to verify")}</div>
+                    {/* Séparateur */}
+                    <div style={{ position: "absolute", left: "132px", top: "18px", bottom: "30px", width: "1px", background: "rgba(255,255,255,0.1)" }} />
+                    {/* Infos côté droit */}
+                    <div style={{ position: "absolute", left: "142px", top: "16px", right: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div>
+                        <div style={{ color: "white", fontWeight: "800", fontSize: "12px", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.nom} {profile.prenom}</div>
+                        <div style={{ color: "#a8d8ea", fontSize: "9px", marginTop: "1px" }}>N° {profile.matricule || "N/A"}</div>
+                      </div>
+                      {profile.poste && (
+                        <div style={{ display: "inline-block", background: "#16a085", color: "white", fontSize: "8.5px", fontWeight: "700", padding: "2px 8px", borderRadius: "8px", alignSelf: "flex-start" }}>{profile.poste}</div>
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                        {profile.telephone && <div style={{ color: "#90c4d8", fontSize: "9px", display: "flex", alignItems: "center", gap: "4px" }}><span>📞</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.telephone}</span></div>}
+                        {profile.email && <div style={{ color: "#90c4d8", fontSize: "9px", display: "flex", alignItems: "center", gap: "4px" }}><span>✉️</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.email}</span></div>}
+                        {profile.date_inscription && <div style={{ color: "#6a93aa", fontSize: "8.5px", display: "flex", alignItems: "center", gap: "4px" }}><span>📅</span><span>{t2("Membre depuis", "Member since")} {new Date(profile.date_inscription).toLocaleDateString("fr-FR")}</span></div>}
+                      </div>
+                      <div style={{ marginTop: "2px", color: "#a8d8cc", fontSize: "8px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🏛️ {compte.nom_association}</div>
                     </div>
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "28px", background: "#16a085", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ color: "white", fontSize: "9px", fontWeight: "700", letterSpacing: "1.5px" }}>COTISATION PRO — {compte.nom_association}</span>
+                    {/* Barre bas */}
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "24px", background: "#16a085", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ color: "white", fontSize: "8px", fontWeight: "700", letterSpacing: "1.5px" }}>COTISATION PRO — {compte.nom_association}</span>
                     </div>
                   </div>
 
@@ -1921,25 +1947,38 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
 
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {providers.map(({ key, label, img, color, bg, border, numero, nom }) => (
-                    <div key={key} style={{ background: bg, border: `1.5px solid ${border}`, borderRadius: "14px", padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "center" }}>
+                  {providers.map(({ key, label, img, color, bg, border, numero, nom }) => {
+                    const payUrl = key === "wave"
+                      ? `https://pay.wave.com/m/${encodeURIComponent(numero)}`
+                      : `tel:${numero}`;
+                    return (
+                    <div key={key} style={{ background: bg, border: `2px solid ${color}44`, borderRadius: "16px", padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "center", boxShadow: `0 4px 20px ${color}18`, position: "relative", overflow: "hidden" }}>
+                      {/* Décoration */}
+                      <div style={{ position: "absolute", top: "-30px", right: "-30px", width: "100px", height: "100px", borderRadius: "50%", background: `${color}11`, pointerEvents: "none" }} />
                       {/* Infos paiement */}
-                      <div style={{ flex: 1, minWidth: "180px" }}>
+                      <div style={{ flex: 1, minWidth: "180px", position: "relative" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                          <img src={img} alt={label} style={{ height: "36px", width: "auto", maxWidth: "88px", objectFit: "contain" }} />
+                          <img src={img} alt={label} style={{ height: "40px", width: "auto", maxWidth: "96px", objectFit: "contain", filter: `drop-shadow(0 2px 8px ${color}55)` }} />
                         </div>
-                        <div style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+                        <div style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: `0 2px 12px ${color}22` }}>
                           <div style={{ fontSize: "11px", color: "#7f8c8d", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{t2("Numéro", "Number")}</div>
-                          <div style={{ fontSize: "20px", fontWeight: "800", color: "#2c3e50", letterSpacing: "1px" }}>{numero}</div>
-                          {nom && <div style={{ fontSize: "13px", color: "#7f8c8d", marginTop: "4px" }}>{nom}</div>}
+                          <div style={{ fontSize: "20px", fontWeight: "800", color: "#1e293b", letterSpacing: "1.5px" }}>{numero}</div>
+                          {nom && <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", fontWeight: "600" }}>{nom}</div>}
                         </div>
-                        <div style={{ marginTop: "10px", fontSize: "12px", color: "#7f8c8d", background: "white", borderRadius: "8px", padding: "10px 12px" }}>
+                        <div style={{ marginTop: "10px", fontSize: "12px", color: "#64748b", background: "white", borderRadius: "8px", padding: "10px 12px" }}>
                           {t2("Après paiement, envoyez la capture d'écran ou la référence à votre trésorier.", "After payment, send the screenshot or reference to your treasurer.")}
                         </div>
+                        {/* Bouton Payer maintenant */}
+                        <a href={payUrl} target="_blank" rel="noopener noreferrer"
+                          className="pay-now-link"
+                          style={{ marginTop: "14px", background: `linear-gradient(135deg, ${color}, ${color}bb)`, color: key === "mtn" ? "#1a1a00" : "white", boxShadow: `0 4px 18px ${color}55` }}>
+                          <span style={{ fontSize: "18px" }}>💸</span>
+                          {t2("Payer maintenant", "Pay now")} →
+                        </a>
                       </div>
                       {/* QR Code */}
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                        <div style={{ background: "white", borderRadius: "12px", padding: "8px", boxShadow: "0 2px 10px rgba(0,0,0,0.12)", border: `2px solid ${color}33` }}>
+                        <div style={{ background: "white", borderRadius: "12px", padding: "8px", boxShadow: `0 4px 16px ${color}33`, border: `2px solid ${color}44` }}>
                           {payQRUrls[key]
                             ? <img src={payQRUrls[key]} alt={`QR ${label}`} style={{ width: "100px", height: "100px", display: "block" }} />
                             : <div style={{ width: "100px", height: "100px", display: "flex", alignItems: "center", justifyContent: "center", color: "#bdc3c7", fontSize: "11px" }}>…</div>
@@ -1948,7 +1987,8 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                         <div style={{ fontSize: "10px", color: "#7f8c8d", fontWeight: "600" }}>{t2("Scanner pour payer", "Scan to pay")}</div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Rappel cotisations */}
                   {cotisations.filter(c => c.statut !== "Payé").length > 0 && (
@@ -2155,7 +2195,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                                 </span>
                                 {canPay && (
                                   <button
-                                    onClick={() => { setPayMMCot(c); setPayMMForm({ montant: pAmt(c.reste) > 0 ? String(pAmt(c.reste)) : "", numero_transaction: "" }); setPayMMError(""); setPayMMSuccess(""); setShowPayMM(true); }}
+                                    onClick={() => { setPayMMCot(c); setPayMMForm({ montant: pAmt(c.reste) > 0 ? String(pAmt(c.reste)) : "", numero_transaction: "", operateur: "" }); setPayMMError(""); setPayMMSuccess(""); setShowPayMM(true); }}
                                     style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap" }}
                                   >
                                     <Icon name="phone" size={13} /> {t2("Payer", "Pay")}
@@ -2177,78 +2217,66 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
 
         {/* ── MODAL PAIEMENT MOBILE MONEY ── */}
         {showPayMM && payMMCot && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
                onClick={() => setShowPayMM(false)}>
-            <div style={{ background: "white", borderRadius: "16px", padding: "28px", width: "100%", maxWidth: "420px", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}
+            <div style={{ background: "white", borderRadius: "16px", padding: "20px 18px", width: "100%", maxWidth: "340px", boxShadow: "0 10px 40px rgba(0,0,0,0.22)" }}
                  onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-                <h3 style={{ margin: 0, fontSize: "17px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Icon name="phone" size={17} /> {t2("Payer par Mobile Money", "Pay via Mobile Money")}
-                </h3>
-                <button onClick={() => setShowPayMM(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>✕</button>
+
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                <div style={{ fontWeight: "800", fontSize: "15px", color: "#1e293b" }}>{t2("Paiement Mobile Money", "Mobile Money Payment")}</div>
+                <button onClick={() => setShowPayMM(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>✕</button>
               </div>
 
-              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "14px", color: "#475569" }}>
-                <strong style={{ color: "#1e293b" }}>{payMMCot.periode}</strong>
-                <div style={{ display: "flex", gap: "16px", marginTop: "6px", fontSize: "13px" }}>
-                  <span>{t2("Dû", "Due")}: <strong>{payMMCot.montantDu}</strong></span>
-                  <span>{t2("Reste", "Remaining")}: <strong style={{ color: "#dc2626" }}>{payMMCot.reste}</strong></span>
+              {/* Période + montant restant */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "3px" }}>{payMMCot.periode}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>{t2("Reste :", "Remaining:")}</span>
+                  <span style={{ fontSize: "22px", fontWeight: "800", color: "#dc2626" }}>{payMMCot.reste}</span>
                 </div>
               </div>
 
-              {/* Choix opérateur */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "8px" }}>{t2("Opérateur Mobile Money", "Mobile Money Operator")}</label>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {/* Logos opérateurs — petits */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "6px" }}>{t2("Opérateur", "Operator")}</div>
+                <div style={{ display: "flex", gap: "6px" }}>
                   {[
-                    { value: "Orange Money",  img: imgOrange, border: "#ff6600", bg: "#fff3ea" },
-                    { value: "Wave",          img: imgWave,   border: "#00b4d8", bg: "#e8f8fc" },
-                    { value: "MTN MoMo",      img: imgMTN,    border: "#ffcc00", bg: "#fffbe6" },
-                  ].map(({ value, img, border, bg }) => {
+                    { value: "Orange Money", img: imgOrange, color: "#ff6600", bg: "#fff3ea" },
+                    { value: "Wave",         img: imgWave,   color: "#00b4d8", bg: "#e8f8fc" },
+                    { value: "MTN MoMo",     img: imgMTN,    color: "#ffcc00", bg: "#fffbe6" },
+                  ].map(({ value, img, color, bg }) => {
                     const sel = payMMForm.operateur === value;
                     return (
                       <button key={value} type="button"
                         onClick={() => setPayMMForm(f => ({ ...f, operateur: value }))}
-                        style={{ border: sel ? `2px solid ${border}` : "1.5px solid #e2e8f0", borderRadius: "10px", background: sel ? bg : "white", padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", boxShadow: sel ? `0 0 0 2px ${border}33` : "none", transition: "all 0.15s" }}>
-                        <img src={img} alt={value} style={{ height: "28px", width: "auto", maxWidth: "64px", objectFit: "contain" }} />
+                        style={{ flex: 1, padding: "5px 4px", border: sel ? `2px solid ${color}` : "1.5px solid #e2e8f0", borderRadius: "8px", background: sel ? bg : "white", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", transition: "border-color 0.12s, background 0.12s" }}>
+                        <img src={img} alt={value} style={{ height: "16px", width: "auto", maxWidth: "50px", objectFit: "contain", display: "block" }} />
                       </button>
                     );
                   })}
                 </div>
               </div>
 
+              {/* Montant */}
               <div style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{t2("Montant à payer (F)", "Amount to pay (F)")}</label>
-                <input
-                  type="number"
-                  value={payMMForm.montant}
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "5px" }}>{t2("Montant à envoyer (F)", "Amount to send (F)")}</label>
+                <input type="number" value={payMMForm.montant}
                   onChange={(e) => setPayMMForm(f => ({ ...f, montant: e.target.value }))}
-                  placeholder={t2("Ex. 5000", "E.g. 5000")}
-                  style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "15px", boxSizing: "border-box", fontWeight: "700" }}
-                />
+                  placeholder="Ex. 5000"
+                  style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "15px", boxSizing: "border-box", fontWeight: "700" }} />
               </div>
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "700", color: "#374151", marginBottom: "6px" }}>{t2("Numéro de transaction (optionnel)", "Transaction number (optional)")}</label>
-                <input
-                  type="text"
-                  value={payMMForm.numero_transaction}
-                  onChange={(e) => setPayMMForm(f => ({ ...f, numero_transaction: e.target.value }))}
-                  placeholder={t2("Ex. CI240512XXXXXX", "E.g. CI240512XXXXXX")}
-                  style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "9px", fontSize: "14px", boxSizing: "border-box" }}
-                />
-              </div>
+              {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px" }}>{payMMError}</div>}
+              {payMMSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", fontSize: "13px", fontWeight: "600" }}>{payMMSuccess}</div>}
 
-              {payMMError && <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", fontSize: "13px" }}>{payMMError}</div>}
-              {payMMSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", fontSize: "13px", fontWeight: "600" }}>{payMMSuccess}</div>}
-
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "8px" }}>
                 <button onClick={handlePayMM} disabled={payMMLoading}
-                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "11px", background: payMMLoading ? "#94a3b8" : "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "9px", cursor: payMMLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px" }}>
-                  <Icon name="phone" size={15} /> {payMMLoading ? t2("Envoi…", "Sending…") : t2("Envoyer la demande", "Submit request")}
+                  style={{ flex: 1, padding: "11px", background: payMMLoading ? "#94a3b8" : "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "9px", cursor: payMMLoading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px" }}>
+                  {payMMLoading ? t2("Envoi…", "Sending…") : t2("Envoyer la demande", "Send request")}
                 </button>
                 <button onClick={() => setShowPayMM(false)}
-                  style={{ padding: "11px 18px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600", fontSize: "14px" }}>
+                  style={{ padding: "11px 14px", background: "transparent", color: "#64748b", border: "1.5px solid #e2e8f0", borderRadius: "9px", cursor: "pointer", fontWeight: "600", fontSize: "13px" }}>
                   {t2("Annuler", "Cancel")}
                 </button>
               </div>
@@ -2318,6 +2346,52 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
             <div style={{ marginTop: "16px", fontSize: "12px", color: "#95a5a6", textAlign: "center" }}>
               {membres.length} {t2("membre(s) au total", "member(s) total")}
             </div>
+          </div>
+        )}
+
+        {/* ── PAGE BUREAU MEMBRE ── */}
+        {page === "bureau" && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }}>
+            <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Icon name="building" size={18} /> {t2("Bureau de l'association", "Association Board")}
+            </h2>
+            <p style={{ margin: "0 0 24px", fontSize: "13px", color: "#7f8c8d" }}>{t2("Membres élus et responsables", "Elected members and officers")}</p>
+            {membres.filter(m => m.poste).length === 0 ? (
+              <div style={{ textAlign: "center", color: "#94a3b8", padding: "40px 0" }}>
+                <div style={{ fontSize: "40px", marginBottom: "10px" }}>🏛️</div>
+                <p style={{ margin: 0, fontWeight: "600" }}>{t2("Aucun poste attribué pour l'instant.", "No roles assigned yet.")}</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px" }}>
+                {(() => {
+                  const posteOrder = ["président","vice-président","secrétaire général","secrétaire adjoint","trésorier","trésorier adjoint","commissaire","conseiller"];
+                  const posteColors = { "président": "#7c3aed", "vice-président": "#1d4ed8", "secrétaire général": "#15803d", "secrétaire adjoint": "#0e7490", "trésorier": "#c2410c", "trésorier adjoint": "#b45309", "commissaire": "#b91c1c", "conseiller": "#475569" };
+                  return membres
+                    .filter(m => m.poste)
+                    .sort((a, b) => {
+                      const ia = posteOrder.findIndex(k => a.poste?.toLowerCase().includes(k));
+                      const ib = posteOrder.findIndex(k => b.poste?.toLowerCase().includes(k));
+                      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+                    })
+                    .map(m => {
+                      const colorKey = Object.keys(posteColors).find(k => m.poste?.toLowerCase().includes(k));
+                      const color = colorKey ? posteColors[colorKey] : "#475569";
+                      return (
+                        <div key={m.id} style={{ borderRadius: "12px", padding: "18px 14px", border: `2px solid ${color}22`, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center" }}>
+                          {m.photo
+                            ? <img src={m.photo} alt="" style={{ width: "68px", height: "68px", borderRadius: "50%", objectFit: "cover", border: `3px solid ${color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }} />
+                            : <div style={{ width: "68px", height: "68px", borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", border: `3px solid ${color}` }}>👤</div>
+                          }
+                          <div>
+                            <div style={{ fontWeight: "700", fontSize: "14px", color: "#2c3e50" }}>{m.nom} {m.prenom}</div>
+                            <div style={{ marginTop: "5px", display: "inline-block", background: color, color: "white", fontSize: "11px", fontWeight: "700", padding: "3px 12px", borderRadius: "20px" }}>{m.poste}</div>
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
+              </div>
+            )}
           </div>
         )}
 
@@ -2419,29 +2493,32 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
           const recusU   = userMessages.filter(m => !m.is_mine);
 
           const renderMsgList = (liste, emptyLabel) => liste.length === 0
-            ? (<div style={{ textAlign: "center", color: "#7f8c8d", padding: "40px 0" }}><div style={{ fontSize: "40px", marginBottom: "10px" }}>📭</div><p style={{ margin: 0 }}>{emptyLabel}</p></div>)
+            ? (<div style={{ textAlign: "center", padding: "56px 0 48px" }}>
+                <span className="msg-empty-icon">📭</span>
+                <p style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#64748b" }}>{emptyLabel}</p>
+                <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#b2bec3" }}>{t2("Rien de nouveau pour l'instant.", "Nothing new for now.")}</p>
+              </div>)
             : (<div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {liste.map(m => {
+                {liste.map((m, idx) => {
                   const hasAuteur = m.auteur_nom || m.auteur_prenom;
                   const posteBg = m.auteur_poste && m.auteur_poste.toLowerCase().includes("président") ? "#8e44ad"
                     : m.auteur_poste && m.auteur_poste.toLowerCase().includes("trésorier") ? "#27ae60"
                     : m.auteur_poste && m.auteur_poste.toLowerCase().includes("secrétaire") ? "#e67e22"
                     : "#3498db";
                   const reactions = m.reactions || {};
-                  const hasReactions = Object.keys(reactions).length > 0;
                   return (
-                    <div key={m.id} style={{ background: "white", borderRadius: "14px", boxShadow: "0 2px 14px rgba(44,62,80,0.11)", border: "1px solid #edf2f7", overflow: "visible", position: "relative" }}>
+                    <div key={m.id} className="msg-card" style={{ "--i": idx, background: "white", borderRadius: "16px", boxShadow: "0 3px 16px rgba(44,62,80,0.09)", border: "1px solid #edf2f7", overflow: "visible", position: "relative" }}>
                       {/* En-tête expéditeur */}
                       {hasAuteur && (
-                        <div style={{ background: "linear-gradient(135deg,#f7f9fc,#edf2f7)", padding: "12px 18px", borderBottom: "1px solid #e8edf3", display: "flex", alignItems: "center", gap: "12px", borderRadius: "14px 14px 0 0" }}>
-                          <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `linear-gradient(135deg,${posteBg},${posteBg}cc)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0, color: "white", fontWeight: "700", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}>
+                        <div style={{ background: `linear-gradient(135deg, ${posteBg}18, ${posteBg}08)`, padding: "14px 18px", borderBottom: `2px solid ${posteBg}22`, display: "flex", alignItems: "center", gap: "12px", borderRadius: "16px 16px 0 0" }}>
+                          <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: `linear-gradient(135deg,${posteBg},${posteBg}aa)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0, color: "white", fontWeight: "800", boxShadow: `0 3px 10px ${posteBg}55`, border: `2px solid ${posteBg}33` }}>
                             {(m.auteur_prenom || m.auteur_nom || "?")[0].toUpperCase()}
                           </div>
                           <div>
-                            <div style={{ fontWeight: "700", fontSize: "14px", color: "#2c3e50" }}>{m.auteur_prenom} {m.auteur_nom}</div>
+                            <div style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{m.auteur_prenom} {m.auteur_nom}</div>
                             {m.auteur_poste && (
-                              <span style={{ display: "inline-block", background: posteBg, color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "8px", marginTop: "3px", letterSpacing: "0.4px" }}>
-                                {m.auteur_poste.toUpperCase()}
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: posteBg, color: "white", fontSize: "10px", fontWeight: "700", padding: "3px 9px", borderRadius: "8px", marginTop: "4px", letterSpacing: "0.5px", boxShadow: `0 2px 6px ${posteBg}44` }}>
+                                ✦ {m.auteur_poste.toUpperCase()}
                               </span>
                             )}
                           </div>
@@ -2449,35 +2526,35 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                       )}
 
                       {/* Corps du message */}
-                      <div style={{ padding: "16px 18px 10px" }}>
-                        <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px", marginBottom: "8px" }}>{m.titre}</div>
-                        <div style={{ color: "#4a5568", fontSize: "14px", lineHeight: "1.65", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
+                      <div style={{ padding: "18px 18px 10px" }}>
+                        <div style={{ fontWeight: "800", color: "#1e293b", fontSize: "15px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ width: "4px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg,#7c3aed,#3b82f6)", display: "inline-block", flexShrink: 0 }} />
+                          {m.titre}
+                        </div>
+                        <div style={{ color: "#475569", fontSize: "14px", lineHeight: "1.7", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
                       </div>
 
                       {/* Date */}
-                      <div style={{ padding: "0 18px 10px", color: "#b2bec3", fontSize: "11px" }}>
-                        🕐 {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
+                      <div style={{ padding: "0 18px 10px", color: "#94a3b8", fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span>🕐</span> {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
                       </div>
 
-                      {/* Réactions existantes */}
-                      <div style={{ padding: "8px 18px 14px", borderTop: "1px solid #f0f4f8", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "44px" }} onClick={e => e.stopPropagation()}>
+                      {/* Réactions */}
+                      <div style={{ padding: "8px 18px 14px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "44px", background: "#fafbfc", borderRadius: "0 0 16px 16px" }} onClick={e => e.stopPropagation()}>
                         {Object.entries(reactions).map(([emoji, info]) => (
                           <div key={emoji} style={{ position: "relative", flexShrink: 0 }}>
                             <button
                               title={info.reactors.join(", ")}
-                              style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2980b9" : "#636e72", whiteSpace: "nowrap", flexShrink: 0 }}
-                              onClick={() => {
-                                const key = `${m.id}-${emoji}`;
-                                setUserMsgTooltip(prev => prev === key ? null : key);
-                              }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#eff6ff" : "#f1f5f9", border: `1.5px solid ${info.my_reaction ? "#3b82f6" : "#e2e8f0"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2563eb" : "#64748b", whiteSpace: "nowrap", flexShrink: 0, boxShadow: info.my_reaction ? "0 2px 8px rgba(59,130,246,0.2)" : "none" }}
+                              onClick={() => { const key = `${m.id}-${emoji}`; setUserMsgTooltip(prev => prev === key ? null : key); }}
                             >
                               <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
                               <span style={{ fontSize: "13px", minWidth: "12px", textAlign: "center" }}>{info.count}</span>
                             </button>
                             {userMsgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
-                              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
+                              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#1e293b", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
                                 {info.reactors.join(", ")}
-                                <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
+                                <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #1e293b" }} />
                               </div>
                             )}
                           </div>
@@ -2485,18 +2562,18 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
                         {/* Bouton ajouter réaction */}
                         <div style={{ position: "relative", flexShrink: 0 }}>
                           <button
-                            style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d", whiteSpace: "nowrap" }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "white", border: "1.5px dashed #cbd5e1", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#94a3b8", whiteSpace: "nowrap", transition: "all 0.15s" }}
                             onClick={e => { e.stopPropagation(); setUserMsgEmojiOpen(prev => prev === m.id ? null : m.id); setUserMsgTooltip(null); }}
                           >
                             <span style={{ fontSize: "16px", lineHeight: 1 }}>😊</span>
                             <span style={{ fontSize: "12px" }}>+</span>
                           </button>
                           {userMsgEmojiOpen === m.id && (
-                            <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "12px", padding: "8px 10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "2px", zIndex: 100, border: "1px solid #e0e6ed", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
+                            <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "14px", padding: "10px 12px", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "3px", zIndex: 100, border: "1px solid #e2e8f0", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
                               {REACTION_EMOJIS.map(e => (
-                                <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s", flexShrink: 0 }}
-                                  onMouseEnter={ev => ev.currentTarget.style.background = "#f0f4f8"}
-                                  onMouseLeave={ev => ev.currentTarget.style.background = "none"}
+                                <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "4px 6px", borderRadius: "10px", transition: "background 0.12s, transform 0.12s", flexShrink: 0 }}
+                                  onMouseEnter={ev => { ev.currentTarget.style.background = "#f1f5f9"; ev.currentTarget.style.transform = "scale(1.25)"; }}
+                                  onMouseLeave={ev => { ev.currentTarget.style.background = "none"; ev.currentTarget.style.transform = "scale(1)"; }}
                                   onClick={() => handleUserReactMessage(m.id, e)}
                                 >{e}</button>
                               ))}
@@ -2510,58 +2587,105 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
               </div>
             )
           return (
-            <div style={{ background: "white", borderRadius: "12px", padding: "28px", boxShadow: "0 2px 12px rgba(0,0,0,0.10)" }} onClick={() => { setUserMsgEmojiOpen(null); setUserMsgTooltip(null); }}>
-              <h2 style={{ margin: "0 0 6px", color: "#2c3e50", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}><Icon name="mail" size={18} /> {t2("Messages", "Messages")}</h2>
-              {isHautMembreUser ? (
-                <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", marginTop: "12px" }}>
-                  <button style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "nouveau" ? "700" : "500", background: userMsgTab === "nouveau" ? "#e67e22" : "transparent", color: userMsgTab === "nouveau" ? "white" : "#7f8c8d" }} onClick={() => { setUserMsgTab("nouveau"); setUserMsgSendError(""); setUserMsgSendSuccess(""); }}>✏️ {t2("Nouveau", "New")}</button>
-                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "envoyes" ? "700" : "500", background: userMsgTab === "envoyes" ? "#e67e22" : "transparent", color: userMsgTab === "envoyes" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("envoyes")}>📤 {t2("Envoyés", "Sent")}{envoyesU.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "envoyes" ? "rgba(255,255,255,0.3)" : "#e67e22", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{envoyesU.length}</span>}</button>
-                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "recus" ? "700" : "500", background: userMsgTab === "recus" ? "#3498db" : "transparent", color: userMsgTab === "recus" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("recus")}>📥 {t2("Reçus", "Received")}{recusU.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "recus" ? "rgba(255,255,255,0.3)" : "#3498db", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{recusU.length}</span>}</button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", marginTop: "12px" }}>
-                  <button style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab !== "recus" ? "700" : "500", background: userMsgTab !== "recus" ? "#3498db" : "transparent", color: userMsgTab !== "recus" ? "white" : "#7f8c8d" }} onClick={() => setUserMsgTab("messages")}>📢 {t2("Messages", "Messages")}</button>
-                  <button style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: userMsgTab === "recus" ? "700" : "500", background: userMsgTab === "recus" ? "#3498db" : "transparent", color: userMsgTab === "recus" ? "white" : "#7f8c8d", position: "relative" }} onClick={() => setUserMsgTab("recus")}>📥 {t2("Reçus", "Received")}{userMessages.length > 0 && <span style={{ marginLeft: "6px", background: userMsgTab === "recus" ? "rgba(255,255,255,0.3)" : "#3498db", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{userMessages.length}</span>}</button>
-                </div>
-              )}
-              {isHautMembreUser && userMsgTab === "nouveau" && (
-                <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
-                  <div style={{ marginBottom: "14px" }}>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Titre", "Title")}</label>
-                    <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }} value={userMsgForm.titre} onChange={e => setUserMsgForm(f => ({ ...f, titre: e.target.value }))} placeholder={t2("Objet du message", "Message subject")} autoFocus />
+            <div className="msg-page-enter" style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 6px 32px rgba(44,62,80,0.13)", border: "1px solid #e2e8f0" }} onClick={() => { setUserMsgEmojiOpen(null); setUserMsgTooltip(null); }}>
+
+              {/* ── Bannière gradient ── */}
+              <div style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%)", padding: "24px 28px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "-45px", right: "-45px", width: "150px", height: "150px", borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", bottom: "-25px", left: "5%", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", top: "8px", left: "45%", width: "70px", height: "70px", borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+                <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span className="msg-icon-float" style={{ fontSize: "38px", filter: "drop-shadow(0 3px 12px rgba(0,0,0,0.28))", lineHeight: 1 }}>✉️</span>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <h2 style={{ margin: 0, color: "white", fontSize: "22px", fontWeight: "800", textShadow: "0 2px 6px rgba(0,0,0,0.2)", letterSpacing: "-0.3px" }}>
+                        {t2("Messages", "Messages")}
+                      </h2>
+                      {userMsgUnread > 0 && (
+                        <span className="msg-badge-pop" style={{ background: "#ef4444", color: "white", borderRadius: "12px", padding: "3px 10px", fontSize: "12px", fontWeight: "700", boxShadow: "0 2px 10px rgba(239,68,68,0.55)" }}>
+                          {userMsgUnread} {t2("non lu(s)", "unread")}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: "5px 0 0", color: "rgba(255,255,255,0.72)", fontSize: "13px" }}>
+                      {isHautMembreUser
+                        ? t2("Communiquez avec les membres de votre association", "Communicate with your association members")
+                        : t2("Consultez les messages de votre association", "View your association's messages")}
+                    </p>
                   </div>
-                  <div style={{ marginBottom: "14px" }}>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Contenu", "Content")}</label>
-                    <textarea style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit" }} value={userMsgForm.contenu} onChange={e => setUserMsgForm(f => ({ ...f, contenu: e.target.value }))} placeholder={t2("Contenu du message…", "Message content…")} />
-                  </div>
-                  {userMsgSendError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>⚠️ {userMsgSendError}</div>}
-                  {userMsgSendSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>✅ {userMsgSendSuccess}</div>}
-                  <button style={{ padding: "11px 32px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: userMsgSending ? 0.7 : 1 }} disabled={userMsgSending} onClick={async () => {
-                    setUserMsgSendError(""); setUserMsgSendSuccess("");
-                    if (!userMsgForm.titre.trim() || !userMsgForm.contenu.trim()) { setUserMsgSendError(t2("Titre et contenu requis.", "Title and content required.")); return; }
-                    setUserMsgSending(true);
-                    try {
-                      const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(userMsgForm) });
-                      const data = await res.json();
-                      if (!res.ok) { setUserMsgSendError(data.error || t2("Erreur.", "Error.")); return; }
-                      setUserMessages(prev => [data, ...prev]);
-                      setUserMsgForm({ titre: "", contenu: "" });
-                      setUserMsgSendSuccess(t2("Message envoyé avec succès !", "Message sent successfully!"));
-                      setTimeout(() => { setUserMsgSendSuccess(""); setUserMsgTab("envoyes"); }, 2200);
-                    } catch { setUserMsgSendError(t2("Erreur réseau.", "Network error.")); }
-                    finally { setUserMsgSending(false); }
-                  }}>{userMsgSending ? t2("Envoi…", "Sending…") : t2("Envoyer à tous les membres", "Send to all members")}</button>
                 </div>
-              )}
-              {userMsgTab !== "nouveau" && (() => {
-                const liste = isHautMembreUser
-                  ? (userMsgTab === "envoyes" ? envoyesU : recusU)
-                  : userMessages;
-                const emptyLabel = userMsgTab === "envoyes"
-                  ? t2("Aucun message envoyé pour le moment.", "No sent messages yet.")
-                  : t2("Aucun message reçu pour le moment.", "No received messages yet.");
-                return renderMsgList(liste, emptyLabel);
-              })()}
+              </div>
+
+              {/* ── Onglets & contenu ── */}
+              <div style={{ background: "white", padding: "20px 24px 28px" }}>
+                {isHautMembreUser ? (
+                  <div className="msg-tabs-row">
+                    <button className={`msg-tab-btn${userMsgTab === "nouveau" ? " msg-tab-btn--orange" : ""}`} onClick={() => { setUserMsgTab("nouveau"); setUserMsgSendError(""); setUserMsgSendSuccess(""); }}>
+                      ✏️ {t2("Nouveau", "New")}
+                    </button>
+                    <button className={`msg-tab-btn${userMsgTab === "envoyes" ? " msg-tab-btn--orange" : ""}`} onClick={() => setUserMsgTab("envoyes")}>
+                      📤 {t2("Envoyés", "Sent")}
+                      {envoyesU.length > 0 && <span className={`msg-tab-badge${userMsgTab === "envoyes" ? "" : " msg-tab-badge--orange-inactive"}`}>{envoyesU.length}</span>}
+                    </button>
+                    <button className={`msg-tab-btn${userMsgTab === "recus" ? " msg-tab-btn--blue" : ""}`} onClick={() => setUserMsgTab("recus")}>
+                      📥 {t2("Reçus", "Received")}
+                      {recusU.length > 0 && <span className={`msg-tab-badge${userMsgTab === "recus" ? "" : " msg-tab-badge--blue-inactive"}`}>{recusU.length}</span>}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="msg-tabs-row">
+                    <button className={`msg-tab-btn${userMsgTab !== "recus" ? " msg-tab-btn--blue" : ""}`} onClick={() => setUserMsgTab("messages")}>
+                      📢 {t2("Messages", "Messages")}
+                    </button>
+                    <button className={`msg-tab-btn${userMsgTab === "recus" ? " msg-tab-btn--blue" : ""}`} onClick={() => setUserMsgTab("recus")}>
+                      📥 {t2("Reçus", "Received")}
+                      {userMessages.length > 0 && <span className={`msg-tab-badge${userMsgTab === "recus" ? "" : " msg-tab-badge--blue-inactive"}`}>{userMessages.length}</span>}
+                    </button>
+                  </div>
+                )}
+
+                {isHautMembreUser && userMsgTab === "nouveau" && (
+                  <div style={{ background: "#fafbfc", borderRadius: "12px", padding: "22px", border: "1.5px solid #e2e8f0" }}>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Titre", "Title")}</label>
+                      <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", background: "white" }} value={userMsgForm.titre} onChange={e => setUserMsgForm(f => ({ ...f, titre: e.target.value }))} placeholder={t2("Objet du message", "Message subject")} autoFocus />
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t2("Contenu", "Content")}</label>
+                      <textarea style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit", background: "white" }} value={userMsgForm.contenu} onChange={e => setUserMsgForm(f => ({ ...f, contenu: e.target.value }))} placeholder={t2("Contenu du message…", "Message content…")} />
+                    </div>
+                    {userMsgSendError && <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px", border: "1px solid #fca5a5" }}>⚠️ {userMsgSendError}</div>}
+                    {userMsgSendSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px", border: "1px solid #86efac" }}>✅ {userMsgSendSuccess}</div>}
+                    <button style={{ padding: "12px 32px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: userMsgSending ? 0.7 : 1, boxShadow: "0 4px 14px rgba(245,158,11,0.4)", display: "inline-flex", alignItems: "center", gap: "8px" }} disabled={userMsgSending} onClick={async () => {
+                      setUserMsgSendError(""); setUserMsgSendSuccess("");
+                      if (!userMsgForm.titre.trim() || !userMsgForm.contenu.trim()) { setUserMsgSendError(t2("Titre et contenu requis.", "Title and content required.")); return; }
+                      setUserMsgSending(true);
+                      try {
+                        const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(userMsgForm) });
+                        const data = await res.json();
+                        if (!res.ok) { setUserMsgSendError(data.error || t2("Erreur.", "Error.")); return; }
+                        setUserMessages(prev => [data, ...prev]);
+                        setUserMsgForm({ titre: "", contenu: "" });
+                        setUserMsgSendSuccess(t2("Message envoyé avec succès !", "Message sent successfully!"));
+                        setTimeout(() => { setUserMsgSendSuccess(""); setUserMsgTab("envoyes"); }, 2200);
+                      } catch { setUserMsgSendError(t2("Erreur réseau.", "Network error.")); }
+                      finally { setUserMsgSending(false); }
+                    }}>
+                      {userMsgSending ? <><span>⏳</span> {t2("Envoi…", "Sending…")}</> : <><span>🚀</span> {t2("Envoyer à tous les membres", "Send to all members")}</>}
+                    </button>
+                  </div>
+                )}
+
+                {userMsgTab !== "nouveau" && (() => {
+                  const liste = isHautMembreUser
+                    ? (userMsgTab === "envoyes" ? envoyesU : recusU)
+                    : userMessages;
+                  const emptyLabel = userMsgTab === "envoyes"
+                    ? t2("Aucun message envoyé pour le moment.", "No sent messages yet.")
+                    : t2("Aucun message reçu pour le moment.", "No received messages yet.");
+                  return renderMsgList(liste, emptyLabel);
+                })()}
+              </div>
             </div>
           );
         })()}
@@ -2652,7 +2776,7 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
               <button onClick={() => setShowLogoutConfirm(false)} style={{ padding: "10px 24px", background: "#ecf0f1", color: "#2c3e50", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "14px" }}>
                 {t2("Annuler", "Cancel")}
               </button>
-              <button onClick={onLogout} style={{ padding: "10px 24px", background: "#c0392b", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "700" }}>
+              <button onClick={async () => { try { await apiFetch(`${API_BASE}/auth/logout`, { method: "POST" }); } catch {} onLogout(); }} style={{ padding: "10px 24px", background: "#c0392b", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "700" }}>
                 {t2("Déconnecter", "Logout")}
               </button>
             </div>
@@ -2674,6 +2798,9 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
         <button className={`bnav-item${page === "cotisations" ? " bnav-active" : ""}`} onClick={() => setPage("cotisations")}>
           <span className="bnav-label">{t2("Cotisations", "Contributions")}</span>
         </button>
+        <button className={`bnav-item${page === "bureau" ? " bnav-active" : ""}`} onClick={() => setPage("bureau")}>
+          <span className="bnav-label">{t2("Bureau", "Board")}</span>
+        </button>
         <button className={`bnav-item${page === "messages" ? " bnav-active" : ""}`} style={{ position: "relative" }} onClick={() => { setPage("messages"); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setUserMsgUnread(0); }}>
           <span className="bnav-label">{t2("Messages", "Messages")}</span>
           {userMsgUnread > 0 && <span style={{ position: "absolute", top: "4px", right: "8px", background: "#e74c3c", color: "white", borderRadius: "50%", width: "14px", height: "14px", fontSize: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700" }}>{userMsgUnread}</span>}
@@ -2690,9 +2817,153 @@ function UserDashboard({ compte, API_BASE, lang, setLang, onLogout }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// PAGE PUBLIQUE — Carte membre (scannée via QR)
+// ═══════════════════════════════════════════════════════
+function PublicCarteView({ encodedData }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(encodedData))));
+      setData(decoded);
+    } catch { setError(true); }
+  }, [encodedData]);
+
+  if (error) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8" }}>
+      <div style={{ textAlign: "center", color: "#e74c3c", fontSize: "16px" }}>❌ Carte invalide ou expirée.</div>
+    </div>
+  );
+  if (!data) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8" }}>
+      <div style={{ color: "#7f8c8d" }}>Chargement…</div>
+    </div>
+  );
+
+  const posteColors = { "président": "#7c3aed", "vice-président": "#1d4ed8", "secrétaire général": "#15803d", "secrétaire adjoint": "#0e7490", "trésorier": "#c2410c", "trésorier adjoint": "#b45309", "commissaire": "#b91c1c", "conseiller": "#475569" };
+  const colorKey = data.p ? Object.keys(posteColors).find(k => data.p.toLowerCase().includes(k)) : null;
+  const posteColor = colorKey ? posteColors[colorKey] : "#3498db";
+  const initials = data.n ? data.n.split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() : "?";
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a2742 0%, #2c3e50 50%, #1a6a9a 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: "400px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <div style={{ color: "#a8d8cc", fontSize: "13px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase" }}>COTISATION PRO</div>
+          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px", marginTop: "2px" }}>Carte membre numérique</div>
+        </div>
+
+        {/* Carte */}
+        <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+          {/* Bandeau gradient haut */}
+          <div style={{ background: "linear-gradient(135deg, #1a2742, #2c3e50)", padding: "28px 24px 20px", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: "-30px", right: "-30px", width: "120px", height: "120px", borderRadius: "50%", background: "rgba(52,152,219,0.15)" }} />
+            <div style={{ position: "absolute", bottom: "-40px", left: "-20px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "18px", position: "relative" }}>
+              {/* Avatar */}
+              <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: `linear-gradient(135deg, ${posteColor}, ${posteColor}aa)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", fontWeight: "800", color: "white", border: "3px solid rgba(255,255,255,0.3)", flexShrink: 0, boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: "white", fontWeight: "800", fontSize: "20px", lineHeight: 1.2, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{data.n}</div>
+                {data.m && <div style={{ color: "#a8d8ea", fontSize: "13px", marginTop: "4px", fontWeight: "600" }}>N° {data.m}</div>}
+                {data.p && (
+                  <div style={{ display: "inline-block", marginTop: "6px", background: posteColor, color: "white", fontSize: "11px", fontWeight: "700", padding: "3px 12px", borderRadius: "12px" }}>{data.p}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Infos détaillées */}
+          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* Association */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "12px", borderBottom: "1px solid #f0f4f8" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#1a2742", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: "18px" }}>🏛️</span>
+              </div>
+              <div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Association</div>
+                <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b" }}>{data.a}</div>
+              </div>
+            </div>
+
+            {/* Contact */}
+            {(data.t || data.e) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {data.t && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "16px" }}>📞</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Téléphone</div>
+                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#1e293b" }}>{data.t}</div>
+                    </div>
+                  </div>
+                )}
+                {data.e && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "16px" }}>✉️</span>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Email</div>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.e}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Date inscription */}
+            {data.d && (
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingTop: (data.t || data.e) ? "2px" : 0 }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fdf4ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: "16px" }}>📅</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Membre depuis</div>
+                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#1e293b" }}>{data.d}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pied de carte — badge vérifié */}
+          <div style={{ background: "linear-gradient(135deg, #16a085, #1abc9c)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ color: "white", fontWeight: "800", fontSize: "12px", letterSpacing: "0.5px" }}>✅ Carte vérifiée</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "10px", marginTop: "1px" }}>Cotisation Pro — {data.a}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: "8px", padding: "6px 12px" }}>
+              <div style={{ color: "white", fontSize: "9px", fontWeight: "700", letterSpacing: "1px" }}>MEMBRE ACTIF</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bouton retour */}
+        <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <button
+            onClick={() => window.location.href = window.location.origin}
+            style={{ background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "10px", padding: "10px 24px", cursor: "pointer", fontSize: "13px", fontWeight: "600", backdropFilter: "blur(8px)" }}
+          >
+            🏠 Aller sur Cotisation Pro
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // APPLICATION PRINCIPALE
 // ═══════════════════════════════════════════════════════
 function App() {
+  // ── Carte publique (scan QR) ──────────────────────────
+  const [publicCarteParam] = useState(() => new URLSearchParams(window.location.search).get("carte"));
+
   // ── Langue ────────────────────────────────────────────
   const [lang, setLang] = useState(() => localStorage.getItem("cotisation_lang") || "fr");
   const t = (key) => (translations[lang] || translations.fr)[key] ?? key;
@@ -2713,7 +2984,8 @@ function App() {
   const apiFetch = (url, options = {}) =>
     fetch(url, { ...options, headers: { ...(options.headers || {}), ...(compte?.token ? { Authorization: `Bearer ${compte.token}` } : {}) } });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await apiFetch(`${API_BASE}/auth/logout`, { method: "POST" }); } catch {}
     sessionStorage.removeItem("cotisation_pro_compte");
     setCompte(null);
     setAdherents([]);
@@ -2730,17 +3002,18 @@ function App() {
   const [editingIndex, setEditingIndex] = useState(null);
   const [showUnpaidOnly, setShowUnpaidOnly] = useState(false);
   const [showUnpaidOrPartial, setShowUnpaidOrPartial] = useState(false);
+  const [nonRegleTab, setNonRegleTab] = useState("impayes");
   const [showCotisationForm, setShowCotisationForm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const accountMenuRef = useRef(null);
   const contentRef = useRef(null);
-  const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const plusMenuRef = useRef(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [helpSection, setHelpSection] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [showAssistanceMenu, setShowAssistanceMenu] = useState(false);
+  const assistanceMenuRef = useRef(null);
   const [changePwdStep, setChangePwdStep] = useState(1);
   const [changePwdForm, setChangePwdForm] = useState({ ancien: "", nouveau: "", confirmer: "" });
   const [changePwdError, setChangePwdError] = useState("");
@@ -2898,7 +3171,6 @@ function App() {
   const [profilError, setProfilError] = useState("");
   const [profilEditMode, setProfilEditMode] = useState(false);
   const [profilEditForm, setProfilEditForm] = useState({ nom: "", prenom: "", telephone: "", photo: "" });
-  const [showRoleTransfer, setShowRoleTransfer] = useState(false);
   const [roleTransferPoste, setRoleTransferPoste] = useState("Président(e)");
   const [roleTransferTargetId, setRoleTransferTargetId] = useState("");
   const [roleTransferMyPoste, setRoleTransferMyPoste] = useState("");
@@ -3571,6 +3843,17 @@ function App() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showAccountMenu]);
 
+  // Fermer le menu Assistance au clic en dehors
+  useEffect(() => {
+    if (!showAssistanceMenu) return;
+    const handler = (e) => {
+      if (assistanceMenuRef.current && !assistanceMenuRef.current.contains(e.target))
+        setShowAssistanceMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAssistanceMenu]);
+
   // Transition de page : animation fade+slide sur le contenu
   useEffect(() => {
     const el = contentRef.current;
@@ -3580,16 +3863,6 @@ function App() {
     el.classList.add("page-enter");
   }, [page]);
 
-  // Fermer le menu Plus au clic en dehors
-  useEffect(() => {
-    if (!showPlusMenu) return;
-    const handler = (e) => {
-      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target))
-        setShowPlusMenu(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showPlusMenu]);
 
   // Générer le QR code de la carte admin quand le profil est chargé
   useEffect(() => {
@@ -4609,6 +4882,9 @@ function App() {
   const creatorIsPresident = isAdmin && !!(profilData?.poste?.toLowerCase().includes("président"));
   const canAssignPoste = (isAdmin && (!nonCreatorPresidentExists || creatorIsPresident)) || isPresident;
 
+  // ── Page publique carte membre (scan QR) ──────────────
+  if (publicCarteParam) return <PublicCarteView encodedData={publicCarteParam} />;
+
   // ── Guard : si non connecté → landing ou authentification ──
   if (!compte) {
     if (showLanding) {
@@ -4704,132 +4980,126 @@ function App() {
 
       {/* ── BARRE DE NAVIGATION DESKTOP ──────────────────── */}
       <header className="app-navbar">
-        {/* Brand */}
-        <div className="app-navbar-brand">
-          <img src={logo} alt="Logo" className="app-navbar-logo" />
-          <div>
-            <div className="app-navbar-title">Cotisation Pro</div>
-            <div className="app-navbar-assoc"><Icon name="building" size={11} style={{ marginRight: "4px", verticalAlign: "middle" }} />{compte.nom_association}</div>
+
+        {/* ── Barre principale : Logo à gauche, Langue + Compte à droite ── */}
+        <div className="app-navbar-brand-row">
+          <div className="app-navbar-brand">
+            <img src={logo} alt="Logo" className="app-navbar-logo" />
+            <div>
+              <div className="app-navbar-title">Cotisation <span className="app-navbar-title-accent">Pro</span></div>
+              <div className="app-navbar-assoc"><Icon name="building" size={11} style={{ marginRight: "4px", verticalAlign: "middle" }} />{compte.nom_association}</div>
+            </div>
+          </div>
+          <div className="app-navbar-brand-controls">
+            <select value={lang} onChange={(e) => setLang(e.target.value)} className="topbar-lang-select">
+              <option value="fr">🇫🇷 FR</option>
+              <option value="en">🇬🇧 EN</option>
+            </select>
+            <div style={{ position: "relative" }} ref={accountMenuRef}>
+              <button
+                className={`topbar-account-btn ${isAdmin ? "role-admin" : isTresorier ? "role-tresorier" : "role-membre"}`}
+                onClick={() => setShowAccountMenu(v => !v)}
+                title={compte.email || t("accountMenu")}
+              >
+                {(compte.email?.split("@")[0] || "U").slice(0, 2).toUpperCase()}
+              </button>
+              {showAccountMenu && (
+                <div className="nav-account-panel">
+                  <div className="nav-account-header">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "11px", color: "#3498db", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("accountMenu")}</div>
+                      <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: isAdmin ? "#f3e5f5" : isTresorier ? "#e8f0fe" : "#e3f2fd", color: isAdmin ? "#6a1b9a" : isTresorier ? "#6c3483" : "#1565c0" }}>
+                        {isAdmin ? (compte?.poste || (lang === "fr" ? "Créateur" : "Creator")) : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
+                    <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{compte.email}</div>
+                  </div>
+                  <div style={{ padding: "6px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                    {lang === "fr" ? "Mon compte" : "My account"}
+                  </div>
+                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadProfil(); setPage("profil"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="user" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mon profil" : "My Profile"}
+                  </button>
+                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="dollar" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mes cotisations" : "My Contributions"}
+                  </button>
+                  <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 4px" }} />
+                  <div style={{ padding: "2px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                    {lang === "fr" ? "Sécurité" : "Security"}
+                  </div>
+                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="key" size={14} style={{ opacity: 0.6 }} /> {t("changePassword")}
+                  </button>
+                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="mail" size={14} style={{ opacity: 0.6 }} /> {t("changeEmail")}
+                  </button>
+                  <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 2px" }} />
+                  <button className="nav-account-item nav-account-logout" onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <Icon name="logout" size={14} style={{ opacity: 0.7 }} /> {t("logout")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Onglets principaux */}
-        <nav className="app-navbar-tabs">
-          <button className={`nav-tab${page === "accueil" ? " nav-tab-active" : ""}`} onClick={() => setPage("accueil")}>
-            <Icon name="home" size={15} /> {t("home")}
-          </button>
-          <button className={`nav-tab${page === "adherents" ? " nav-tab-active" : ""}`} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>
-            <Icon name="users" size={15} /> {t("members")}
-          </button>
-          <button className={`nav-tab${page === "cotisations" ? " nav-tab-active" : ""}`} onClick={() => setPage("cotisations")}>
-            <Icon name="list" size={15} /> {t("contributions")}
-          </button>
-          <button className={`nav-tab${page === "historique" ? " nav-tab-active" : ""}`} onClick={() => setPage("historique")}>
-            <Icon name="clock" size={15} /> {t("history")}
-          </button>
-
-          {/* Dropdown "Plus" */}
-          <div className="nav-tab-dropdown" ref={plusMenuRef}>
-            <button
-              className={`nav-tab nav-tab-plus${["messages", "comptabilite", "audit"].includes(page) ? " nav-tab-active" : ""}`}
-              onClick={() => setShowPlusMenu(v => !v)}
-            >
-              {lang === "fr" ? "Plus" : "More"} {showPlusMenu ? "▲" : "▾"}
+        {/* ── Barre des onglets de navigation ── */}
+        <div className="app-navbar-tabs-row">
+          <nav className="app-navbar-tabs">
+            <button className={`nav-tab${page === "accueil" ? " nav-tab-active" : ""}`} onClick={() => setPage("accueil")}>
+              <Icon name="home" size={15} /> {t("home")}
+            </button>
+            <button className={`nav-tab${page === "adherents" ? " nav-tab-active" : ""}`} onClick={() => { setPage("adherents"); setShowUnpaidOnly(false); setShowUnpaidOrPartial(false); }}>
+              <Icon name="users" size={15} /> {t("members")}
+            </button>
+            <button className={`nav-tab${page === "cotisations" ? " nav-tab-active" : ""}`} onClick={() => setPage("cotisations")}>
+              <Icon name="list" size={15} /> {t("contributions")}
+            </button>
+            <button className={`nav-tab${page === "historique" ? " nav-tab-active" : ""}`} onClick={() => setPage("historique")}>
+              <Icon name="clock" size={15} /> {t("history")}
+            </button>
+            <button className={`nav-tab${page === "messages" ? " nav-tab-active" : ""}`}
+              onClick={() => { setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}
+              style={{ position: "relative" }}>
+              <Icon name="mail" size={15} /> {lang === "fr" ? "Messages" : "Messages"}
               {adminMsgUnread > 0 && <span className="nav-badge badge-pulse-red">{adminMsgUnread}</span>}
             </button>
-            {showPlusMenu && (
-              <div className="nav-dropdown-panel">
-                <button className={`nav-dropdown-item${page === "messages" ? " nav-dropdown-active" : ""}`}
-                  onClick={() => { setShowPlusMenu(false); setPage("messages"); loadMessages(); const k = `msg_seen_${compte?.email}`; localStorage.setItem(k, Date.now().toString()); setAdminMsgUnread(0); }}>
-                  <Icon name="mail" size={14} /> {lang === "fr" ? "Messages" : "Messages"}
-                  {adminMsgUnread > 0 && <span className="nav-badge badge-pulse-red">{adminMsgUnread}</span>}
-                </button>
-                {canActAsTresorier && (
-                  <button className={`nav-dropdown-item${page === "comptabilite" ? " nav-dropdown-active" : ""}`}
-                    onClick={() => { setShowPlusMenu(false); setPage("comptabilite"); loadComptabilite(); }}>
-                    <Icon name="bar-chart" size={14} /> {lang === "fr" ? "Comptabilité" : "Accounting"}
-                  </button>
-                )}
-                {isAdmin && (
-                  <button className={`nav-dropdown-item${page === "audit" ? " nav-dropdown-active" : ""}`}
-                    onClick={() => { setShowPlusMenu(false); setPage("audit"); setAuditOffset(0); setAuditActionFilter(""); loadAuditLogs(0, ""); }}>
-                    <Icon name="shield" size={14} /> Audit
-                  </button>
-                )}
-              </div>
+            {canActAsTresorier && (
+              <button className={`nav-tab${page === "comptabilite" ? " nav-tab-active" : ""}`}
+                onClick={() => { setPage("comptabilite"); loadComptabilite(); }}>
+                <Icon name="bar-chart" size={15} /> {lang === "fr" ? "Comptabilité" : "Accounting"}
+              </button>
             )}
-          </div>
-        </nav>
-
-        {/* Droite : langue + compte */}
-        <div className="app-navbar-right">
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select nav-lang-select">
-            <option value="fr" style={{ background: "#1e2d3d" }}>🇫🇷 FR</option>
-            <option value="en" style={{ background: "#1e2d3d" }}>🇬🇧 EN</option>
-          </select>
-
-          <div style={{ position: "relative" }} ref={accountMenuRef}>
-            <button className="nav-account-btn" onClick={() => setShowAccountMenu(v => !v)} title={t("accountMenu")}>
-              ···
+            {isAdmin && (
+              <button className={`nav-tab${page === "audit" ? " nav-tab-active" : ""}`}
+                onClick={() => { setPage("audit"); setAuditOffset(0); setAuditActionFilter(""); loadAuditLogs(0, ""); }}>
+                <Icon name="shield" size={15} /> Audit
+              </button>
+            )}
+            <button className={`nav-tab${page === "bureau" ? " nav-tab-active" : ""}`}
+              onClick={() => { setRoleTransferPoste(""); setRoleTransferTargetId(""); setRoleTransferError(""); setRoleTransferSuccess(""); setPage("bureau"); }}>
+              <Icon name="building" size={15} /> {lang === "fr" ? "Bureau" : "Board"}
             </button>
-            {showAccountMenu && (
-              <div className="nav-account-panel">
-                <div className="nav-account-header">
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <div style={{ fontSize: "11px", color: "#3498db", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("accountMenu")}</div>
-                    <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", background: isAdmin ? "#f3e5f5" : isTresorier ? "#e8f0fe" : "#e3f2fd", color: isAdmin ? "#6a1b9a" : isTresorier ? "#6c3483" : "#1565c0" }}>
-                      {isAdmin ? (compte?.poste || (lang === "fr" ? "Créateur" : "Creator")) : compte?.poste ? compte.poste : (lang === "fr" ? "Membre" : "Member")}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#2c3e50", marginBottom: "2px" }}>{compte.nom_association}</div>
-                  <div style={{ fontSize: "12px", color: "#7f8c8d" }}>{compte.email}</div>
-                </div>
-                {/* ─── Mon compte ─── */}
-                <div style={{ padding: "6px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                  {lang === "fr" ? "Mon compte" : "My account"}
-                </div>
-                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadProfil(); setPage("profil"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="user" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mon profil" : "My Profile"}
-                </button>
-                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); loadMesCotisations(); setPage("mes-cotisations"); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="dollar" size={14} style={{ opacity: 0.6 }} /> {lang === "fr" ? "Mes cotisations" : "My Contributions"}
-                </button>
-
-                {/* ─── Sécurité ─── */}
-                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 4px" }} />
-                <div style={{ padding: "2px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                  {lang === "fr" ? "Sécurité" : "Security"}
-                </div>
-                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangePwdStep(1); setChangePwdForm({ ancien: "", nouveau: "", confirmer: "" }); setChangePwdError(""); setChangePwdSuccessMsg(false); setShowChangePwd(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="key" size={14} style={{ opacity: 0.6 }} /> {t("changePassword")}
-                </button>
-                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setChangeEmailStep(1); setChangeEmailForm({ email: "", mot_de_passe: "" }); setChangeEmailOtp(""); setChangeEmailError(""); setChangeEmailSuccess(false); setShowChangeEmail(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="mail" size={14} style={{ opacity: 0.6 }} /> {t("changeEmail")}
-                </button>
-
-                {/* ─── Assistance ─── */}
-                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 4px" }} />
-                <div style={{ padding: "2px 14px 3px", fontSize: "10px", fontWeight: "800", color: "#b0bec5", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                  {lang === "fr" ? "Assistance" : "Support"}
-                </div>
-                {isAdmin && (
-                  <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setHelpSection(null); setShowHelp(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                    <Icon name="list" size={14} style={{ opacity: 0.6 }} /> {t("helpMenu")}
+            <div className="nav-tab-dropdown" ref={assistanceMenuRef} style={{ position: "relative" }}>
+              <button className={`nav-tab${showAssistanceMenu ? " nav-tab-active" : ""}`}
+                onClick={() => setShowAssistanceMenu(v => !v)}>
+                <Icon name="info" size={15} /> {lang === "fr" ? "Assistance" : "Support"} {showAssistanceMenu ? "▲" : "▾"}
+              </button>
+              {showAssistanceMenu && (
+                <div className="nav-dropdown-panel">
+                  <button className="nav-dropdown-item" onClick={() => { setShowAssistanceMenu(false); setHelpSection(null); setShowHelp(true); }}>
+                    <Icon name="list" size={14} /> {t("helpMenu")}
                   </button>
-                )}
-                <button className="nav-account-item" onClick={() => { setShowAccountMenu(false); setShowAbout(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="info" size={14} style={{ opacity: 0.6 }} /> {t("aboutMenu")}
-                </button>
-
-                {/* ─── Déconnexion ─── */}
-                <div style={{ height: "1px", background: "#f0f2f5", margin: "6px 0 2px" }} />
-                <button className="nav-account-item nav-account-logout" onClick={() => { setShowAccountMenu(false); setShowLogoutConfirm(true); }} style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <Icon name="logout" size={14} style={{ opacity: 0.7 }} /> {t("logout")}
-                </button>
-              </div>
-            )}
-          </div>
+                  <button className="nav-dropdown-item" onClick={() => { setShowAssistanceMenu(false); setShowAbout(true); }}>
+                    <Icon name="info" size={14} /> {t("aboutMenu")}
+                  </button>
+                </div>
+              )}
+            </div>
+          </nav>
         </div>
+
       </header>
 
       <div style={styles.content} className="app-content" ref={contentRef}>
@@ -4906,13 +5176,6 @@ function App() {
                           style={{ padding: "9px 20px", background: "#8e44ad", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
                           <Icon name="key" size={14} /> {lang === "fr" ? "Mot de passe" : "Password"}
                         </button>
-                        {canAssignPoste && (
-                          <button
-                            onClick={() => { setRoleTransferPoste("Président(e)"); setRoleTransferTargetId(""); setRoleTransferMyPoste(""); setRoleTransferError(""); setRoleTransferSuccess(""); setShowRoleTransfer(true); }}
-                            style={{ padding: "9px 20px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <Icon name="rotate-cw" size={14} /> {lang === "fr" ? "Attribuer un rôle" : "Assign a Role"}
-                          </button>
-                        )}
                       </>
                     ) : (
                       <>
@@ -5487,6 +5750,121 @@ function App() {
               </div>
               </InView>
             )}
+
+            {/* ⑥ ACTIONS RAPIDES */}
+            <InView delay={0.08}>
+            <div style={{ background: "#fff", borderRadius: "18px", padding: "22px 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+              <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "18px" }}>
+                <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#3498db,#1a6fa8)" }}>
+                  <Icon name="plus" size={15} />
+                </div>
+                <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Actions rapides" : "Quick actions"}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" }}>
+                {[
+                  { iconName: "users",      label: lang === "fr" ? "Ajouter adhérent"      : "Add member",        bg: "linear-gradient(135deg,#0f3460,#1a6b9e)", targetPage: "adherents",    show: isAdmin || isTresorier },
+                  { iconName: "dollar",     label: lang === "fr" ? "Enregistrer paiement"  : "Record payment",    bg: "linear-gradient(135deg,#0d3b22,#1e8449)", targetPage: "cotisations",  show: canActAsTresorier },
+                  { iconName: "mail",       label: lang === "fr" ? "Envoyer message"        : "Send message",      bg: "linear-gradient(135deg,#4a235a,#9b59b6)", targetPage: "messages",     show: true },
+                  { iconName: "clock",      label: lang === "fr" ? "Voir historique"        : "View history",      bg: "linear-gradient(135deg,#1a3560,#2980b9)", targetPage: "historique",   show: true },
+                  { iconName: "bar-chart",  label: lang === "fr" ? "Comptabilité"           : "Accounting",        bg: "linear-gradient(135deg,#145a32,#27ae60)", targetPage: "comptabilite", show: canActAsTresorier },
+                  { iconName: "shield",     label: "Audit",                                                        bg: "linear-gradient(135deg,#3b0f0f,#a93226)", targetPage: "audit",        show: isAdmin },
+                ].filter(a => a.show).map(({ iconName, label, bg, targetPage }) => (
+                  <button key={label} onClick={() => { setPage(targetPage); if (targetPage === "comptabilite") loadComptabilite(); }} className="quick-action-btn" style={{ background: bg, borderRadius: "12px", border: "none", padding: "14px 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", boxShadow: "0 3px 12px rgba(0,0,0,0.15)", width: "100%" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                      <Icon name={iconName} size={16} />
+                    </div>
+                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#fff", textAlign: "left", lineHeight: "1.3" }}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            </InView>
+
+            {/* ⑦ TAUX DE PAIEMENT DE LA PÉRIODE */}
+            {currentPeriode && adherents.length > 0 && (
+              <InView delay={0.1}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "24px 28px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "20px" }}>
+                  <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#27ae60,#1e8449)" }}>
+                    <Icon name="trending-up" size={15} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Taux de paiement" : "Payment rate"}</span>
+                    <span style={{ marginLeft: "10px", fontSize: "12px", color: "#95a5a6", fontWeight: "600" }}>— {periodeLabel(currentPeriode.libelle)}</span>
+                  </div>
+                </div>
+                {(() => {
+                  const total = adherents.length;
+                  const paid = total - currentPeriodeNotPaidCount;
+                  const pct = total > 0 ? Math.round(paid / total * 100) : 0;
+                  const color = pct >= 70 ? "#27ae60" : pct >= 40 ? "#f39c12" : "#e74c3c";
+                  const gradient = pct >= 70 ? "linear-gradient(90deg,#1e8449,#27ae60)" : pct >= 40 ? "linear-gradient(90deg,#d35400,#f39c12)" : "linear-gradient(90deg,#a93226,#e74c3c)";
+                  return (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "10px" }}>
+                        <span style={{ fontSize: "13px", color: "#4a5568", fontWeight: "600" }}>{paid} / {total} {lang === "fr" ? "membres ont payé" : "members paid"}</span>
+                        <span style={{ fontSize: "28px", fontWeight: "900", color, lineHeight: 1 }}>{pct}%</span>
+                      </div>
+                      <div style={{ height: "14px", background: "#f0f4f8", borderRadius: "100px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: gradient, borderRadius: "100px", transition: "width 0.8s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: "24px", marginTop: "14px" }}>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#27ae60" }} />
+                          <span style={{ fontSize: "12px", color: "#4a5568", fontWeight: "600" }}>{paid} {lang === "fr" ? "payés" : "paid"}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#e74c3c" }} />
+                          <span style={{ fontSize: "12px", color: "#4a5568", fontWeight: "600" }}>{currentPeriodeNotPaidCount} {lang === "fr" ? "non payés" : "unpaid"}</span>
+                        </div>
+                        <div style={{ marginLeft: "auto" }}>
+                          <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 12px" }} onClick={() => { setPage("adherents"); setShowUnpaidOnly(true); }}>
+                            {lang === "fr" ? "Voir les non payés" : "View unpaid"}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              </InView>
+            )}
+
+            {/* ⑧ DERNIERS ADHÉRENTS INSCRITS */}
+            {adherents.length > 0 && (
+              <InView delay={0.12}>
+              <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: "1px solid #e8edf3" }} className="home-panel">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <div className="home-icon-badge" style={{ width: "30px", height: "30px", background: "linear-gradient(135deg,#1a6b9e,#3498db)" }}>
+                      <Icon name="users" size={15} />
+                    </div>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#1a2742" }}>{lang === "fr" ? "Derniers adhérents inscrits" : "Latest registered members"}</span>
+                  </div>
+                  <button style={{ ...styles.alertButton, fontSize: "11px", padding: "5px 10px" }} onClick={() => setPage("adherents")}>{lang === "fr" ? "Voir tous" : "View all"}</button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {[...adherents].sort((a, b) => b.id - a.id).slice(0, 6).map((adh, i) => (
+                    <div key={adh.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: i % 2 === 0 ? "#f8fbff" : "#fff", borderRadius: "10px", border: "1px solid #eef2f7", transition: "background 0.15s" }}>
+                      {adh.photo
+                        ? <img src={adh.photo} alt="" style={{ width: "38px", height: "38px", borderRadius: "50%", objectFit: "cover", border: "2px solid #d6ecf8", flexShrink: 0 }} />
+                        : <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "linear-gradient(135deg,#1a6b9e,#3498db)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "800", fontSize: "14px", flexShrink: 0 }}>
+                            {((adh.prenom?.[0] || "") + (adh.nom?.[0] || "") || "?").toUpperCase()}
+                          </div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#1a2742", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{adh.prenom} {adh.nom}</div>
+                        <div style={{ fontSize: "11px", color: "#95a5a6" }}>{adh.poste || (lang === "fr" ? "Membre" : "Member")}</div>
+                      </div>
+                      {adh.email && <div style={{ fontSize: "11px", color: "#7f8c8d", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{adh.email}</div>}
+                      <div style={{ fontSize: "10px", color: "#bdc3c7", fontWeight: "700", flexShrink: 0 }}>#{adh.id}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </InView>
+            )}
+
           </div>
           );
         })()}
@@ -6356,30 +6734,39 @@ function App() {
 
                   return (
                     <div>
-                      {/* ── Cartes statistiques ── */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "18px" }}>
-                        {[
-                          { label: t("collectedAmount"), value: formatAmount(totalCollecte), color: "#27ae60", bg: "linear-gradient(135deg, #eafaf1, #d5f5e3)", border: "#a9dfbf", icon: "check-circle" },
-                          { label: t("expectedTotal"),   value: formatAmount(totalDu),       color: "#2980b9", bg: "linear-gradient(135deg, #eaf4fb, #d6eaf8)", border: "#a9cce3", icon: "dollar" },
-                          { label: t("remainingToCollect"), value: formatAmount(resteACollecter), color: "#e74c3c", bg: "linear-gradient(135deg, #fdedec, #fadbd8)", border: "#f1948a", icon: "alert-triangle" },
-                          { label: t("fullPayers"),     value: `${nbPayeComplet} / ${totalPeriode}`, color: "#8e44ad", bg: "linear-gradient(135deg, #f5eef8, #e8daef)", border: "#c39bd3", icon: "users" },
-                        ].map(({ label, value, color, bg, border, icon }) => (
-                          <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "14px", padding: "16px 18px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "7px", color, fontSize: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                              <Icon name={icon} size={14} style={{ color }} /> {label}
+                      {/* ── Cartes stats style dashboard – pleine largeur navbar ── */}
+                      <div style={{ margin: "-4px -20px 0", padding: "12px 20px 14px", background: "#f0f4f8" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+                          {[
+                            { label: lang === "fr" ? "Montant dû"         : "Amount due",          value: formatAmount(duParPersonne),               grad: "linear-gradient(135deg,#1a3a5c,#1e6fa8)", icon: "dollar",         shadow: "#1e6fa844" },
+                            { label: t("collectedAmount"),                                           value: formatAmount(totalCollecte),               grad: "linear-gradient(135deg,#145a32,#1e8449)", icon: "check-circle",  shadow: "#1e844944" },
+                            { label: t("expectedTotal"),                                             value: formatAmount(totalDu),                     grad: "linear-gradient(135deg,#154360,#1a5276)", icon: "trending-up",   shadow: "#1a527644" },
+                            { label: t("remainingToCollect"),                                        value: formatAmount(resteACollecter),             grad: "linear-gradient(135deg,#641e16,#c0392b)", icon: "alert-triangle",shadow: "#c0392b44" },
+                            { label: t("fullPayers"),                                                value: `${nbPayeComplet} / ${totalPeriode}`,      grad: "linear-gradient(135deg,#4a235a,#7d3c98)", icon: "users",         shadow: "#7d3c9844" },
+                          ].map(({ label, value, grad, icon, shadow }) => (
+                            <div key={label} style={{ background: grad, borderRadius: "14px", padding: "14px 16px", boxShadow: `0 4px 18px ${shadow}`, display: "flex", flexDirection: "column", gap: "10px", position: "relative", overflow: "hidden" }}>
+                              <div style={{ position: "absolute", right: "-10px", bottom: "-10px", opacity: 0.08 }}>
+                                <Icon name={icon} size={64} style={{ color: "white" }} />
+                              </div>
+                              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", background: "rgba(255,255,255,0.15)", borderRadius: "9px" }}>
+                                <Icon name={icon} size={15} style={{ color: "white" }} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "10px", fontWeight: "700", color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "4px" }}>{label}</div>
+                                <div style={{ fontSize: "18px", fontWeight: "800", color: "white", lineHeight: 1 }}>{value}</div>
+                              </div>
                             </div>
-                            <div style={{ fontSize: "22px", fontWeight: "800", color }}>{value}</div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
 
                       {/* ── Barre de progression ── */}
-                      <div style={{ background: "white", border: "1px solid #e8ecf0", borderRadius: "12px", padding: "14px 18px", marginBottom: "18px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#7f8c8d", marginBottom: "8px", fontWeight: "600" }}>
+                      <div style={{ background: "white", border: "1px solid #e8ecf0", borderRadius: "12px", padding: "12px 18px", marginBottom: "14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#7f8c8d", marginBottom: "7px", fontWeight: "600" }}>
                           <span>{t("collectionProgress")}</span>
                           <strong style={{ color: barColor }}>{pct.toFixed(1)} %</strong>
                         </div>
-                        <div style={{ background: "#e8ecf0", borderRadius: "10px", height: "10px", overflow: "hidden" }}>
+                        <div style={{ background: "#e8ecf0", borderRadius: "10px", height: "8px", overflow: "hidden" }}>
                           <div style={{ width: pct + "%", height: "100%", background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`, borderRadius: "10px", transition: "width 0.7s ease" }} />
                         </div>
                       </div>
@@ -6458,39 +6845,45 @@ function App() {
                         </div>
                       )}
 
-                      {/* ── Toolbar : recherche + filtres ── */}
-                      <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
-                        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: "320px" }}>
-                          <Icon name="list" size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#aab" }} />
-                          <input
-                            type="text"
-                            placeholder={lang === "fr" ? "Rechercher un membre…" : "Search member…"}
-                            value={cotisationSearchTerm}
-                            onChange={(e) => setCotisationSearchTerm(e.target.value)}
-                            style={{ width: "100%", padding: "9px 12px 9px 36px", border: "1.5px solid #e0e6ed", borderRadius: "9px", fontSize: "13px", outline: "none", boxSizing: "border-box", background: "white" }}
-                          />
-                        </div>
-                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                          {[
-                            ["tous",    t("filterAll"),     "#7f8c8d", nbPaye + nbPartiel + nbImpaye],
-                            ["Payé",    t("filterPaid"),    "#27ae60", nbPaye],
-                            ["Impayé",  t("filterUnpaid"),  "#e74c3c", nbImpaye],
-                            ["Partiel", t("filterPartial"), "#f39c12", nbPartiel],
-                          ].map(([val, label, color, count]) => {
-                            const active = selectedStatutFilter === val;
-                            return (
-                              <button key={val} onClick={() => setSelectedStatutFilter(val)} style={{ padding: "8px 14px", background: active ? color : "white", color: active ? "white" : "#5a6a7a", border: `1.5px solid ${active ? color : "#dde3ea"}`, borderRadius: "8px", cursor: "pointer", fontWeight: active ? "700" : "500", fontSize: "13px", transition: "all 0.15s" }}>
-                                {label} <span style={{ opacity: 0.8, fontSize: "12px" }}>({count})</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      {/* ── Filtres chips + recherche sur une ligne ── */}
+                      {(() => {
+                        const total = nbPaye + nbPartiel + nbImpaye;
+                        const tabs = [
+                          { val: "tous",    label: t("filterAll"),     color: "#5a6a7a", count: total },
+                          { val: "Payé",    label: t("filterPaid"),    color: "#27ae60", count: nbPaye },
+                          { val: "Impayé",  label: t("filterUnpaid"),  color: "#e74c3c", count: nbImpaye },
+                          { val: "Partiel", label: t("filterPartial"), color: "#f39c12", count: nbPartiel },
+                        ];
+                        return (
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px" }}>
+                            {tabs.map(({ val, label, color, count }) => {
+                              const active = selectedStatutFilter === val;
+                              return (
+                                <button key={val} onClick={() => setSelectedStatutFilter(val)}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: active ? color : "white", color: active ? "white" : "#5a6a7a", border: `1.5px solid ${active ? color : "#d1d5db"}`, borderRadius: "20px", cursor: "pointer", fontSize: "11px", fontWeight: "700", whiteSpace: "nowrap", transition: "all 0.15s", flexShrink: 0 }}>
+                                  {label}
+                                  <span style={{ background: active ? "rgba(255,255,255,0.25)" : "#f0f2f5", color: active ? "white" : "#5a6a7a", borderRadius: "10px", padding: "0 5px", fontSize: "10px", fontWeight: "800", lineHeight: "16px" }}>{count}</span>
+                                </button>
+                              );
+                            })}
+                            <div style={{ position: "relative", flex: 1 }}>
+                              <Icon name="list" size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#aab" }} />
+                              <input
+                                type="text"
+                                placeholder={lang === "fr" ? "Rechercher un membre…" : "Search member…"}
+                                value={cotisationSearchTerm}
+                                onChange={(e) => setCotisationSearchTerm(e.target.value)}
+                                style={{ width: "100%", padding: "7px 12px 7px 36px", border: "1.5px solid #e0e6ed", borderRadius: "9px", fontSize: "13px", outline: "none", boxSizing: "border-box", background: "white" }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Modal ajouter un paiement */}
                       {showAddPaiementForm && selectedPeriodeObj && (
                         <div style={styles.modalOverlay}>
-                          <div className="modal-box" style={{ ...styles.modal, position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", cursor: "default" }}>
+                          <div className="modal-box" style={{ ...styles.modal, position: "relative", top: "auto", left: "auto", transform: "none", cursor: "default", minWidth: "unset" }}>
                             <h2>{t("addPaymentTitle")}</h2>
                             <p style={{ color: "#7f8c8d", fontSize: "13px", margin: "0 0 16px" }}>
                               {t("periodPreview")} <strong>{periodeLabel(selectedPeriode)}</strong> — {t("amountDue")}{" "}
@@ -6538,36 +6931,48 @@ function App() {
 
                             <div style={styles.formRow}>
                               <label style={styles.label}>{t("paymentMethodLabel")}</label>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                                {[
-                                  { value: "Espèces", label: t("cash"), icon: "💵", color: "#27ae60", selBg: "#eafaf1", selBorder: "#27ae60" },
-                                ].map(({ value, label, icon, color, selBg, selBorder }) => {
-                                  const sel = addPaiementFormData.modePaiement === value;
-                                  return (
-                                    <button key={value} type="button"
-                                      onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: value })}
-                                      style={{ border: sel ? `2px solid ${selBorder}` : "1.5px solid #dde3ea", borderRadius: "10px", background: sel ? selBg : "white", padding: "7px 13px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: sel ? "700" : "500", color: sel ? color : "#2c3e50", boxShadow: sel ? `0 0 0 2px ${selBorder}22` : "none", transition: "all 0.15s" }}
-                                    >
-                                      <span>{icon}</span><span>{label}</span>
-                                    </button>
-                                  );
-                                })}
-                                {[
-                                  { value: "Orange Money", img: imgOrange, selBorder: "#ff6600", selBg: "#fff3ea" },
-                                  { value: "Wave", img: imgWave, selBorder: "#00b4d8", selBg: "#e8f8fc" },
-                                  { value: "MTN MoMo", img: imgMTN, selBorder: "#ffcc00", selBg: "#fffbe6" },
-                                ].map(({ value, img, selBorder, selBg }) => {
-                                  const sel = addPaiementFormData.modePaiement === value;
-                                  return (
-                                    <button key={value} type="button"
-                                      onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: value })}
-                                      style={{ border: sel ? `2px solid ${selBorder}` : "1.5px solid #dde3ea", borderRadius: "10px", background: sel ? selBg : "white", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: sel ? `0 0 0 2px ${selBorder}33` : "none", transition: "all 0.15s" }}
-                                    >
-                                      <img src={img} alt={value} style={{ height: "30px", width: "auto", maxWidth: "64px", objectFit: "contain" }} />
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              {/* Niveau 1 : Espèces | Mobile Money */}
+                              {(() => {
+                                const isMM = ["Orange Money", "Wave", "MTN MoMo"].includes(addPaiementFormData.modePaiement);
+                                return (
+                                  <>
+                                    <div className="mm-main-options">
+                                      <button type="button"
+                                        className={`mm-main-btn${addPaiementFormData.modePaiement === "Espèces" ? " mm-main-btn--cash-active" : ""}`}
+                                        onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: "Espèces" })}>
+                                        <span style={{ fontWeight: "700", fontSize: "13px", color: addPaiementFormData.modePaiement === "Espèces" ? "#15803d" : "#374151" }}>Espèces</span>
+                                        {addPaiementFormData.modePaiement === "Espèces" && <span style={{ marginLeft: "auto", color: "#22c55e", fontSize: "14px" }}>✓</span>}
+                                      </button>
+                                      <button type="button"
+                                        className={`mm-main-btn${isMM ? " mm-main-btn--mobile-active" : ""}`}
+                                        onClick={() => { if (!isMM) setAddPaiementFormData({ ...addPaiementFormData, modePaiement: "Wave" }); }}>
+                                        <span style={{ fontWeight: "700", fontSize: "13px", color: isMM ? "#6d28d9" : "#374151" }}>Mobile Money</span>
+                                        {isMM && <span style={{ marginLeft: "auto", color: "#8b5cf6", fontSize: "14px" }}>✓</span>}
+                                      </button>
+                                    </div>
+                                    {isMM && (
+                                      <div className="mm-dropdown-panel">
+                                        <div style={{ display: "flex", gap: "8px" }}>
+                                          {[
+                                            { value: "Wave",         img: imgWave,   cls: "mm-op-btn--wave-active" },
+                                            { value: "Orange Money", img: imgOrange, cls: "mm-op-btn--om-active"   },
+                                            { value: "MTN MoMo",    img: imgMTN,    cls: "mm-op-btn--mtn-active"  },
+                                          ].map(({ value, img, cls }) => {
+                                            const sel = addPaiementFormData.modePaiement === value;
+                                            return (
+                                              <button key={value} type="button"
+                                                className={`mm-op-btn${sel ? ` ${cls}` : ""}`}
+                                                onClick={() => setAddPaiementFormData({ ...addPaiementFormData, modePaiement: value })}>
+                                                <img src={img} alt={value} style={{ height: "18px", width: "auto", maxWidth: "50px", objectFit: "contain", display: "block" }} />
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
 
                             {/* Aperçu du calcul */}
@@ -6625,7 +7030,32 @@ function App() {
                         </div>
                       )}
 
-                      {/* ── Tableau moderne avec colonne actions ── */}
+                      {/* ── Bouton Payer au-dessus du tableau ── */}
+                      {canActAsTresorier && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
+                          <button
+                            title={lang === "fr" ? "Enregistrer un paiement" : "Record a payment"}
+                            onClick={() => {
+                              setAddPaiementFormData({ adherentId: "", montantPaye: "", modePaiement: "Espèces" });
+                              setSelectedAdherentForPayment(null);
+                              setShowAddPaiementForm(true);
+                              setShowSuccessMessage(false);
+                              setShowRecuPrompt(false);
+                            }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "10px 20px", background: "linear-gradient(135deg, #7c3aed, #5b21b6)", color: "white", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "700", fontSize: "14px", boxShadow: "0 4px 14px rgba(124,58,237,0.4)", transition: "transform 0.15s, box-shadow 0.15s" }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(124,58,237,0.55)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(124,58,237,0.4)"; }}
+                          >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="1" y="4" width="22" height="16" rx="3" ry="3"/>
+                              <line x1="1" y1="10" x2="23" y2="10"/>
+                            </svg>
+                            {lang === "fr" ? "Payer" : "Pay"}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* ── Tableau membres ── */}
                       <div style={{ borderRadius: "14px", overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.09)", border: "1px solid #e8ecf0" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "auto" }}>
                           <thead>
@@ -6636,13 +7066,12 @@ function App() {
                               <th style={{ padding: "13px 14px", textAlign: "right", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px", whiteSpace: "nowrap" }}>{t("balancePaid")}</th>
                               <th style={{ padding: "13px 14px", textAlign: "right", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px", whiteSpace: "nowrap" }}>{t("remaining")}</th>
                               <th style={{ padding: "13px 14px", textAlign: "center", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{t("statusTh")}</th>
-                              {canActAsTresorier && <th style={{ padding: "13px 14px", textAlign: "center", color: "#fff", fontSize: "12px", fontWeight: "700", letterSpacing: "0.4px" }}>{t("actionsTh")}</th>}
                             </tr>
                           </thead>
                           <tbody>
                             {filtres.length === 0 ? (
                               <tr>
-                                <td colSpan={canActAsTresorier ? 7 : 6} style={{ textAlign: "center", padding: "36px 20px", color: "#aab2c0", fontSize: "14px" }}>
+                                <td colSpan={6} style={{ textAlign: "center", padding: "36px 20px", color: "#aab2c0", fontSize: "14px" }}>
                                   {cotisationSearchTerm ? (lang === "fr" ? "Aucun résultat pour cette recherche." : "No results for this search.") : adherents.length === 0 ? t("noMemberRegistered") : t("noResultsFilter")}
                                 </td>
                               </tr>
@@ -6664,39 +7093,11 @@ function App() {
                                       {statutLabel(c.statut)}
                                     </span>
                                   </td>
-                                  {canActAsTresorier && (
-                                    <td style={{ padding: "13px 14px", textAlign: "center" }}>
-                                      {c.statut !== "Payé" && (
-                                        <button
-                                          onClick={() => {
-                                            setAddPaiementFormData({ adherentId: String(c.adherent_id), montantPaye: "", modePaiement: "Espèces" });
-                                            const found = adherents.find((a) => a.id === c.adherent_id);
-                                            setSelectedAdherentForPayment(found || null);
-                                            setShowAddPaiementForm(true);
-                                            setShowSuccessMessage(false);
-                                            setShowRecuPrompt(false);
-                                          }}
-                                          style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "6px 14px", background: "#7c3aed", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "12px", whiteSpace: "nowrap" }}
-                                        >
-                                          <Icon name="dollar" size={12} /> {lang === "fr" ? "Payer" : "Pay"}
-                                        </button>
-                                      )}
-                                      {c.statut === "Payé" && (
-                                        <span style={{ color: "#27ae60", fontWeight: "700", fontSize: "13px" }}>✓ {lang === "fr" ? "Soldé" : "Paid"}</span>
-                                      )}
-                                    </td>
-                                  )}
                                 </tr>
                               ))
                             )}
                           </tbody>
                         </table>
-                        {filtres.length > 0 && (
-                          <div style={{ padding: "12px 16px", background: "#f8fafc", borderTop: "1px solid #e8ecf0", fontSize: "13px", color: "#7f8c8d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>{filtres.length} {lang === "fr" ? "membre(s) affiché(s)" : "member(s) displayed"}</span>
-                            <span style={{ fontWeight: "700", color: "#2c3e50" }}>{t("totalDue")} : {selectedPeriodeObj.montantDu} F / {lang === "fr" ? "pers." : "pers."}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -6714,229 +7115,237 @@ function App() {
 
         {/* ── MESSAGES ────────────────────────────────────────── */}
         {page === "messages" && (
-          <div>
-            <h1 style={{ color: "#2c3e50", marginBottom: "14px" }}>{lang === "fr" ? "Messages aux membres" : "Member Messages"}</h1>
-            <p style={{ color: "#7f8c8d", marginBottom: "24px", marginTop: 0, fontSize: "14px" }}>
-              {isHautMembre
-                ? (lang === "fr" ? "Envoyez une information ou annonce à tous vos membres. Ils la verront dans leur espace." : "Send information or an announcement to all your members. They will see it in their space.")
-                : (lang === "fr" ? "Consultez les messages envoyés par le trésorier ou les membres avec un poste." : "View messages sent by the treasurer or members with a position.")}
-            </p>
+          <div className="msg-page-enter" style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 6px 32px rgba(44,62,80,0.13)", border: "1px solid #e2e8f0" }} onClick={() => { setMsgEmojiOpen(null); setMsgTooltip(null); }}>
 
-            {/* Sous-onglets — hauts membres uniquement */}
-            {isHautMembre && (() => {
-              const envoyesCount = adminMessages.filter(m => m.is_mine).length;
-              const recusCount = adminMessages.filter(m => !m.is_mine).length;
-              return (
-                <div style={{ display: "flex", border: "1.5px solid #e0e6ed", borderRadius: "10px", overflow: "hidden", marginBottom: "24px", background: "white" }}>
-                  <button
-                    style={{ flex: 1, padding: "12px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: msgTab === "nouveau" ? "700" : "500", background: msgTab === "nouveau" ? "#e67e22" : "transparent", color: msgTab === "nouveau" ? "white" : "#7f8c8d", transition: "all 0.15s" }}
-                    onClick={() => { setMsgTab("nouveau"); setMsgError(""); setMsgSuccess(""); }}
-                  >
-                    ✏️ {lang === "fr" ? "Nouveau" : "New"}
-                  </button>
-                  <button
-                    style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: msgTab === "envoyes" ? "700" : "500", background: msgTab === "envoyes" ? "#e67e22" : "transparent", color: msgTab === "envoyes" ? "white" : "#7f8c8d", transition: "all 0.15s", position: "relative" }}
-                    onClick={() => setMsgTab("envoyes")}
-                  >
-                    📤 {lang === "fr" ? "Envoyés" : "Sent"}
-                    {envoyesCount > 0 && <span style={{ marginLeft: "6px", background: msgTab === "envoyes" ? "rgba(255,255,255,0.3)" : "#e67e22", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{envoyesCount}</span>}
-                  </button>
-                  <button
-                    style={{ flex: 1, padding: "12px", border: "none", borderLeft: "1.5px solid #e0e6ed", cursor: "pointer", fontSize: "13px", fontWeight: msgTab === "recus" ? "700" : "500", background: msgTab === "recus" ? "#3498db" : "transparent", color: msgTab === "recus" ? "white" : "#7f8c8d", transition: "all 0.15s", position: "relative" }}
-                    onClick={() => setMsgTab("recus")}
-                  >
-                    📥 {lang === "fr" ? "Reçus" : "Received"}
-                    {recusCount > 0 && <span style={{ marginLeft: "6px", background: msgTab === "recus" ? "rgba(255,255,255,0.3)" : "#3498db", color: "white", borderRadius: "10px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{recusCount}</span>}
-                  </button>
+            {/* ── Bannière gradient ── */}
+            <div style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #4f46e5 50%, #7c3aed 100%)", padding: "26px 28px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "180px", height: "180px", borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: "-30px", left: "8%", width: "110px", height: "110px", borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: "6px", left: "42%", width: "70px", height: "70px", borderRadius: "50%", background: "rgba(255,255,255,0.03)", pointerEvents: "none" }} />
+              <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "18px" }}>
+                <span className="msg-icon-float" style={{ fontSize: "42px", filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.3))", lineHeight: 1 }}>✉️</span>
+                <div>
+                  <h1 style={{ margin: "0 0 5px", color: "white", fontSize: "22px", fontWeight: "800", textShadow: "0 2px 6px rgba(0,0,0,0.2)", letterSpacing: "-0.3px" }}>
+                    {lang === "fr" ? "Messages aux membres" : "Member Messages"}
+                  </h1>
+                  <p style={{ margin: 0, color: "rgba(255,255,255,0.72)", fontSize: "13px" }}>
+                    {isHautMembre
+                      ? (lang === "fr" ? "Diffusez des informations et annonces à toute l'association" : "Broadcast information and announcements to all members")
+                      : (lang === "fr" ? "Consultez les messages envoyés par les responsables" : "View messages sent by the association's officers")}
+                  </p>
                 </div>
-              );
-            })()}
-
-            {/* Formulaire d'envoi — hauts membres uniquement */}
-            {isHautMembre && msgTab === "nouveau" && (
-              <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {lang === "fr" ? "Titre" : "Title"}
-                  </label>
-                  <input
-                    style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
-                    value={msgForm.titre}
-                    onChange={e => setMsgForm(f => ({ ...f, titre: e.target.value }))}
-                    placeholder={lang === "fr" ? "Objet du message" : "Message subject"}
-                    autoFocus
-                  />
-                </div>
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#2c3e50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {lang === "fr" ? "Contenu" : "Content"}
-                  </label>
-                  <textarea
-                    style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e6ed", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit" }}
-                    value={msgForm.contenu}
-                    onChange={e => setMsgForm(f => ({ ...f, contenu: e.target.value }))}
-                    placeholder={lang === "fr" ? "Contenu du message…" : "Message content…"}
-                  />
-                </div>
-                {msgError && <div style={{ background: "#fdecea", color: "#c0392b", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>⚠️ {msgError}</div>}
-                {msgSuccess && <div style={{ background: "#d5f5e3", color: "#1e8449", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px" }}>✅ {msgSuccess}</div>}
-                <button
-                  style={{ padding: "11px 32px", background: "#e67e22", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: msgLoading ? 0.7 : 1 }}
-                  disabled={msgLoading}
-                  onClick={async () => {
-                    setMsgError(""); setMsgSuccess("");
-                    if (!msgForm.titre.trim() || !msgForm.contenu.trim()) { setMsgError(lang === "fr" ? "Titre et contenu requis." : "Title and content required."); return; }
-                    setMsgLoading(true);
-                    try {
-                      const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(msgForm) });
-                      const data = await res.json();
-                      if (!res.ok) { setMsgError(data.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
-                      setAdminMessages(prev => [data, ...prev]);
-                      setMsgForm({ titre: "", contenu: "" });
-                      setMsgSuccess(lang === "fr" ? "Message envoyé avec succès ! Vos membres peuvent le consulter." : "Message sent successfully! Your members can now view it.");
-                      setTimeout(() => { setMsgSuccess(""); setMsgTab("envoyes"); }, 2500);
-                    } catch { setMsgError(lang === "fr" ? "Erreur réseau." : "Network error."); }
-                    finally { setMsgLoading(false); }
-                  }}
-                >
-                  {msgLoading ? (lang === "fr" ? "Envoi…" : "Sending…") : (lang === "fr" ? "Envoyer à tous les membres" : "Send to all members")}
-                </button>
               </div>
-            )}
+            </div>
 
-            {/* Liste des messages */}
-            {(isHautMembre ? (msgTab === "envoyes" || msgTab === "recus") : true) && (() => {
-              const listeAffichee = !isHautMembre
-                ? adminMessages
-                : msgTab === "envoyes"
-                  ? adminMessages.filter(m => m.is_mine)
-                  : adminMessages.filter(m => !m.is_mine);  // "recus" ou fallback
-              const emptyLabel = msgTab === "envoyes"
-                ? (lang === "fr" ? "Aucun message envoyé pour le moment." : "No sent messages yet.")
-                : msgTab === "recus"
-                  ? (lang === "fr" ? "Aucun message reçu pour le moment." : "No received messages yet.")
-                  : (lang === "fr" ? "Aucun message pour le moment." : "No messages yet.");
-              return listeAffichee.length === 0 ? (
-                <div style={styles.emptyState}><p>{emptyLabel}</p></div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }} onClick={() => { setMsgEmojiOpen(null); setMsgTooltip(null); }}>
-                  {listeAffichee.map(m => {
-                    const hasAuteur = m.auteur_nom || m.auteur_prenom;
-                    const posteBg = m.auteur_poste && m.auteur_poste.toLowerCase().includes("président") ? "#8e44ad"
-                      : m.auteur_poste && m.auteur_poste.toLowerCase().includes("trésorier") ? "#27ae60"
-                      : m.auteur_poste && m.auteur_poste.toLowerCase().includes("secrétaire") ? "#e67e22"
-                      : "#3498db";
-                    const reactions = m.reactions || {};
-                    return (
-                      <div key={m.id} style={{ background: "white", borderRadius: "14px", boxShadow: "0 2px 14px rgba(44,62,80,0.11)", border: "1px solid #edf2f7", overflow: "visible", position: "relative" }}>
-                        {/* En-tête expéditeur */}
-                        {hasAuteur && (
-                          <div style={{ background: "linear-gradient(135deg,#f7f9fc,#edf2f7)", padding: "12px 20px", borderBottom: "1px solid #e8edf3", display: "flex", alignItems: "center", gap: "12px", borderRadius: "14px 14px 0 0" }}>
-                            <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `linear-gradient(135deg,${posteBg},${posteBg}cc)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0, color: "white", fontWeight: "700", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}>
-                              {(m.auteur_prenom || m.auteur_nom || "?")[0].toUpperCase()}
+            {/* ── Corps ── */}
+            <div style={{ background: "white", padding: "20px 24px 28px" }}>
+              {/* Sous-onglets — hauts membres uniquement */}
+              {isHautMembre && (() => {
+                const envoyesCount = adminMessages.filter(m => m.is_mine).length;
+                const recusCount = adminMessages.filter(m => !m.is_mine).length;
+                return (
+                  <div className="msg-tabs-row">
+                    <button className={`msg-tab-btn${msgTab === "nouveau" ? " msg-tab-btn--orange" : ""}`} onClick={() => { setMsgTab("nouveau"); setMsgError(""); setMsgSuccess(""); }}>
+                      ✏️ {lang === "fr" ? "Nouveau" : "New"}
+                    </button>
+                    <button className={`msg-tab-btn${msgTab === "envoyes" ? " msg-tab-btn--orange" : ""}`} onClick={() => setMsgTab("envoyes")}>
+                      📤 {lang === "fr" ? "Envoyés" : "Sent"}
+                      {envoyesCount > 0 && <span className={`msg-tab-badge${msgTab === "envoyes" ? "" : " msg-tab-badge--orange-inactive"}`}>{envoyesCount}</span>}
+                    </button>
+                    <button className={`msg-tab-btn${msgTab === "recus" ? " msg-tab-btn--blue" : ""}`} onClick={() => setMsgTab("recus")}>
+                      📥 {lang === "fr" ? "Reçus" : "Received"}
+                      {recusCount > 0 && <span className={`msg-tab-badge${msgTab === "recus" ? "" : " msg-tab-badge--blue-inactive"}`}>{recusCount}</span>}
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {/* Formulaire d'envoi */}
+              {isHautMembre && msgTab === "nouveau" && (
+                <div style={{ background: "#fafbfc", borderRadius: "12px", padding: "22px", border: "1.5px solid #e2e8f0" }}>
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {lang === "fr" ? "Titre" : "Title"}
+                    </label>
+                    <input
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", background: "white" }}
+                      value={msgForm.titre}
+                      onChange={e => setMsgForm(f => ({ ...f, titre: e.target.value }))}
+                      placeholder={lang === "fr" ? "Objet du message" : "Message subject"}
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {lang === "fr" ? "Contenu" : "Content"}
+                    </label>
+                    <textarea
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", outline: "none", minHeight: "120px", resize: "vertical", fontFamily: "inherit", background: "white" }}
+                      value={msgForm.contenu}
+                      onChange={e => setMsgForm(f => ({ ...f, contenu: e.target.value }))}
+                      placeholder={lang === "fr" ? "Contenu du message…" : "Message content…"}
+                    />
+                  </div>
+                  {msgError && <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px", border: "1px solid #fca5a5" }}>⚠️ {msgError}</div>}
+                  {msgSuccess && <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "10px 14px", borderRadius: "8px", marginBottom: "12px", fontSize: "13px", border: "1px solid #86efac" }}>✅ {msgSuccess}</div>}
+                  <button
+                    style={{ padding: "12px 32px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px", opacity: msgLoading ? 0.7 : 1, boxShadow: "0 4px 14px rgba(245,158,11,0.4)", display: "inline-flex", alignItems: "center", gap: "8px" }}
+                    disabled={msgLoading}
+                    onClick={async () => {
+                      setMsgError(""); setMsgSuccess("");
+                      if (!msgForm.titre.trim() || !msgForm.contenu.trim()) { setMsgError(lang === "fr" ? "Titre et contenu requis." : "Title and content required."); return; }
+                      setMsgLoading(true);
+                      try {
+                        const res = await apiFetch(`${API_BASE}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(msgForm) });
+                        const data = await res.json();
+                        if (!res.ok) { setMsgError(data.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                        setAdminMessages(prev => [data, ...prev]);
+                        setMsgForm({ titre: "", contenu: "" });
+                        setMsgSuccess(lang === "fr" ? "Message envoyé avec succès ! Vos membres peuvent le consulter." : "Message sent successfully! Your members can now view it.");
+                        setTimeout(() => { setMsgSuccess(""); setMsgTab("envoyes"); }, 2500);
+                      } catch { setMsgError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                      finally { setMsgLoading(false); }
+                    }}
+                  >
+                    {msgLoading ? <><span>⏳</span> {lang === "fr" ? "Envoi…" : "Sending…"}</> : <><span>🚀</span> {lang === "fr" ? "Envoyer à tous les membres" : "Send to all members"}</>}
+                  </button>
+                </div>
+              )}
+
+              {/* Liste des messages */}
+              {(isHautMembre ? (msgTab === "envoyes" || msgTab === "recus") : true) && (() => {
+                const listeAffichee = !isHautMembre
+                  ? adminMessages
+                  : msgTab === "envoyes"
+                    ? adminMessages.filter(m => m.is_mine)
+                    : adminMessages.filter(m => !m.is_mine);
+                const emptyLabel = msgTab === "envoyes"
+                  ? (lang === "fr" ? "Aucun message envoyé pour le moment." : "No sent messages yet.")
+                  : msgTab === "recus"
+                    ? (lang === "fr" ? "Aucun message reçu pour le moment." : "No received messages yet.")
+                    : (lang === "fr" ? "Aucun message pour le moment." : "No messages yet.");
+                return listeAffichee.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "56px 0 48px" }}>
+                    <span className="msg-empty-icon">📭</span>
+                    <p style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#64748b" }}>{emptyLabel}</p>
+                    <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#b2bec3" }}>{lang === "fr" ? "Rien de nouveau pour l'instant." : "Nothing new for now."}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {listeAffichee.map((m, idx) => {
+                      const hasAuteur = m.auteur_nom || m.auteur_prenom;
+                      const posteBg = m.auteur_poste && m.auteur_poste.toLowerCase().includes("président") ? "#8e44ad"
+                        : m.auteur_poste && m.auteur_poste.toLowerCase().includes("trésorier") ? "#27ae60"
+                        : m.auteur_poste && m.auteur_poste.toLowerCase().includes("secrétaire") ? "#e67e22"
+                        : "#3498db";
+                      const reactions = m.reactions || {};
+                      return (
+                        <div key={m.id} className="msg-card" style={{ "--i": idx, background: "white", borderRadius: "16px", boxShadow: "0 3px 16px rgba(44,62,80,0.09)", border: "1px solid #edf2f7", overflow: "visible", position: "relative" }}>
+                          {/* En-tête expéditeur */}
+                          {hasAuteur && (
+                            <div style={{ background: `linear-gradient(135deg, ${posteBg}18, ${posteBg}08)`, padding: "14px 20px", borderBottom: `2px solid ${posteBg}22`, display: "flex", alignItems: "center", gap: "12px", borderRadius: "16px 16px 0 0" }}>
+                              <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: `linear-gradient(135deg,${posteBg},${posteBg}aa)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0, color: "white", fontWeight: "800", boxShadow: `0 3px 10px ${posteBg}55`, border: `2px solid ${posteBg}33` }}>
+                                {(m.auteur_prenom || m.auteur_nom || "?")[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{m.auteur_prenom} {m.auteur_nom}</div>
+                                {m.auteur_poste && (
+                                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: posteBg, color: "white", fontSize: "10px", fontWeight: "700", padding: "3px 9px", borderRadius: "8px", marginTop: "4px", letterSpacing: "0.5px", boxShadow: `0 2px 6px ${posteBg}44` }}>
+                                    ✦ {m.auteur_poste.toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <div style={{ fontWeight: "700", fontSize: "14px", color: "#2c3e50" }}>{m.auteur_prenom} {m.auteur_nom}</div>
-                              {m.auteur_poste && (
-                                <span style={{ display: "inline-block", background: posteBg, color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "8px", marginTop: "3px", letterSpacing: "0.4px" }}>
-                                  {m.auteur_poste.toUpperCase()}
-                                </span>
-                              )}
+                          )}
+
+                          {/* Corps */}
+                          <div style={{ padding: "18px 20px 10px" }}>
+                            <div style={{ fontWeight: "800", color: "#1e293b", fontSize: "15px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ width: "4px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg,#7c3aed,#3b82f6)", display: "inline-block", flexShrink: 0 }} />
+                              {m.titre}
                             </div>
+                            <div style={{ color: "#475569", fontSize: "14px", lineHeight: "1.7", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
                           </div>
-                        )}
 
-                        {/* Corps du message */}
-                        <div style={{ padding: "16px 20px 10px" }}>
-                          <div style={{ fontWeight: "700", color: "#2c3e50", fontSize: "15px", marginBottom: "8px" }}>{m.titre}</div>
-                          <div style={{ color: "#4a5568", fontSize: "14px", lineHeight: "1.65", whiteSpace: "pre-wrap" }}>{m.contenu}</div>
-                        </div>
+                          {/* Date */}
+                          <div style={{ padding: "0 20px 10px", color: "#94a3b8", fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <span>🕐</span> {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
+                          </div>
 
-                        {/* Date */}
-                        <div style={{ padding: "0 20px 10px", color: "#b2bec3", fontSize: "11px" }}>
-                          🕐 {new Date(m.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US")}
-                        </div>
-
-                        {/* Réactions + supprimer */}
-                        <div style={{ padding: "8px 20px 14px", borderTop: "1px solid #f0f4f8", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }} onClick={e => e.stopPropagation()}>
-                          {/* Zone réactions */}
-                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "36px" }}>
-                            {Object.entries(reactions).map(([emoji, info]) => (
-                              <div key={emoji} style={{ position: "relative", flexShrink: 0 }}>
+                          {/* Réactions + supprimer */}
+                          <div style={{ padding: "8px 20px 14px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", background: "#fafbfc", borderRadius: "0 0 16px 16px" }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", minHeight: "36px" }}>
+                              {Object.entries(reactions).map(([emoji, info]) => (
+                                <div key={emoji} style={{ position: "relative", flexShrink: 0 }}>
+                                  <button
+                                    title={info.reactors.join(", ")}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#eff6ff" : "#f1f5f9", border: `1.5px solid ${info.my_reaction ? "#3b82f6" : "#e2e8f0"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2563eb" : "#64748b", whiteSpace: "nowrap", flexShrink: 0, boxShadow: info.my_reaction ? "0 2px 8px rgba(59,130,246,0.2)" : "none" }}
+                                    onClick={() => { const key = `${m.id}-${emoji}`; setMsgTooltip(prev => prev === key ? null : key); setMsgEmojiOpen(null); }}
+                                  >
+                                    <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
+                                    <span style={{ fontSize: "13px", minWidth: "12px", textAlign: "center" }}>{info.count}</span>
+                                  </button>
+                                  {msgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
+                                    <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#1e293b", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
+                                      {info.reactors.join(", ")}
+                                      <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #1e293b" }} />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              <div style={{ position: "relative", flexShrink: 0 }}>
                                 <button
-                                  title={info.reactors.join(", ")}
-                                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: info.my_reaction ? "#e8f4fd" : "#f7f9fc", border: `1.5px solid ${info.my_reaction ? "#3498db" : "#e0e6ed"}`, borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: info.my_reaction ? "#2980b9" : "#636e72", whiteSpace: "nowrap", flexShrink: 0 }}
-                                  onClick={() => {
-                                    const key = `${m.id}-${emoji}`;
-                                    setMsgTooltip(prev => prev === key ? null : key);
-                                    setMsgEmojiOpen(null);
-                                  }}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "white", border: "1.5px dashed #cbd5e1", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#94a3b8", whiteSpace: "nowrap" }}
+                                  onClick={e => { e.stopPropagation(); setMsgEmojiOpen(prev => prev === m.id ? null : m.id); setMsgTooltip(null); }}
                                 >
-                                  <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
-                                  <span style={{ fontSize: "13px", minWidth: "12px", textAlign: "center" }}>{info.count}</span>
+                                  <span style={{ fontSize: "16px", lineHeight: 1 }}>😊</span>
+                                  <span style={{ fontSize: "12px" }}>+</span>
                                 </button>
-                                {msgTooltip === `${m.id}-${emoji}` && info.reactors.length > 0 && (
-                                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "#2c3e50", color: "white", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", whiteSpace: "nowrap", zIndex: 99, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
-                                    {info.reactors.join(", ")}
-                                    <div style={{ position: "absolute", top: "100%", left: "14px", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #2c3e50" }} />
+                                {msgEmojiOpen === m.id && (
+                                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "14px", padding: "10px 12px", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "3px", zIndex: 100, border: "1px solid #e2e8f0", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
+                                    {REACTION_EMOJIS.map(e => (
+                                      <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "4px 6px", borderRadius: "10px", transition: "background 0.12s, transform 0.12s", flexShrink: 0 }}
+                                        onMouseEnter={ev => { ev.currentTarget.style.background = "#f1f5f9"; ev.currentTarget.style.transform = "scale(1.25)"; }}
+                                        onMouseLeave={ev => { ev.currentTarget.style.background = "none"; ev.currentTarget.style.transform = "scale(1)"; }}
+                                        onClick={() => handleReactMessage(m.id, e)}
+                                      >{e}</button>
+                                    ))}
                                   </div>
                                 )}
                               </div>
-                            ))}
-                            {/* Bouton ajouter réaction */}
-                            <div style={{ position: "relative", flexShrink: 0 }}>
-                              <button
-                                style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", background: "#f7f9fc", border: "1.5px dashed #bdc3c7", borderRadius: "20px", cursor: "pointer", fontSize: "13px", color: "#7f8c8d", whiteSpace: "nowrap" }}
-                                onClick={e => { e.stopPropagation(); setMsgEmojiOpen(prev => prev === m.id ? null : m.id); setMsgTooltip(null); }}
-                              >
-                                <span style={{ fontSize: "16px", lineHeight: 1 }}>😊</span>
-                                <span style={{ fontSize: "12px" }}>+</span>
-                              </button>
-                              {msgEmojiOpen === m.id && (
-                                <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, background: "white", borderRadius: "12px", padding: "8px 10px", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: "2px", zIndex: 100, border: "1px solid #e0e6ed", minWidth: "max-content" }} onClick={e => e.stopPropagation()}>
-                                  {REACTION_EMOJIS.map(e => (
-                                    <button key={e} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "4px 5px", borderRadius: "8px", transition: "background 0.1s", flexShrink: 0 }}
-                                      onMouseEnter={ev => ev.currentTarget.style.background = "#f0f4f8"}
-                                      onMouseLeave={ev => ev.currentTarget.style.background = "none"}
-                                      onClick={() => handleReactMessage(m.id, e)}
-                                    >{e}</button>
-                                  ))}
-                                </div>
-                              )}
                             </div>
+                            {/* Supprimer (admin uniquement) */}
+                            {isAdmin && (
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
+                                  try {
+                                    await apiFetch(`${API_BASE}/messages/${m.id}`, { method: "DELETE" });
+                                    setAdminMessages(prev => prev.filter(x => x.id !== m.id));
+                                  } catch {}
+                                }}
+                              style={styles.actionDeleteBtn}><Icon name="trash" size={14} /></button>
+                            )}
                           </div>
-
-                          {/* Supprimer (admin uniquement) */}
-                          {isAdmin && (
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm(lang === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
-                                try {
-                                  await apiFetch(`${API_BASE}/messages/${m.id}`, { method: "DELETE" });
-                                  setAdminMessages(prev => prev.filter(x => x.id !== m.id));
-                                } catch {}
-                              }}
-                            style={styles.actionDeleteBtn}><Icon name="trash" size={14} /></button>
-                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
         {/* ── NON RÉGLÉS ──────────────────────────────────────── */}
         {page === "nonRegle" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "18px" }}>
               <button style={styles.cancelBtn} onClick={() => setPage("accueil")}>{t("backBtn")}</button>
               <h1 style={{ margin: 0 }}>{t("unpaidTitle")}</h1>
             </div>
             {currentPeriode && (
-              <p style={{ color: "#7f8c8d", marginBottom: "20px", fontSize: "14px" }}>
+              <p style={{ color: "#7f8c8d", marginBottom: "16px", fontSize: "14px", marginTop: 0 }}>
                 {t("currentPeriodLabel")} <strong style={{ color: "#2c3e50" }}>{periodeLabel(currentPeriode.libelle)}</strong> — {t("amountDue")}{" "}
                 <strong style={{ color: "#e74c3c" }}>{currentPeriode.montantDu} F</strong>
               </p>
@@ -6959,53 +7368,78 @@ function App() {
                   reste: formatAmount(parseAmount(currentPeriode.montantDu)),
                   statut: "Impayé",
                 }));
-              const nonRegles = [
-                ...liste.filter((p) => p.statut === "Impayé" || p.statut === "Partiel"),
-                ...sansPaiement,
-              ];
-              return nonRegles.length === 0 ? (
-                <div style={styles.emptyState}><p>{t("allMembersPaid")}</p></div>
-              ) : (
+              const tousImpayes = [...liste.filter((p) => p.statut === "Impayé"), ...sansPaiement];
+              const tousPartiels = liste.filter((p) => p.statut === "Partiel");
+              const listeAffichee = nonRegleTab === "impayes" ? tousImpayes : tousPartiels;
+              return (
                 <>
-                  <p style={{ marginBottom: "12px", color: "#2c3e50", fontWeight: "600" }}>
-                    {nonRegles.length} {nonRegles.length > 1 ? t("memberPlural") : t("memberSingular")} {nonRegles.length > 1 ? t("nonReglePlural") : t("nonRegleSingular")}
-                  </p>
-                  <div style={styles.tableContainer}>
-                    <table style={{ ...styles.table, tableLayout: "auto" }}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>{t("numberTh")}</th>
-                          <th style={styles.th}>{t("matricule")}</th>
-                          <th style={styles.th}>{t("nameTh")}</th>
-                          <th style={styles.th}>{t("surnameTh")}</th>
-                          <th style={styles.th}>{t("telephoneTh")}</th>
-                          <th style={styles.th}>{t("emailTh")}</th>
-                          <th style={styles.th}>{t("balancePaid")}</th>
-                          <th style={styles.th}>{t("remainingToPayTh")}</th>
-                          <th style={styles.th}>{t("statusTh")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {nonRegles.map((c, i) => (
-                          <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }} className="anim-row">
-                            <td style={styles.td}>{i + 1}</td>
-                            <td style={styles.td}><strong>{c.matricule}</strong></td>
-                            <td style={styles.td}><strong>{c.nom}</strong></td>
-                            <td style={styles.td}>{c.prenom}</td>
-                            <td style={styles.td}>{c.telephone}</td>
-                            <td style={styles.td}>{c.email}</td>
-                            <td style={styles.td}>{c.soldePaye}</td>
-                            <td style={styles.td}>{c.reste}</td>
-                            <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
-                              <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
-                                {statutLabel(c.statut)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {/* ── Onglets ── */}
+                  <div style={{ display: "flex", gap: "0", marginBottom: "20px", borderBottom: "2px solid #e8ecf0" }}>
+                    <button
+                      onClick={() => setNonRegleTab("impayes")}
+                      style={{ padding: "10px 24px", border: "none", background: "none", cursor: "pointer", fontWeight: "700", fontSize: "14px", fontFamily: "inherit", borderBottom: nonRegleTab === "impayes" ? "3px solid #e74c3c" : "3px solid transparent", color: nonRegleTab === "impayes" ? "#e74c3c" : "#7f8c8d", marginBottom: "-2px", transition: "color 0.15s, border-color 0.15s", display: "flex", alignItems: "center", gap: "8px" }}
+                    >
+                      <Icon name="x-circle" size={15} style={{ color: nonRegleTab === "impayes" ? "#e74c3c" : "#bdc3c7" }} />
+                      {lang === "fr" ? "Non payés" : "Unpaid"}
+                      <span style={{ background: nonRegleTab === "impayes" ? "#e74c3c" : "#bdc3c7", color: "#fff", borderRadius: "10px", padding: "1px 8px", fontSize: "11px", fontWeight: "700" }}>{tousImpayes.length}</span>
+                    </button>
+                    <button
+                      onClick={() => setNonRegleTab("partiels")}
+                      style={{ padding: "10px 24px", border: "none", background: "none", cursor: "pointer", fontWeight: "700", fontSize: "14px", fontFamily: "inherit", borderBottom: nonRegleTab === "partiels" ? "3px solid #f39c12" : "3px solid transparent", color: nonRegleTab === "partiels" ? "#f39c12" : "#7f8c8d", marginBottom: "-2px", transition: "color 0.15s, border-color 0.15s", display: "flex", alignItems: "center", gap: "8px" }}
+                    >
+                      <Icon name="hourglass" size={15} style={{ color: nonRegleTab === "partiels" ? "#f39c12" : "#bdc3c7" }} />
+                      {lang === "fr" ? "Partiels" : "Partial"}
+                      <span style={{ background: nonRegleTab === "partiels" ? "#f39c12" : "#bdc3c7", color: "#fff", borderRadius: "10px", padding: "1px 8px", fontSize: "11px", fontWeight: "700" }}>{tousPartiels.length}</span>
+                    </button>
                   </div>
+
+                  {listeAffichee.length === 0 ? (
+                    <div style={styles.emptyState}>
+                      <p>{nonRegleTab === "impayes" ? (lang === "fr" ? "Aucun membre impayé ✓" : "No unpaid members ✓") : (lang === "fr" ? "Aucun paiement partiel ✓" : "No partial payments ✓")}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ marginBottom: "12px", color: "#2c3e50", fontWeight: "600" }}>
+                        {listeAffichee.length} {listeAffichee.length > 1 ? t("memberPlural") : t("memberSingular")} {nonRegleTab === "impayes" ? (lang === "fr" ? "non payés" : "unpaid") : (lang === "fr" ? "en paiement partiel" : "partial payment")}
+                      </p>
+                      <div style={styles.tableContainer}>
+                        <table style={{ ...styles.table, tableLayout: "auto" }}>
+                          <thead>
+                            <tr>
+                              <th style={styles.th}>{t("numberTh")}</th>
+                              <th style={styles.th}>{t("matricule")}</th>
+                              <th style={styles.th}>{t("nameTh")}</th>
+                              <th style={styles.th}>{t("surnameTh")}</th>
+                              <th style={styles.th}>{t("telephoneTh")}</th>
+                              <th style={styles.th}>{t("emailTh")}</th>
+                              <th style={styles.th}>{t("balancePaid")}</th>
+                              <th style={styles.th}>{t("remainingToPayTh")}</th>
+                              <th style={styles.th}>{t("statusTh")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {listeAffichee.map((c, i) => (
+                              <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }} className="anim-row">
+                                <td style={styles.td}>{i + 1}</td>
+                                <td style={styles.td}><strong>{c.matricule}</strong></td>
+                                <td style={styles.td}><strong>{c.nom}</strong></td>
+                                <td style={styles.td}>{c.prenom}</td>
+                                <td style={styles.td}>{c.telephone}</td>
+                                <td style={styles.td}>{c.email}</td>
+                                <td style={styles.td}>{c.soldePaye}</td>
+                                <td style={styles.td}>{c.reste}</td>
+                                <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                                  <span style={{ padding: "4px 12px", borderRadius: "12px", color: "white", fontWeight: "bold", fontSize: "13px", background: statutColor(c.statut), whiteSpace: "nowrap", display: "inline-block" }}>
+                                    {statutLabel(c.statut)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </>
               );
             })()}
@@ -7084,7 +7518,7 @@ function App() {
         {/* ── JOURNAL D'AUDIT ──────────────────────────────────── */}
         {page === "audit" && isAdmin && (
           <div>
-            <h1 style={{ margin: "0 0 6px", fontSize: "22px", color: "#2c3e50" }}>
+            <h1 style={{ margin: "0 0 14px", fontSize: "22px", color: "#2c3e50" }}>
               🔐 {lang === "fr" ? "Journal d'audit" : "Audit Log"}
             </h1>
             <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#7f8c8d" }}>
@@ -7105,6 +7539,8 @@ function App() {
               >
                 <option value="">{lang === "fr" ? "Toutes les actions" : "All actions"}</option>
                 <option value="CONNEXION">Connexion</option>
+                <option value="DECONNEXION">{lang === "fr" ? "Déconnexion" : "Logout"}</option>
+                <option value="INSCRIPTION_MEMBRE">{lang === "fr" ? "Inscription membre" : "Member registration"}</option>
                 <option value="CHANGEMENT_MOT_DE_PASSE">{lang === "fr" ? "Changement mot de passe" : "Password change"}</option>
                 <option value="CHANGEMENT_EMAIL">{lang === "fr" ? "Changement email" : "Email change"}</option>
                 <option value="AJOUT_ADHERENT">{lang === "fr" ? "Ajout adhérent" : "Member added"}</option>
@@ -7146,6 +7582,8 @@ function App() {
                       {auditLogs.map((log, i) => {
                         const actionColors = {
                           CONNEXION: "#27ae60",
+                          DECONNEXION: "#7f8c8d",
+                          INSCRIPTION_MEMBRE: "#1abc9c",
                           CHANGEMENT_MOT_DE_PASSE: "#e67e22",
                           CHANGEMENT_EMAIL: "#e67e22",
                           AJOUT_ADHERENT: "#3498db",
@@ -7208,6 +7646,167 @@ function App() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════ GESTION DES POSTES ═══ */}
+        {page === "bureau" && (
+          <div>
+            {/* En-tête */}
+            <div style={{ background: "linear-gradient(135deg, #1a2742 0%, #2c3e50 60%, #1a6a9a 100%)", borderRadius: "16px", padding: "28px 32px", color: "white", marginBottom: "28px", display: "flex", alignItems: "center", gap: "18px" }}>
+              <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: "14px", padding: "14px", display: "flex", flexShrink: 0 }}>
+                <Icon name="building" size={26} />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "800" }}>
+                  {lang === "fr" ? "Bureau de l'association" : "Association Board"}
+                </h1>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", opacity: 0.65 }}>
+                  {lang === "fr" ? "Membres élus et responsables de l'association" : "Elected members and officers of the association"}
+                </p>
+              </div>
+            </div>
+
+            {/* Membres du bureau */}
+            {adherents.filter(a => a.poste).length === 0 ? (
+              <div style={{ background: "white", borderRadius: "14px", padding: "40px", textAlign: "center", color: "#94a3b8", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", marginBottom: "28px" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏛️</div>
+                <div style={{ fontSize: "15px", fontWeight: "600" }}>{lang === "fr" ? "Aucun poste attribué pour l'instant." : "No roles assigned yet."}</div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "14px", marginBottom: "32px" }}>
+                {(() => {
+                  const posteOrder = ["président","vice-président","secrétaire général","secrétaire adjoint","trésorier","trésorier adjoint","commissaire","conseiller"];
+                  const posteColors = { "président": "#7c3aed", "vice-président": "#1d4ed8", "secrétaire général": "#15803d", "secrétaire adjoint": "#0e7490", "trésorier": "#c2410c", "trésorier adjoint": "#b45309", "commissaire": "#b91c1c", "conseiller": "#475569" };
+                  return adherents
+                    .filter(a => a.poste)
+                    .sort((a, b) => {
+                      const ia = posteOrder.findIndex(k => a.poste?.toLowerCase().includes(k));
+                      const ib = posteOrder.findIndex(k => b.poste?.toLowerCase().includes(k));
+                      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+                    })
+                    .map(a => {
+                      const colorKey = Object.keys(posteColors).find(k => a.poste?.toLowerCase().includes(k));
+                      const color = colorKey ? posteColors[colorKey] : "#475569";
+                      return (
+                        <div key={a.id} style={{ background: "white", borderRadius: "14px", padding: "18px 16px", border: `2px solid ${color}22`, boxShadow: "0 3px 12px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center" }}>
+                          {a.photo
+                            ? <img src={a.photo} alt="" style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: `3px solid ${color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }} />
+                            : <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", border: `3px solid ${color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>👤</div>
+                          }
+                          <div>
+                            <div style={{ fontWeight: "800", fontSize: "14px", color: "#1e293b" }}>{a.prenom} {a.nom}</div>
+                            <div style={{ marginTop: "5px", display: "inline-block", background: color, color: "white", fontSize: "11px", fontWeight: "700", padding: "3px 12px", borderRadius: "20px" }}>{a.poste}</div>
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
+              </div>
+            )}
+
+            {/* Formulaire d'attribution — visible uniquement si l'utilisateur peut attribuer des postes */}
+            {canAssignPoste && (
+              <div style={{ background: "white", borderRadius: "16px", border: "1.5px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}>
+                <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Icon name="badge" size={18} style={{ color: "#0f3460" }} />
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: "#1e293b" }}>
+                    {lang === "fr" ? "Attribuer un poste" : "Assign a role"}
+                  </h3>
+                </div>
+
+                {isAdmin && !nonCreatorPresidentExists && (
+                  <div style={{ margin: "16px 24px 0", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#92400e", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                    <Icon name="alert-triangle" size={15} style={{ flexShrink: 0, marginTop: "1px", color: "#d97706" }} />
+                    <span>{lang === "fr" ? "Une fois un(e) Président(e) désigné(e), seul(e) celui-ci/celle-ci pourra attribuer des postes." : "Once a President is designated, only that person will be able to assign roles."}</span>
+                  </div>
+                )}
+
+                <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "18px" }}>
+                  {roleTransferError && (
+                    <div style={{ background: "#fef2f2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", fontSize: "13px", display: "flex", alignItems: "center", gap: "9px", border: "1px solid #fecaca" }}>
+                      <Icon name="x-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferError}
+                    </div>
+                  )}
+                  {roleTransferSuccess && (
+                    <div style={{ background: "#f0fdf4", color: "#166534", padding: "12px 16px", borderRadius: "10px", fontSize: "13px", display: "flex", alignItems: "center", gap: "9px", border: "1px solid #bbf7d0" }}>
+                      <Icon name="check-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferSuccess}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: "200px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "8px" }}>
+                        {lang === "fr" ? "Poste à attribuer" : "Role to assign"}
+                      </label>
+                      <select
+                        value={roleTransferPoste}
+                        onChange={e => setRoleTransferPoste(e.target.value)}
+                        style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", outline: "none", color: roleTransferPoste ? "#1e293b" : "#94a3b8", background: "white", cursor: "pointer" }}
+                      >
+                        <option value="">{lang === "fr" ? "— Choisir un poste —" : "— Choose a role —"}</option>
+                        {["Président(e)", "Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: "200px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "8px" }}>
+                        {lang === "fr" ? "Membre concerné" : "Member"}
+                      </label>
+                      <select
+                        value={roleTransferTargetId}
+                        onChange={e => setRoleTransferTargetId(e.target.value)}
+                        style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", outline: "none", color: roleTransferTargetId ? "#1e293b" : "#94a3b8", background: "white", cursor: "pointer" }}
+                      >
+                        <option value="">{lang === "fr" ? "— Choisir un membre —" : "— Choose a member —"}</option>
+                        {adherents.map(a => (
+                          <option key={a.id} value={String(a.id)}>
+                            {a.prenom} {a.nom}{a.poste ? ` (${a.poste})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      disabled={roleTransferLoading || !roleTransferTargetId || !roleTransferPoste}
+                      style={{
+                        padding: "12px 28px",
+                        background: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "#cbd5e1" : "linear-gradient(135deg, #1a1a2e, #0f3460)",
+                        color: "white", border: "none", borderRadius: "11px", fontSize: "14px",
+                        cursor: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "not-allowed" : "pointer",
+                        fontWeight: "700", display: "flex", alignItems: "center", gap: "9px",
+                        boxShadow: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "none" : "0 4px 16px rgba(15,52,96,0.35)",
+                        transition: "all 0.15s ease",
+                      }}
+                      onClick={async () => {
+                        setRoleTransferError(""); setRoleTransferSuccess("");
+                        const targetAdherent = adherents.find(a => String(a.id) === String(roleTransferTargetId));
+                        if (!targetAdherent) { setRoleTransferError(lang === "fr" ? "Membre introuvable." : "Member not found."); return; }
+                        setRoleTransferLoading(true);
+                        try {
+                          const r1 = await apiFetch(`${API_BASE}/adherents/${targetAdherent.id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ nom: targetAdherent.nom, prenom: targetAdherent.prenom, telephone: targetAdherent.telephone || null, email: targetAdherent.email || null, poste: roleTransferPoste }),
+                          });
+                          if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
+                          setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
+                          setRoleTransferSuccess(lang === "fr" ? `Poste "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
+                          setRoleTransferTargetId("");
+                          setRoleTransferPoste("");
+                        } catch { setRoleTransferError(lang === "fr" ? "Erreur réseau." : "Network error."); }
+                        finally { setRoleTransferLoading(false); }
+                      }}
+                    >
+                      <Icon name="badge" size={15} />
+                      {roleTransferLoading ? (lang === "fr" ? "Attribution…" : "Assigning…") : (lang === "fr" ? "Confirmer" : "Confirm")}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -7282,8 +7881,12 @@ function App() {
             {comptaSousOnglet === "recettes" && (() => {
               const filtered = historiqueTransactions.filter(tx => {
                 const q = recettesSearch.toLowerCase();
-                if (!q) return true;
-                return (tx.nom||"").toLowerCase().includes(q) || (tx.prenom||"").toLowerCase().includes(q) || (tx.periode||"").toLowerCase().includes(q) || (tx.modePaiement||"").toLowerCase().includes(q);
+                if (q && !(
+                  (tx.nom||"").toLowerCase().includes(q) || (tx.prenom||"").toLowerCase().includes(q) || (tx.periode||"").toLowerCase().includes(q) || (tx.modePaiement||"").toLowerCase().includes(q)
+                )) return false;
+                if (comptaFiltreDateDebut && tx.datePaiementRaw && tx.datePaiementRaw < comptaFiltreDateDebut) return false;
+                if (comptaFiltreDateFin && tx.datePaiementRaw && tx.datePaiementRaw > comptaFiltreDateFin) return false;
+                return true;
               });
               const total = filtered.reduce((s, tx) => s + parseAmount(tx.montantPaye), 0);
               return (
@@ -7819,7 +8422,7 @@ function App() {
       {/* ── MODAL REÇU ──────────────────────────────────────── */}
       {showRecu && lastPaiement && (
         <div style={styles.modalOverlay}>
-          <div className="modal-box" style={{ background: "white", borderRadius: "12px", width: "520px", maxWidth: "95vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+          <div className="modal-box" style={{ background: "white", borderRadius: "12px", width: "520px", maxWidth: "min(96vw, 520px)", maxHeight: "calc(100vh - 40px)", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", position: "relative" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "14px 20px 0", background: "#f7f9fc", borderRadius: "12px 12px 0 0" }}>
               <button onClick={handlePrintRecu} style={{ padding: "8px 18px", background: "#2c3e50", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("printBtn")}</button>
               <button onClick={() => setShowRecu(false)} style={{ padding: "8px 18px", background: "#e74c3c", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" }}>{t("closeBtn")}</button>
@@ -8206,6 +8809,9 @@ function App() {
             <span className="bnav-label">🔐 Audit</span>
           </button>
         )}
+        <button className={`bnav-item${page === "bureau" ? " bnav-active" : ""}`} onClick={() => { setRoleTransferPoste(""); setRoleTransferTargetId(""); setRoleTransferError(""); setRoleTransferSuccess(""); setPage("bureau"); }}>
+          <span className="bnav-label">🏛️ Bureau</span>
+        </button>
         <button className={`bnav-item${mobileAccountOpen ? " bnav-active" : ""}`} onClick={() => setMobileAccountOpen(v => !v)}>
           <span className="bnav-label">{t("accountMenu")}</span>
         </button>
@@ -8270,212 +8876,6 @@ function App() {
         </div>
       )}
 
-      {/* ── MODAL DÉSIGNATION DE POSTE ─────────────────────────── */}
-      {showRoleTransfer && (
-        <div style={styles.modalOverlay} onClick={() => setShowRoleTransfer(false)}>
-          <div style={{ background: "white", borderRadius: "20px", width: "580px", maxWidth: "96vw", maxHeight: "92vh", overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
-
-            {/* ── En-tête gradient ── */}
-            <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%)", padding: "26px 30px 22px", color: "white", position: "relative", flexShrink: 0 }}>
-              <button onClick={() => setShowRoleTransfer(false)} style={{ position: "absolute", top: "14px", right: "14px", background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: "30px", height: "30px", color: "white", fontSize: "15px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: "13px", padding: "11px", display: "flex" }}>
-                  <Icon name="badge" size={22} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", letterSpacing: "0.2px" }}>
-                    {lang === "fr" ? "Désignation de Poste" : "Role Assignment"}
-                  </h3>
-                  <p style={{ margin: "3px 0 0", fontSize: "12px", opacity: 0.65 }}>
-                    {lang === "fr" ? "Attribuez un rôle officiel à un membre de l'association" : "Assign an official role to an association member"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Corps scrollable ── */}
-            <div style={{ padding: "22px 28px", overflowY: "auto", flex: 1 }}>
-
-              {/* Avertissement créateur */}
-              {isAdmin && !nonCreatorPresidentExists && (
-                <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "10px", padding: "11px 15px", marginBottom: "20px", fontSize: "12.5px", color: "#92400e", display: "flex", gap: "9px", alignItems: "flex-start" }}>
-                  <Icon name="alert-triangle" size={15} style={{ flexShrink: 0, marginTop: "1px", color: "#d97706" }} />
-                  <span>{lang === "fr" ? "Une fois un Président désigné, seul ce dernier pourra attribuer des postes." : "Once a President is designated, only that person will be able to assign roles."}</span>
-                </div>
-              )}
-
-              {/* Feedback */}
-              {roleTransferError && (
-                <div style={{ background: "#fef2f2", color: "#991b1b", padding: "11px 15px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #fecaca" }}>
-                  <Icon name="x-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferError}
-                </div>
-              )}
-              {roleTransferSuccess && (
-                <div style={{ background: "#f0fdf4", color: "#166534", padding: "11px 15px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", border: "1px solid #bbf7d0" }}>
-                  <Icon name="check-circle" size={15} style={{ flexShrink: 0 }} /> {roleTransferSuccess}
-                </div>
-              )}
-
-              {/* ── ÉTAPE 1 : Choix du poste ── */}
-              <div style={{ marginBottom: "22px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                  <div style={{ background: "#0f3460", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>1</div>
-                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                    {lang === "fr" ? "Choisir le poste" : "Choose the role"}
-                  </span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
-                  {[
-                    { label: "Président(e)",            color: "#7c3aed", icon: "shield",       bg: "#f5f3ff" },
-                    { label: "Vice-Président(e)",        color: "#1d4ed8", icon: "badge",        bg: "#eff6ff" },
-                    { label: "Secrétaire Général(e)",    color: "#15803d", icon: "edit",         bg: "#f0fdf4" },
-                    { label: "Secrétaire Adjoint(e)",    color: "#0e7490", icon: "edit",         bg: "#ecfeff" },
-                    { label: "Trésorier(e)",             color: "#c2410c", icon: "dollar",       bg: "#fff7ed" },
-                    { label: "Trésorier(e) Adjoint(e)",  color: "#b45309", icon: "receipt",      bg: "#fffbeb" },
-                    { label: "Commissaire aux comptes",  color: "#b91c1c", icon: "check-circle", bg: "#fef2f2" },
-                    { label: "Conseiller(e)",            color: "#475569", icon: "info",         bg: "#f8fafc" },
-                  ].map(p => {
-                    const selected = roleTransferPoste === p.label;
-                    return (
-                      <button key={p.label} onClick={() => setRoleTransferPoste(p.label)} style={{
-                        padding: "10px 12px", border: `2px solid ${selected ? p.color : "#e2e8f0"}`,
-                        borderRadius: "11px", background: selected ? p.bg : "white",
-                        cursor: "pointer", display: "flex", alignItems: "center", gap: "9px",
-                        textAlign: "left", transition: "all 0.15s ease",
-                        boxShadow: selected ? `0 0 0 3px ${p.color}22` : "none",
-                      }}>
-                        <div style={{ background: selected ? p.color : "#e2e8f0", borderRadius: "7px", padding: "5px", display: "flex", color: selected ? "white" : "#94a3b8", flexShrink: 0, transition: "all 0.15s" }}>
-                          <Icon name={p.icon} size={13} />
-                        </div>
-                        <span style={{ fontSize: "12px", fontWeight: "700", color: selected ? p.color : "#334155", lineHeight: "1.3", flex: 1 }}>{p.label}</span>
-                        {selected && <Icon name="check" size={13} style={{ color: p.color, flexShrink: 0 }} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── ÉTAPE 2 : Choix du membre ── */}
-              <div style={{ marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                  <div style={{ background: "#0f3460", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>2</div>
-                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                    {lang === "fr" ? "Choisir le membre" : "Choose the member"}
-                  </span>
-                </div>
-                <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", maxHeight: "210px", overflowY: "auto" }}>
-                  {adherents.filter(a => a.email !== compte?.email).length === 0 && (
-                    <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
-                      {lang === "fr" ? "Aucun autre membre" : "No other members"}
-                    </div>
-                  )}
-                  {adherents.filter(a => a.email !== compte?.email).map((a, i, arr) => {
-                    const initials = `${(a.prenom || "")[0] || ""}${(a.nom || "")[0] || ""}`.toUpperCase();
-                    const selected = String(a.id) === String(roleTransferTargetId);
-                    const colors = ["#7c3aed","#1d4ed8","#15803d","#0e7490","#c2410c","#b45309","#b91c1c","#475569"];
-                    const avatarColor = colors[i % colors.length];
-                    return (
-                      <div key={a.id} onClick={() => setRoleTransferTargetId(String(a.id))} style={{
-                        padding: "11px 16px", display: "flex", alignItems: "center", gap: "13px",
-                        cursor: "pointer", background: selected ? "#eff6ff" : (i % 2 === 0 ? "#fafafa" : "white"),
-                        borderBottom: i < arr.length - 1 ? "1px solid #f1f5f9" : "none",
-                        borderLeft: selected ? "3px solid #1d4ed8" : "3px solid transparent",
-                        transition: "all 0.12s ease",
-                      }}>
-                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: selected ? "#1d4ed8" : avatarColor, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "13px", flexShrink: 0, boxShadow: selected ? "0 2px 8px rgba(29,78,216,0.35)" : "none" }}>
-                          {initials || "?"}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: "700", fontSize: "13px", color: selected ? "#1e40af" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {a.prenom} {a.nom}
-                          </div>
-                          {a.poste ? (
-                            <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>
-                              {lang === "fr" ? "Poste actuel : " : "Current role: "}
-                              <span style={{ color: "#c2410c", fontWeight: "600" }}>{a.poste}</span>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: "11px", color: "#cbd5e1", marginTop: "1px" }}>
-                              {lang === "fr" ? "Aucun poste attribué" : "No role assigned"}
-                            </div>
-                          )}
-                        </div>
-                        {selected && <Icon name="check-circle" size={17} style={{ color: "#1d4ed8", flexShrink: 0 }} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── ÉTAPE 3 : Votre nouveau poste ── */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                  <div style={{ background: "#94a3b8", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800", flexShrink: 0 }}>3</div>
-                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                    {lang === "fr" ? "Votre nouveau poste (optionnel)" : "Your new role (optional)"}
-                  </span>
-                </div>
-                <select value={roleTransferMyPoste} onChange={e => setRoleTransferMyPoste(e.target.value)} style={{ width: "100%", padding: "10px 13px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13.5px", outline: "none", color: "#334155", background: "white", cursor: "pointer" }}>
-                  <option value="">{lang === "fr" ? "— Aucun poste —" : "— No role —"}</option>
-                  {["Vice-Président(e)", "Secrétaire Général(e)", "Secrétaire Adjoint(e)", "Trésorier(e)", "Trésorier(e) Adjoint(e)", "Commissaire aux comptes", "Conseiller(e)"].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* ── Pied de page ── */}
-            <div style={{ padding: "16px 28px 22px", borderTop: "1px solid #f1f5f9", display: "flex", gap: "10px", justifyContent: "flex-end", flexShrink: 0 }}>
-              <button onClick={() => setShowRoleTransfer(false)} style={{ padding: "10px 22px", background: "white", color: "#475569", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13.5px", cursor: "pointer", fontWeight: "600" }}>
-                {lang === "fr" ? "Annuler" : "Cancel"}
-              </button>
-              <button
-                disabled={roleTransferLoading || !roleTransferTargetId || !roleTransferPoste}
-                style={{
-                  padding: "10px 24px",
-                  background: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "#cbd5e1" : "linear-gradient(135deg, #1a1a2e, #0f3460)",
-                  color: "white", border: "none", borderRadius: "10px", fontSize: "13.5px",
-                  cursor: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "not-allowed" : "pointer",
-                  fontWeight: "700", display: "flex", alignItems: "center", gap: "8px",
-                  boxShadow: roleTransferLoading || !roleTransferTargetId || !roleTransferPoste ? "none" : "0 4px 14px rgba(15,52,96,0.35)",
-                  transition: "all 0.15s ease",
-                }}
-                onClick={async () => {
-                  setRoleTransferError(""); setRoleTransferSuccess("");
-                  const targetAdherent = adherents.find(a => String(a.id) === String(roleTransferTargetId));
-                  if (!targetAdherent) { setRoleTransferError(lang === "fr" ? "Membre introuvable." : "Member not found."); return; }
-                  setRoleTransferLoading(true);
-                  try {
-                    const r1 = await apiFetch(`${API_BASE}/adherents/${targetAdherent.id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ nom: targetAdherent.nom, prenom: targetAdherent.prenom, telephone: targetAdherent.telephone || null, email: targetAdherent.email || null, poste: roleTransferPoste }),
-                    });
-                    if (!r1.ok) { const d = await r1.json(); setRoleTransferError(d.error || (lang === "fr" ? "Erreur." : "Error.")); return; }
-                    setAdherents(prev => prev.map(a => String(a.id) === String(roleTransferTargetId) ? { ...a, poste: roleTransferPoste } : a));
-                    if (roleTransferMyPoste !== undefined) {
-                      await apiFetch(`${API_BASE}/me`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ nom: profilData.nom, prenom: profilData.prenom, telephone: profilData.telephone || null, photo: profilData.photo || undefined, poste: roleTransferMyPoste || null }),
-                      });
-                      const newPoste = roleTransferMyPoste?.trim() || null;
-                      setProfilData(prev => ({ ...prev, poste: newPoste }));
-                      const updatedCompte = { ...compte, poste: newPoste };
-                      sessionStorage.setItem("cotisation_pro_compte", JSON.stringify(updatedCompte));
-                      setCompte(updatedCompte);
-                    }
-                    setRoleTransferSuccess(lang === "fr" ? `Poste "${roleTransferPoste}" attribué à ${targetAdherent.prenom} ${targetAdherent.nom} avec succès !` : `Role "${roleTransferPoste}" assigned to ${targetAdherent.prenom} ${targetAdherent.nom}!`);
-                    setTimeout(() => setShowRoleTransfer(false), 2500);
-                  } catch { setRoleTransferError(lang === "fr" ? "Erreur réseau." : "Network error."); }
-                  finally { setRoleTransferLoading(false); }
-                }}
-              >
-                <Icon name="badge" size={14} />
-                {roleTransferLoading ? (lang === "fr" ? "Attribution…" : "Assigning…") : (lang === "fr" ? "Confirmer la désignation" : "Confirm Assignment")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── MODAL CONFIRMATION DÉCONNEXION ──────────────────── */}
       {showLogoutConfirm && (
@@ -8522,8 +8922,8 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { background: "#2c3e50", color: "white", padding: "10px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   td: { border: "1px solid #ccc", padding: "10px", overflow: "hidden", textOverflow: "ellipsis", wordBreak: "break-word", whiteSpace: "normal" },
-  modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
-  modal: { background: "white", padding: "30px", borderRadius: "10px", width: "420px", boxSizing: "border-box", userSelect: "none", cursor: "move", resize: "horizontal", overflow: "auto", minWidth: "360px", minHeight: "240px", position: "fixed" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "16px", boxSizing: "border-box", overflowY: "auto" },
+  modal: { background: "white", padding: "30px", borderRadius: "10px", width: "420px", maxWidth: "min(95vw, 460px)", boxSizing: "border-box", userSelect: "none", cursor: "move", resize: "horizontal", overflow: "auto", minWidth: "360px", minHeight: "240px", position: "fixed" },
   formRow: { display: "grid", gridTemplateColumns: "max-content 1fr", gap: "10px", alignItems: "center", marginBottom: "12px" },
   label: { fontWeight: "bold", whiteSpace: "nowrap", justifySelf: "start" },
   input: { width: "100%", padding: "8px", minWidth: 0, boxSizing: "border-box" },

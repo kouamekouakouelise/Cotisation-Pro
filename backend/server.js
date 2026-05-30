@@ -833,6 +833,21 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// Déconnexion — enregistre l'événement dans le journal d'audit
+app.post("/api/auth/logout", authMiddleware, async (req, res) => {
+  try {
+    const [[compte]] = await pool.query("SELECT email, telephone FROM comptes WHERE id = ?", [req.userId || req.compteId]);
+    const identity = compte?.email || compte?.telephone || (req.role === "admin" ? `admin#${req.compteId}` : `membre#${req.userId}`);
+    const details = req.role === "admin"
+      ? `Déconnexion admin (${identity})`
+      : `Déconnexion membre (${identity})`;
+    await logAudit(req.compteId, req.userId || req.compteId, req.role || "user", "DECONNEXION", details, getClientIp(req));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // L'inscription publique est toujours ouverte (multi-association)
 app.get("/api/auth/registration-open", (_req, res) => {
   res.json({ open: true });
@@ -1124,6 +1139,44 @@ app.post("/api/auth/register-member", async (req, res) => {
     );
 
     await conn.commit();
+
+    // Email de bienvenue (non bloquant)
+    if (emailKey && transporter) {
+      sendEmail({
+        to: emailKey,
+        subject: `Bienvenue dans ${adminCompte.nom_association} — Cotisation Pro`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:12px;overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 24px;text-align:center;">
+              <h1 style="color:white;margin:0;font-size:24px;">Bienvenue dans l'association !</h1>
+              <p style="color:#bfdbfe;margin:8px 0 0;font-size:15px;">${adminCompte.nom_association}</p>
+            </div>
+            <div style="padding:28px 24px;background:white;">
+              <p style="color:#374151;font-size:16px;">Bonjour <strong>${nom.trim()} ${prenom.trim()}</strong>,</p>
+              <p style="color:#374151;font-size:15px;">Votre inscription à l'association <strong>${adminCompte.nom_association}</strong> a bien été enregistrée sur <strong>Cotisation Pro</strong>.</p>
+              <p style="color:#374151;font-size:15px;">Voici vos informations de connexion :</p>
+              <div style="background:#f1f5f9;border-radius:8px;padding:16px 20px;margin:20px 0;border-left:4px solid #2563eb;">
+                <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Email :</strong> ${emailKey}</p>
+                <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Mot de passe :</strong> celui que vous avez choisi lors de l'inscription</p>
+                <p style="margin:0;color:#374151;font-size:14px;"><strong>Matricule :</strong> ${matricule}</p>
+              </div>
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${process.env.FRONTEND_URL || 'https://cotisation-pro.up.railway.app'}"
+                   style="background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+                  Accéder à mon espace
+                </a>
+              </div>
+              <p style="color:#6b7280;font-size:13px;">Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.</p>
+            </div>
+            <div style="padding:16px 24px;background:#f1f5f9;text-align:center;">
+              <p style="color:#9ca3af;font-size:12px;margin:0;">© ${new Date().getFullYear()} Cotisation Pro — Tous droits réservés</p>
+            </div>
+          </div>
+        `,
+      }).catch((e) => console.warn("Email bienvenue membre non envoyé:", e.message));
+    }
+
+    await logAudit(adminCompte.id, compteResult.insertId, "user", "INSCRIPTION_MEMBRE", `Auto-inscription via lien : ${nom.trim()} ${prenom.trim()} (${emailKey || telKey})`, getClientIp(req));
 
     const token = jwt.sign(
       {
@@ -1515,21 +1568,39 @@ app.post("/api/adherents", authMiddleware, trésorierMiddleware, async (req, res
         [emailKey, telKey, hash, req.compteId, adherentId]
       );
       if (transporter) {
-        try {
-          await sendEmail({
-            to: emailKey,
-            subject: "Vos identifiants de connexion — Cotisation Pro",
-            html: `<p>Bonjour <strong>${nom} ${prenom}</strong>,</p>
-                   <p>Votre compte membre a été créé sur <strong>Cotisation Pro</strong> (${req.nomAssociation || "votre association"}).</p>
-                   <p style="background:#f4f4f4;padding:12px;border-radius:6px;">
-                     <strong>Email :</strong> ${emailKey}<br>
-                     <strong>Mot de passe :</strong> ${plainPwd}
-                   </p>
-                   <p>Connectez-vous et modifiez votre mot de passe depuis votre profil.</p>
-                   <p style="color:#888;font-size:12px;">Cotisation Pro</p>`,
-          });
-          emailSent = true;
-        } catch (_) {}
+        sendEmail({
+          to: emailKey,
+          subject: `Bienvenue dans ${req.nomAssociation || "l'association"} — Cotisation Pro`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:12px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 24px;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:24px;">Bienvenue dans l'association !</h1>
+                <p style="color:#bfdbfe;margin:8px 0 0;font-size:15px;">${req.nomAssociation || ""}</p>
+              </div>
+              <div style="padding:28px 24px;background:white;">
+                <p style="color:#374151;font-size:16px;">Bonjour <strong>${nom} ${prenom}</strong>,</p>
+                <p style="color:#374151;font-size:15px;">Votre compte membre a été créé sur <strong>Cotisation Pro</strong> par votre association.</p>
+                <p style="color:#374151;font-size:15px;">Voici vos identifiants de connexion :</p>
+                <div style="background:#f1f5f9;border-radius:8px;padding:16px 20px;margin:20px 0;border-left:4px solid #2563eb;">
+                  <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Email :</strong> ${emailKey}</p>
+                  <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Mot de passe :</strong> ${plainPwd}</p>
+                  <p style="margin:0;color:#374151;font-size:14px;"><strong>Matricule :</strong> ${matricule}</p>
+                </div>
+                <p style="color:#374151;font-size:14px;">Pensez à changer votre mot de passe après votre première connexion.</p>
+                <div style="text-align:center;margin:28px 0;">
+                  <a href="${process.env.FRONTEND_URL || 'https://cotisation-pro.up.railway.app'}"
+                     style="background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+                    Accéder à mon espace
+                  </a>
+                </div>
+                <p style="color:#6b7280;font-size:13px;">Si vous n'êtes pas à l'origine de cette création, contactez votre association.</p>
+              </div>
+              <div style="padding:16px 24px;background:#f1f5f9;text-align:center;">
+                <p style="color:#9ca3af;font-size:12px;margin:0;">© ${new Date().getFullYear()} Cotisation Pro — Tous droits réservés</p>
+              </div>
+            </div>
+          `,
+        }).then(() => { emailSent = true; }).catch((e) => console.warn("Email bienvenue membre non envoyé:", e.message));
       }
     }
 
@@ -2121,11 +2192,10 @@ app.get("/api/historique", authMiddleware, async (req, res) => {
         const montantPaye = Number(r.montant_paye);
         const dejaPaye = Math.max(0, totalPaye - montantPaye);
         return {
-          numeroRecu:   r.numero_recu,
-          datePaiement: r.date_paiement
-            ? new Date(r.date_paiement).toLocaleDateString("fr-FR")
-            : "-",
-          periode:      r.periode,
+          numeroRecu:      r.numero_recu,
+          datePaiement:    r.date_paiement ? new Date(r.date_paiement).toLocaleDateString("fr-FR") : "-",
+          datePaiementRaw: r.date_paiement ? new Date(r.date_paiement).toISOString().slice(0, 10) : null,
+          periode:         r.periode,
           nom:          r.nom,
           prenom:       r.prenom,
           telephone:    r.telephone || "-",
@@ -2435,7 +2505,7 @@ app.put("/api/mobile-money/config", authMiddleware, adminMiddleware, async (req,
 app.get("/api/comptabilite/resume", authMiddleware, trésorierMiddleware, async (req, res) => {
   try {
     const { dateDebut, dateFin } = req.query;
-    let recettesCond = "p.compte_id = ?";
+    let recettesCond = "a.compte_id = ?";
     let recettesParams = [req.compteId];
     let depensesCond = "d.compte_id = ?";
     let depensesParams = [req.compteId];
@@ -2464,7 +2534,7 @@ app.get("/api/comptabilite/resume", authMiddleware, trésorierMiddleware, async 
       depensesParams
     );
     res.json({ recettes: Number(recettes), depenses: Number(depenses), solde: Number(recettes) - Number(depenses) });
-  } catch { res.status(500).json({ error: "Erreur serveur." }); }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Liste des dépenses

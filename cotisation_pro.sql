@@ -318,9 +318,3 @@ JOIN (SELECT * FROM cotisations ORDER BY id DESC LIMIT 1) c
 LEFT JOIN paiements p ON p.adherent_id = a.id AND p.cotisation_id = c.id
 WHERE a.est_supprime = 0
   AND (p.id IS NULL OR p.statut IN ('Impayé', 'Partiel'));
-
--- ============================================================
--- FIN DU FICHIER
--- Importez ce fichier dans MySQL puis démarrez le backend :
---   cd backend && npm install && node server.js
--- ============================================================
