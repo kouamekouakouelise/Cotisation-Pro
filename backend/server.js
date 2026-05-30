@@ -2000,7 +2000,13 @@ app.get("/api/me/historique", authMiddleware, async (req, res) => {
 // Membre : soumettre une demande de paiement Mobile Money
 app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
   try {
-    if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
+    let adherentId = req.adherentId;
+    if (req.role === "admin") {
+      const [[adm]] = await pool.query("SELECT id FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1", [req.compteId]);
+      if (!adm) return res.status(403).json({ error: "Vous n'êtes pas enregistré comme membre." });
+      adherentId = adm.id;
+    }
+    if (!adherentId) return res.status(403).json({ error: "Vous n'êtes pas enregistré comme membre." });
     const { cotisation_id, montant, numero_transaction, operateur } = req.body;
     if (!cotisation_id || !montant) return res.status(400).json({ error: "cotisation_id et montant requis." });
 
@@ -2018,20 +2024,20 @@ app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
     // Vérifier qu'il n'y a pas déjà une demande en attente pour cette cotisation
     const [[existing]] = await pool.query(
       `SELECT id FROM demandes_paiement WHERE adherent_id = ? AND cotisation_id = ? AND statut = 'en_attente'`,
-      [req.adherentId, cotisation_id]
+      [adherentId, cotisation_id]
     );
     if (existing) return res.status(409).json({ error: "Vous avez déjà une demande en attente pour cette cotisation." });
 
     // Vérifier que la cotisation n'est pas déjà totalement payée
     const [[paie]] = await pool.query(
       `SELECT statut FROM paiements WHERE adherent_id = ? AND cotisation_id = ?`,
-      [req.adherentId, cotisation_id]
+      [adherentId, cotisation_id]
     );
     if (paie && paie.statut === "Payé") return res.status(409).json({ error: "Cette cotisation est déjà payée." });
 
     await pool.query(
       `INSERT INTO demandes_paiement (adherent_id, cotisation_id, montant, numero_transaction, operateur) VALUES (?, ?, ?, ?, ?)`,
-      [req.adherentId, cotisation_id, mt, numero_transaction ? numero_transaction.trim() : null, operateur ? operateur.trim() : null]
+      [adherentId, cotisation_id, mt, numero_transaction ? numero_transaction.trim() : null, operateur ? operateur.trim() : null]
     );
     res.json({ success: true, message: "Demande de paiement soumise. En attente de validation par le trésorier." });
   } catch (err) {
@@ -2042,7 +2048,13 @@ app.post("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
 // Membre : récupérer ses demandes en cours
 app.get("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
   try {
-    if (req.role === "admin") return res.status(403).json({ error: "Route réservée aux membres." });
+    let adherentId = req.adherentId;
+    if (req.role === "admin") {
+      const [[adm]] = await pool.query("SELECT id FROM adherents WHERE compte_id = ? AND est_supprime = 0 ORDER BY id ASC LIMIT 1", [req.compteId]);
+      if (!adm) return res.json([]);
+      adherentId = adm.id;
+    }
+    if (!adherentId) return res.json([]);
     const [rows] = await pool.query(
       `SELECT dp.id, dp.cotisation_id, dp.montant, dp.numero_transaction, dp.operateur, dp.statut,
               dp.date_demande, dp.date_traitement, dp.note_refus,
@@ -2051,7 +2063,7 @@ app.get("/api/me/demandes-paiement", authMiddleware, async (req, res) => {
        JOIN cotisations c ON c.id = dp.cotisation_id
        WHERE dp.adherent_id = ?
        ORDER BY dp.date_demande DESC`,
-      [req.adherentId]
+      [adherentId]
     );
     res.json(rows);
   } catch (err) {
